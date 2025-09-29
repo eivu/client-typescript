@@ -1,4 +1,5 @@
 import api from '@src/services/api.config'
+import {generateMd5} from './utils.js'
 
 type State = 'completed' | 'reserved' | 'transfered'
 type CloudFileType = {
@@ -54,6 +55,14 @@ export class CloudFile {
     const response = await api.get(`/cloud_files/${md5}`)
     const data: CloudFileType = response.data
     console.log('CloudFile.fetch', data)
+    return new CloudFile(data)
+  }
+
+  static async reserve(pathToFile: string, secured = false, nsfw = false): Promise<CloudFile> {
+    const md5 = await generateMd5(pathToFile)
+    const payload = {nsfw, secured}
+    const response = await api.post(`/cloud_files/${md5}/reserve`, payload)
+    const data: CloudFileType = response.data
     return new CloudFile(data)
   }
 }
