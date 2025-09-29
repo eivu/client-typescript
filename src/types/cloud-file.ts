@@ -1,5 +1,3 @@
-import 
-
 // STATE_RESERVED = :reserved
 // STATE_TRANSFERED = :transfered
 // STATE_COMPLETED = :completed

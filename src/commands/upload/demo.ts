@@ -9,4 +9,4 @@ async function demo(md5: string) {
   }
 }
 
-demo('F04CD103EDDFB64EFD8D9FC48F3023FD')
+await demo('F04CD103EDDFB64EFD8D9FC48F3023FD')
