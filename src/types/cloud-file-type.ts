@@ -1,9 +1,14 @@
-type State = 'completed' | 'reserved' | 'transfered'
+export enum CloudFileState {
+  COMPLETED = 'completed',
+  RESERVED = 'reserved',
+  TRANSFERED = 'transfered',
+}
+
 export type CloudFileType = {
   uuid: string
   md5: string
-  state: State
-  state_history: State[]
+  state: CloudFileState
+  state_history: CloudFileState[]
   artists?: Record<string, unknown>
   releases?: Record<string, unknown>
   user_uuid?: string
