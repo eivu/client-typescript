@@ -1,4 +1,5 @@
 import api from '@src/services/api.config'
+import {type AxiosError} from 'axios'
 import {CloudFileState, type CloudFileType} from './types/cloud-file-type'
 import {generateMd5, detectMime} from './utils'
 
@@ -14,6 +15,20 @@ export class CloudFile {
     const response = await api.get(`/cloud_files/${md5}`)
     const data: CloudFileType = response.data
     return new CloudFile(data)
+  }
+
+  static async fetchOrReserveBy(pathToFile: string, secured = false, nsfw = false): Promise<CloudFile> {
+    try {
+      return await CloudFile.reserve(pathToFile, secured, nsfw)
+    } catch (error) {
+      // a file already exists with the same MD5 hash
+      if (error.response.status === 422) {
+        const md5 = await generateMd5(pathToFile)
+        return CloudFile.fetch(md5)
+      }
+
+      throw error
+    }
   }
 
   static async reserve(pathToFile: string, secured = false, nsfw = false): Promise<CloudFile> {
