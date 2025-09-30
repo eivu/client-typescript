@@ -32,7 +32,7 @@ export const detectMime = (pathToFile: string): false | {mediatype: string; subt
   return {mediatype, subtype, type}
 }
 
-const mimeLookup = (pathToFile: string): string | false => {
+const mimeLookup = (pathToFile: string): false | string => {
   if (pathToFile.endsWith('.m4a')) return 'audio/mpeg'
   if (pathToFile.endsWith('.mp3')) return 'audio/mpeg'
   if (pathToFile.endsWith('.a52')) return 'application/x-atari-5200-rom'

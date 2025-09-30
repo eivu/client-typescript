@@ -1,6 +1,7 @@
-import {CloudFile} from './cloud-file.ts'
 import {promises as fs} from 'node:fs'
-import {generateMd5, cleansedAssetName} from './utils'
+
+import {CloudFile} from './cloud-file'
+import {cleansedAssetName} from './utils'
 
 export class Client {
   status = {
@@ -12,8 +13,10 @@ export class Client {
     if (await this.isEmptyFile(pathToFile)) {
       throw new Error(`Can not upload empty file: ${pathToFile}`)
     }
+
     const asset = cleansedAssetName(pathToFile)
     console.log(`Fetching/Reserving: ${asset}`)
+    return CloudFile.fetchOrReserveBy(pathToFile)
   }
 
   private async isEmptyFile(pathToFile: string): Promise<boolean> {
