@@ -7,6 +7,7 @@ export class CloudFile {
 
   constructor(attributes: CloudFileType) {
     this.attr = attributes
+    this.inferStateHistory()
   }
 
   static async fetch(md5: string): Promise<CloudFile> {
@@ -25,8 +26,30 @@ export class CloudFile {
     const data: CloudFileType = {
       ...response.data,
       content_type: mime.type,
-      state_history: [CloudFileState.RESERVED],
     }
     return new CloudFile(data)
+  }
+
+  private inferStateHistory(): void {
+    switch (this.attr.state) {
+      case CloudFileState.COMPLETED: {
+        this.attr.state_history = [CloudFileState.RESERVED, CloudFileState.TRANSFERED, CloudFileState.COMPLETED]
+        break
+      }
+
+      case CloudFileState.RESERVED: {
+        this.attr.state_history = [CloudFileState.RESERVED]
+        break
+      }
+
+      case CloudFileState.TRANSFERED: {
+        this.attr.state_history = [CloudFileState.RESERVED, CloudFileState.TRANSFERED]
+        break
+      }
+
+      default: {
+        this.attr.state_history = []
+      }
+    }
   }
 }
