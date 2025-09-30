@@ -1,13 +1,27 @@
-import {createDefaultPreset} from 'ts-jest'
-
-const tsJestTransformCfg = createDefaultPreset().transform
+// Jest configuration for TypeScript with ESM support
 
 /** @type {import("jest").Config} **/
 export default {
   testEnvironment: 'node',
+  extensionsToTreatAsEsm: ['.ts'],
   transform: {
-    ...tsJestTransformCfg,
+    '^.+\\.ts$': ['ts-jest', {
+      useESM: true
+    }]
   },
+  moduleFileExtensions: ['ts', 'js', 'json'],
+  testMatch: [
+    '<rootDir>/test/**/*.test.ts',
+    '<rootDir>/src/**/*.test.ts'
+  ],
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    '!src/**/*.test.ts'
+  ],
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
+  setupFilesAfterEnv: []
 }
 
 // module.exports = {
