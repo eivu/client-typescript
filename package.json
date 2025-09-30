@@ -17,9 +17,11 @@
   },
   "devDependencies": {
     "@eslint/compat": "^1",
+    "@jest/globals": "^30.2.0",
     "@oclif/prettier-config": "^0.2.1",
-    "@oclif/test": "^4",
+    "@oclif/test": "^4.1.14",
     "@types/chai": "^4",
+    "@types/jest": "^30.0.0",
     "@types/mime-types": "^3.0.1",
     "@types/mocha": "^10",
     "@types/node": "^18",
@@ -27,9 +29,11 @@
     "eslint": "^9",
     "eslint-config-oclif": "^6",
     "eslint-config-prettier": "^10",
+    "jest": "^30.2.0",
     "mocha": "^10",
     "oclif": "^4",
     "shx": "^0.3.3",
+    "ts-jest": "^29.4.4",
     "ts-node": "^10.9.2",
     "typescript": "^5"
   },
@@ -70,7 +74,7 @@
     "postpack": "shx rm -f oclif.manifest.json",
     "posttest": "npm run lint",
     "prepack": "oclif manifest && oclif readme",
-    "test": "mocha --forbid-only \"test/**/*.test.ts\"",
+    "test": "jest",
     "version": "oclif readme && git add README.md"
   },
   "types": "dist/index.d.ts"

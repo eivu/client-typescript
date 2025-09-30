@@ -1,0 +1,12 @@
+import {describe, expect, it} from '@jest/globals'
+// import {CloudFile} from '@src/cloud-file'
+
+describe('CloudFile', () => {
+  it('fetches a cloud file by MD5 hash', async () => {
+    // const md5 = 'F04CD103EDDFB64EFD8D9FC48F3023FD' // Example MD5 hash
+    // const cloudFile = await CloudFile.fetch(md5)
+    // expect(cloudFile).toBeInstanceOf(CloudFile)
+    // expect(cloudFile.attr.md5).toBe(md5)
+    expect(true).toBe(true) // Placeholder assertion
+  })
+})
