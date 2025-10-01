@@ -1,7 +1,8 @@
 import api from '@src/services/api.config'
 import {type AxiosError} from 'axios'
+
 import {CloudFileState, type CloudFileType} from './types/cloud-file-type'
-import {generateMd5, detectMime} from './utils'
+import {detectMime, generateMd5} from './utils'
 
 export class CloudFile {
   attr: CloudFileType

@@ -1,12 +1,7 @@
 module.exports = {
-  testEnvironment: 'node',
-  moduleFileExtensions: ['ts', 'js', 'json'],
-  testMatch: ['<rootDir>/tests/jest/**/*.ts'],
-  transform: {'\\.ts$': 'ts-jest/preprocessor'},
-  coverageReporters: ['lcov', 'text-summary'],
-  // collectCoverage: !!`Boolean(process.env.CI)`,
   collectCoverageFrom: ['src/**/*.ts'],
   coveragePathIgnorePatterns: ['/templates/'],
+  coverageReporters: ['lcov', 'text-summary'],
   coverageThreshold: {
     global: {
       branches: 100,
@@ -15,4 +10,8 @@ module.exports = {
       statements: 100,
     },
   },
+  moduleFileExtensions: ['ts', 'js', 'json'],
+  testEnvironment: 'node',
+  testMatch: ['<rootDir>/tests/jest/**/*.ts'],
+  transform: {'\\.ts$': 'ts-jest/preprocessor'},
 }
