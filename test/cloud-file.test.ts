@@ -13,16 +13,67 @@ describe('CloudFile', () => {
     nock.cleanAll()
   })
 
-  it('fetches a cloud file by MD5 hash', async () => {
-    const md5 = '7ED971313D1AEA1B6E2BF8AF24BED64A'
-    const req = nock(SERVER_HOST)
-      .get(`${URL_BUCKET_PREFIX}/cloud_files/${md5}`)
-      .query({keyFormat: 'camel_lower'})
-      .reply(200, AI_OVERLORDS_RESERVERATION)
+  describe('fetch', () => {
+    describe('when the file exists', () => {
+      it('fetches a cloud file by MD5 hash', async () => {
+        const md5 = '7ED971313D1AEA1B6E2BF8AF24BED64A'
+        const req = nock(SERVER_HOST)
+          .get(`${URL_BUCKET_PREFIX}/cloud_files/${md5}`)
+          .query({keyFormat: 'camel_lower'})
+          .reply(200, AI_OVERLORDS_RESERVERATION)
 
-    const cloudFile = await CloudFile.fetch(md5)
-    expect(cloudFile).toBeDefined()
-    expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVERATION)
-    expect(req.isDone()).toBe(true)
+        const cloudFile = await CloudFile.fetch(md5)
+        expect(cloudFile).toBeDefined()
+        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVERATION)
+        expect(req.isDone()).toBe(true)
+      })
+    })
+
+    describe('when the file does not exist', () => {
+      it('throws a 404 error', async () => {
+        const md5 = 'NONEXISTENTMD5HASH00000000000000'
+        const req = nock(SERVER_HOST)
+          .get(`${URL_BUCKET_PREFIX}/cloud_files/${md5}`)
+          .query({keyFormat: 'camel_lower'})
+          .reply(404, {error: 'Not Found'})
+
+        await expect(CloudFile.fetch(md5)).rejects.toThrow('Request failed with status code 404')
+        expect(req.isDone()).toBe(true)
+      })
+    })
+  })
+
+  describe('reserve', () => {
+    describe('when the file does not exist', () => {
+      it('reserves a cloud file by path', async () => {
+        const pathToFile = 'test/fixtures/ai overlords.jpg'
+        const md5 = '7ED971313D1AEA1B6E2BF8AF24BED64A'
+        const req = nock(SERVER_HOST)
+          .post(`${URL_BUCKET_PREFIX}/cloud_files/${md5}/reserve`, {nsfw: false, secured: false})
+          .query({keyFormat: 'camel_lower'})
+          .reply(200, AI_OVERLORDS_RESERVERATION)
+
+        const cloudFile = await CloudFile.reserve(pathToFile)
+        expect(cloudFile).toBeDefined()
+        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVERATION)
+        expect(req.isDone()).toBe(true)
+      })
+    })
+
+    describe('when the file already exists', () => {
+      it('throws a 422 error', async () => {
+        const pathToFile = './test/fixtures/samples/image/ai overlords.jpg'
+        const req = nock(SERVER_HOST)
+          .post(`${URL_BUCKET_PREFIX}/cloud_files/7ED971313D1AEA1B6E2BF8AF24BED64A/reserve`, {
+            nsfw: false,
+            secured: false,
+          })
+          .query({keyFormat: 'camel_lower'})
+          .reply(422, {error: 'A file with that MD5 hash already exists'})
+
+        await expect(CloudFile.reserve(pathToFile)).rejects.toThrow('Request failed with status code 422')
+        expect(req.isDone()).toBe(true)
+      })
+    })
   })
 })

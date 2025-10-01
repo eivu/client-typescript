@@ -34,17 +34,23 @@ export class CloudFile {
   }
 
   static async reserve(pathToFile: string, secured = false, nsfw = false): Promise<CloudFile> {
-    const mime = detectMime(pathToFile)
-    if (!mime) throw new Error(`Could not detect MIME type for file: ${pathToFile}`)
-
     const md5 = await generateMd5(pathToFile)
     const payload = {nsfw, secured}
     const {data: responseData} = await api.post(`/cloud_files/${md5}/reserve`, payload)
-    const data: CloudFileType = {
-      ...responseData,
-      content_type: mime.type,
-    }
+    const data: CloudFileType = responseData
     return new CloudFile(data)
+  }
+
+  async transfer(pathToFile: string): Promise<CloudFile> {
+    const mime = detectMime(pathToFile)
+    if (!mime) throw new Error(`Could not detect MIME type for file: ${pathToFile}`)
+
+    if (this.attr.content_type !== mime.type) {
+      throw new Error(`MIME type mismatch. Expected ${this.attr.content_type}, got ${mime.type}`)
+    }
+
+    return this
+    // const md5 = await generateMd5(pathToFile)
   }
 
   private inferStateHistory(): void {
