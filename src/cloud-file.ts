@@ -56,7 +56,7 @@ export class CloudFile {
   private inferStateHistory(): void {
     switch (this.attr.state) {
       case CloudFileState.COMPLETED: {
-        this.attr.state_history = [CloudFileState.RESERVED, CloudFileState.TRANSFERED, CloudFileState.COMPLETED]
+        this.attr.state_history = [CloudFileState.RESERVED, CloudFileState.TRANSFERRED, CloudFileState.COMPLETED]
         break
       }
 
@@ -65,8 +65,8 @@ export class CloudFile {
         break
       }
 
-      case CloudFileState.TRANSFERED: {
-        this.attr.state_history = [CloudFileState.RESERVED, CloudFileState.TRANSFERED]
+      case CloudFileState.TRANSFERRED: {
+        this.attr.state_history = [CloudFileState.RESERVED, CloudFileState.TRANSFERRED]
         break
       }
 

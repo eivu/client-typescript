@@ -1,7 +1,7 @@
 export enum CloudFileState {
   COMPLETED = 'completed',
   RESERVED = 'reserved',
-  TRANSFERED = 'transfered',
+  TRANSFERRED = 'transfered',
 }
 
 export type CloudFileType = {

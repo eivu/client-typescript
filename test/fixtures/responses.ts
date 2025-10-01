@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import {CloudFileState, CloudFileType} from '../../src/types/cloud-file-type'
 
-export const AI_OVERLORDS_RESERVERATION: CloudFileType = {
+export const AI_OVERLORDS_RESERVATION: CloudFileType = {
   artists: {},
   artwork_url: null,
   asset: null,

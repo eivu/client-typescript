@@ -2,7 +2,7 @@ import {describe, expect, it} from '@jest/globals'
 import nock from 'nock'
 
 import {CloudFile} from '../src/cloud-file'
-import {AI_OVERLORDS_RESERVERATION} from './fixtures/responses'
+import {AI_OVERLORDS_RESERVATION} from './fixtures/responses'
 
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
@@ -20,11 +20,11 @@ describe('CloudFile', () => {
         const req = nock(SERVER_HOST)
           .get(`${URL_BUCKET_PREFIX}/cloud_files/${md5}`)
           .query({keyFormat: 'camel_lower'})
-          .reply(200, AI_OVERLORDS_RESERVERATION)
+          .reply(200, AI_OVERLORDS_RESERVATION)
 
         const cloudFile = await CloudFile.fetch(md5)
         expect(cloudFile).toBeDefined()
-        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVERATION)
+        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
         expect(req.isDone()).toBe(true)
       })
     })
@@ -51,11 +51,11 @@ describe('CloudFile', () => {
         const req = nock(SERVER_HOST)
           .post(`${URL_BUCKET_PREFIX}/cloud_files/${md5}/reserve`, {nsfw: false, secured: false})
           .query({keyFormat: 'camel_lower'})
-          .reply(200, AI_OVERLORDS_RESERVERATION)
+          .reply(200, AI_OVERLORDS_RESERVATION)
 
         const cloudFile = await CloudFile.reserve(pathToFile)
         expect(cloudFile).toBeDefined()
-        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVERATION)
+        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
         expect(req.isDone()).toBe(true)
       })
     })
@@ -85,11 +85,11 @@ describe('CloudFile', () => {
         const req = nock(SERVER_HOST)
           .post(`${URL_BUCKET_PREFIX}/cloud_files/${md5}/reserve`, {nsfw: false, secured: false})
           .query({keyFormat: 'camel_lower'})
-          .reply(200, AI_OVERLORDS_RESERVERATION)
+          .reply(200, AI_OVERLORDS_RESERVATION)
 
         const cloudFile = await CloudFile.fetchOrReserveBy(pathToFile)
         expect(cloudFile).toBeDefined()
-        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVERATION)
+        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
         expect(req.isDone()).toBe(true)
       })
     })
@@ -107,10 +107,10 @@ describe('CloudFile', () => {
         const fetchReq = nock(SERVER_HOST)
           .get(`${URL_BUCKET_PREFIX}/cloud_files/${md5}`)
           .query({keyFormat: 'camel_lower'})
-          .reply(200, AI_OVERLORDS_RESERVERATION)
+          .reply(200, AI_OVERLORDS_RESERVATION)
         const cloudFile = await CloudFile.fetchOrReserveBy(pathToFile)
         expect(cloudFile).toBeDefined()
-        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVERATION)
+        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
         expect(reserveReq.isDone()).toBe(true)
         expect(fetchReq.isDone()).toBe(true)
       })
