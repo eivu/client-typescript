@@ -51,13 +51,13 @@ export class Client {
     //   end
   }
 
-  private async processTransfer(pathToFile: string): Promise<CloudFile> {
-    const asset = cleansedAssetName(pathToFile)
-    const md5 = await generateMd5(pathToFile)
+  private async processTransfer(cloudFile: CloudFile): Promise<CloudFile> {
+    const asset = cleansedAssetName(cloudFile.localPathToFile as string)
     console.log(`Fetching/Reserving: ${asset}`)
 
-    const stats = await fs.stat(pathToFile)
+    const stats = await fs.stat(cloudFile.localPathToFile as string)
     const filesize = stats.size
+    return cloudFile
 
     //   def process_reservation_and_transfer(cloud_file:, pathToFile:, md5:, asset:)
     //   return unless cloud_file.reserved?
