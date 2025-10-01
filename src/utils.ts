@@ -12,6 +12,7 @@ export async function generateMd5(pathToFile: string): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(pathToFile)) {
       reject(new Error(`File not found: ${pathToFile}`))
+      return;
     }
 
     const hash = crypto.createHash('md5')
