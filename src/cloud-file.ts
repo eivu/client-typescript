@@ -23,7 +23,7 @@ export class CloudFile {
       return await CloudFile.reserve(pathToFile, secured, nsfw)
     } catch (error) {
       // a file already exists with the same MD5 hash
-      if (error instanceof Error && 'response' in error && (error as any).response?.status === 422) {
+      if ((error as AxiosError).response?.status === 422) {
         const md5 = await generateMd5(pathToFile)
         return CloudFile.fetch(md5)
       }
