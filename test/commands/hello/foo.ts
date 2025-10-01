@@ -1,10 +1,11 @@
 // import {test} from '@oclif/test'
-import {it} from '@jest/globals'
+import {describe, expect, it} from '@jest/globals'
 
-
-it ('is a placeholder test', () => {
-  expect(true).toBe(true)
-}
+describe('foo command', () => {
+  it('is a placeholder test', () => {
+    expect(true).toBe(true)
+  })
+})
 
 // describe('init command works ok', () => {
 //   test
