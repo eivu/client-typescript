@@ -76,4 +76,44 @@ describe('CloudFile', () => {
       })
     })
   })
+
+  describe('fetchOrReserveBy', () => {
+    describe('when the file does not exist', () => {
+      it('reserves a cloud file via the MD5 hash', async () => {
+        const pathToFile = 'test/fixtures/ai overlords.jpg'
+        const md5 = '7ED971313D1AEA1B6E2BF8AF24BED64A'
+        const req = nock(SERVER_HOST)
+          .post(`${URL_BUCKET_PREFIX}/cloud_files/${md5}/reserve`, {nsfw: false, secured: false})
+          .query({keyFormat: 'camel_lower'})
+          .reply(200, AI_OVERLORDS_RESERVERATION)
+
+        const cloudFile = await CloudFile.fetchOrReserveBy(pathToFile)
+        expect(cloudFile).toBeDefined()
+        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVERATION)
+        expect(req.isDone()).toBe(true)
+      })
+    })
+
+    describe('when the file already exists', () => {
+      it('fetches the existing cloud file via the MD5 hash', async () => {
+        const pathToFile = 'test/fixtures/ai overlords.jpg'
+        const md5 = '7ED971313D1AEA1B6E2BF8AF24BED64A'
+
+        const reserveReq = nock(SERVER_HOST)
+          .post(`${URL_BUCKET_PREFIX}/cloud_files/${md5}/reserve`, {nsfw: false, secured: false})
+          .query({keyFormat: 'camel_lower'})
+          .reply(422, {error: 'A file with that MD5 hash already exists'})
+
+        const fetchReq = nock(SERVER_HOST)
+          .get(`${URL_BUCKET_PREFIX}/cloud_files/${md5}`)
+          .query({keyFormat: 'camel_lower'})
+          .reply(200, AI_OVERLORDS_RESERVERATION)
+        const cloudFile = await CloudFile.fetchOrReserveBy(pathToFile)
+        expect(cloudFile).toBeDefined()
+        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVERATION)
+        expect(reserveReq.isDone()).toBe(true)
+        expect(fetchReq.isDone()).toBe(true)
+      })
+    })
+  })
 })
