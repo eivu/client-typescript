@@ -11,6 +11,10 @@ export default {
   coverageReporters: ['text', 'lcov', 'html'],
   extensionsToTreatAsEsm: ['.ts'],
   moduleFileExtensions: ['ts', 'js', 'json'],
+  moduleNameMapper: {
+    '^@src/(.*)$': '<rootDir>/src/$1',
+    '^@test/(.*)$': '<rootDir>/test/$1'
+  },
   setupFiles: ['<rootDir>/jest.setup.js'],
   setupFilesAfterEnv: [],
   testEnvironment: 'node',
