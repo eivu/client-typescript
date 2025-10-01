@@ -10,23 +10,29 @@
   "dependencies": {
     "@oclif/core": "^4",
     "@oclif/plugin-help": "^6",
-    "@oclif/plugin-plugins": "^5"
+    "@oclif/plugin-plugins": "^5",
+    "axios": "^1.12.2",
+    "dotenv": "^17.2.3",
+    "mime-types": "^3.0.1",
+    "nock": "^14.0.10",
+    "tsx": "^4.20.6"
   },
   "devDependencies": {
     "@eslint/compat": "^1",
+    "@jest/globals": "^30.2.0",
     "@oclif/prettier-config": "^0.2.1",
-    "@oclif/test": "^4",
-    "@types/chai": "^4",
-    "@types/mocha": "^10",
+    "@oclif/test": "^4.1.14",
+    "@types/jest": "^30.0.0",
+    "@types/mime-types": "^3.0.1",
     "@types/node": "^18",
-    "chai": "^4",
     "eslint": "^9",
     "eslint-config-oclif": "^6",
     "eslint-config-prettier": "^10",
-    "mocha": "^10",
+    "jest": "^30.2.0",
     "oclif": "^4",
     "shx": "^0.3.3",
-    "ts-node": "^10",
+    "ts-jest": "^29.4.4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   },
   "engines": {
@@ -66,7 +72,7 @@
     "postpack": "shx rm -f oclif.manifest.json",
     "posttest": "npm run lint",
     "prepack": "oclif manifest && oclif readme",
-    "test": "mocha --forbid-only \"test/**/*.test.ts\"",
+    "test": "jest",
     "version": "oclif readme && git add README.md"
   },
   "types": "dist/index.d.ts"
