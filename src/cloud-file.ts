@@ -8,10 +8,12 @@ import {detectMime, generateMd5} from './utils'
 
 export class CloudFile {
   attr: CloudFileType
+  localPathToFile: null | string
 
-  constructor(attributes: CloudFileType) {
+  constructor(attributes: CloudFileType, localPathToFile: null | string = null) {
     this.attr = attributes
     this.inferStateHistory()
+    this.localPathToFile = localPathToFile
   }
 
   static async fetch(md5: string): Promise<CloudFile> {
@@ -26,7 +28,9 @@ export class CloudFile {
       // a file already exists with the same MD5 hash
       if ((error as AxiosError).response?.status === 422) {
         const md5 = await generateMd5(pathToFile)
-        return CloudFile.fetch(md5)
+        const cloudFile = await CloudFile.fetch(md5)
+        cloudFile.localPathToFile = pathToFile
+        return cloudFile
       }
 
       throw error
@@ -38,7 +42,16 @@ export class CloudFile {
     const payload = {nsfw, secured}
     const {data: responseData} = await api.post(`/cloud_files/${md5}/reserve`, payload)
     const data: CloudFileType = responseData
-    return new CloudFile(data)
+    return new CloudFile(data, pathToFile)
+  }
+
+  identifyContentType(): void {
+    if (!this.localPathToFile) {
+      throw new Error('CloudFile#identifyContentType requires this.localPathToFile to be set')
+    }
+
+    const {type} = detectMime(this.localPathToFile)
+    this.attr.content_type = type
   }
 
   async transfer(pathToFile: string): Promise<CloudFile> {

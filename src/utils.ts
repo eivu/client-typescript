@@ -12,7 +12,7 @@ export async function generateMd5(pathToFile: string): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(pathToFile)) {
       reject(new Error(`File not found: ${pathToFile}`))
-      return;
+      return
     }
 
     const hash = crypto.createHash('md5')
@@ -23,11 +23,8 @@ export async function generateMd5(pathToFile: string): Promise<string> {
   })
 }
 
-export const detectMime = (pathToFile: string): false | {mediatype: string; subtype: string; type: string} => {
-  const type = mimeLookup(pathToFile)
-
-  if (!type) return false
-
+export const detectMime = (pathToFile: string): {mediatype: string; subtype: string; type: string} => {
+  const type = mimeLookup(pathToFile) || 'unknown/unknown'
   const [mediatype, subtype] = type.split('/')
 
   return {mediatype, subtype, type}

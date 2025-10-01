@@ -24,6 +24,7 @@ describe('CloudFile', () => {
 
         const cloudFile = await CloudFile.fetch(md5)
         expect(cloudFile).toBeDefined()
+        expect(cloudFile.localPathToFile).toBeNull()
         expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
         expect(req.isDone()).toBe(true)
       })
@@ -55,6 +56,7 @@ describe('CloudFile', () => {
 
         const cloudFile = await CloudFile.reserve(pathToFile)
         expect(cloudFile).toBeDefined()
+        expect(cloudFile.localPathToFile).toEqual(pathToFile)
         expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
         expect(req.isDone()).toBe(true)
       })
@@ -89,6 +91,7 @@ describe('CloudFile', () => {
 
         const cloudFile = await CloudFile.fetchOrReserveBy(pathToFile)
         expect(cloudFile).toBeDefined()
+        expect(cloudFile.localPathToFile).toEqual(pathToFile)
         expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
         expect(req.isDone()).toBe(true)
       })

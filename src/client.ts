@@ -1,7 +1,8 @@
 import {promises as fs} from 'node:fs'
 
 import {CloudFile} from './cloud-file'
-import {cleansedAssetName} from './utils'
+import {cleansedAssetName, generateMd5} from './utils'
+// import {file} from '@oclif/core/args'
 
 export class Client {
   status = {
@@ -17,6 +18,69 @@ export class Client {
     const asset = cleansedAssetName(pathToFile)
     console.log(`Fetching/Reserving: ${asset}`)
     return CloudFile.fetchOrReserveBy(pathToFile)
+
+    //  def upload_file(pathToFile:, peepy: false, nsfw: false, override: {}, metadata_list: [])
+    //     raise "Can not upload empty file: #{pathToFile}" if File.empty?(pathToFile)
+
+    //     asset         = Utils.cleansed_asset_name(pathToFile)
+    //     md5           = Eivu::Client::CloudFile.generate_md5(pathToFile)&.downcase
+    //     log_tag       = "#{md5.first(5)}:#{asset}"
+    //     data_profile  = Utils.generate_data_profile(pathToFile:, override:, metadata_list:)
+
+    //     Eivu::Logger.info 'Fetching/Reserving', tags: log_tag, label: Eivu::Client
+    //     cloud_file = CloudFile.reserve_or_fetch_by(bucket_uuid: configuration.bucket_uuid,
+    //                                                pathToFile:, peepy:, nsfw:)
+
+    //     process_reservation_and_transfer(cloud_file:, pathToFile:, md5:, asset:)
+
+    //     # Generate remote URL and raise error if file offline
+    //     if Utils.online?(cloud_file.url, File.size(pathToFile)) == false
+    //       cloud_file.reset # set state back to reserved
+    //       raise "File #{md5}:#{asset} is offline/filesize mismatch"
+    //     end
+
+    //     if cloud_file.transfered?
+    //       Eivu::Logger.info 'Completing', tags: log_tag, label: Eivu::Client
+    //       cloud_file.complete!(data_profile)
+    //     else
+    //       Eivu::Logger.info 'Updating/Skipping', tags: log_tag, label: Eivu::Client
+    //       cloud_file.update_metadata!(data_profile)
+    //     end
+
+    //     cloud_file
+    //   end
+  }
+
+  private async processTransfer(pathToFile: string): Promise<CloudFile> {
+    const asset = cleansedAssetName(pathToFile)
+    const md5 = await generateMd5(pathToFile)
+    console.log(`Fetching/Reserving: ${asset}`)
+
+    const stats = await fs.stat(pathToFile)
+    const filesize = stats.size
+
+    //   def process_reservation_and_transfer(cloud_file:, pathToFile:, md5:, asset:)
+    //   return unless cloud_file.reserved?
+
+    //   filesize = File.size(pathToFile)
+    //   remote_pathToFile = Eivu::Client::Utils.generate_remote_path(cloud_file, pathToFile)
+
+    //   log_tag = "#{md5.first(5)}:#{asset}"
+    //   Eivu::Logger.info 'Writing to S3', tags: log_tag, label: Eivu::Client
+
+    //   File.open(pathToFile, 'rb') do |file|
+    //     s3_client.put_object(
+    //       acl: 'public-read',
+    //       bucket: configuration.bucket_name,
+    //       key: remote_pathToFile, body: file
+    //     )
+    //   end
+
+    //   validate_remote_md5!(remote_pathToFile:, pathToFile:, md5:)
+
+    //   Eivu::Logger.info 'Transfering', tags: log_tag, label: Eivu::Client
+    //   cloud_file.transfer!(asset:, filesize:)
+    // end
   }
 
   private async isEmptyFile(pathToFile: string): Promise<boolean> {
