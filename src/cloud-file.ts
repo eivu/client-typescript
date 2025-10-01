@@ -1,3 +1,5 @@
+/* eslint-disable camelcase */
+
 import api from '@src/services/api.config'
 import {type AxiosError} from 'axios'
 
@@ -13,8 +15,7 @@ export class CloudFile {
   }
 
   static async fetch(md5: string): Promise<CloudFile> {
-    const response = await api.get(`/cloud_files/${md5}`)
-    const data: CloudFileType = response.data
+    const {data} = await api.get(`/cloud_files/${md5}`)
     return new CloudFile(data)
   }
 
@@ -38,9 +39,9 @@ export class CloudFile {
 
     const md5 = await generateMd5(pathToFile)
     const payload = {nsfw, secured}
-    const response = await api.post(`/cloud_files/${md5}/reserve`, payload)
+    const {data: responseData} = await api.post(`/cloud_files/${md5}/reserve`, payload)
     const data: CloudFileType = {
-      ...response.data,
+      ...responseData,
       content_type: mime.type,
     }
     return new CloudFile(data)

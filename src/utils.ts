@@ -5,7 +5,7 @@ import path from 'node:path'
 
 /**
  * Generate the MD5 hash of a file's contents asynchronously using streams.
- * @param path_to_file - The path to the file to hash
+ * @param pathToFile - The path to the file to hash
  * @returns Promise that resolves to the MD5 hash in hex digest format
  */
 export async function generateMd5(pathToFile: string): Promise<string> {
@@ -56,9 +56,9 @@ function pruneMetadata(name: string): string {
 
 function sanitize(name: string): string {
   name = pruneMetadata(name)
-  name = name.replace(/\\/g, '/')
+  name = name.replaceAll('\\', '/')
   name = path.basename(name)
-  name = name.replace(/[^a-zA-Z0-9.\-+_]/g, '_')
+  name = name.replaceAll(/[^a-zA-Z0-9.\-+_]/g, '_')
   if (/^\.+$/.test(name)) {
     name = `_${name}`
   }
