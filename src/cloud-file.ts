@@ -5,6 +5,7 @@ import {type AxiosError} from 'axios'
 
 import {CloudFileState, type CloudFileType} from './types/cloud-file-type'
 import {detectMime, generateMd5} from './utils'
+// import {file} from '@oclif/core/args'
 
 export class CloudFile {
   attr: CloudFileType
@@ -21,9 +22,17 @@ export class CloudFile {
     return new CloudFile(data)
   }
 
-  static async fetchOrReserveBy(pathToFile: string, secured = false, nsfw = false): Promise<CloudFile> {
+  static async fetchOrReserveBy({
+    nsfw = false,
+    pathToFile,
+    secured = false,
+  }: {
+    nsfw?: boolean
+    pathToFile: string
+    secured?: boolean
+  }): Promise<CloudFile> {
     try {
-      return await CloudFile.reserve(pathToFile, secured, nsfw)
+      return await CloudFile.reserve({nsfw, pathToFile, secured})
     } catch (error) {
       // a file already exists with the same MD5 hash
       if ((error as AxiosError).response?.status === 422) {
@@ -37,7 +46,15 @@ export class CloudFile {
     }
   }
 
-  static async reserve(pathToFile: string, secured = false, nsfw = false): Promise<CloudFile> {
+  static async reserve({
+    nsfw = false,
+    pathToFile,
+    secured = false,
+  }: {
+    nsfw?: boolean
+    pathToFile: string
+    secured?: boolean
+  }): Promise<CloudFile> {
     const md5 = await generateMd5(pathToFile)
     const payload = {nsfw, secured}
     const {data: responseData} = await api.post(`/cloud_files/${md5}/reserve`, payload)
@@ -54,17 +71,20 @@ export class CloudFile {
     this.attr.content_type = type
   }
 
-  async transfer(pathToFile: string): Promise<CloudFile> {
-    const mime = detectMime(pathToFile)
-    if (!mime) throw new Error(`Could not detect MIME type for file: ${pathToFile}`)
+  // async transfer(filesize: number): Promise<CloudFile> {
+  //   this.identifyContentType()
 
-    if (this.attr.content_type !== mime.type) {
-      throw new Error(`MIME type mismatch. Expected ${this.attr.content_type}, got ${mime.type}`)
-    }
+  //   if (!this.attr.content_type) {
+  //     throw new Error('CloudFile#transfer requires this.contentType to be set')
+  //   }
 
-    return this
-    // const md5 = await generateMd5(pathToFile)
-  }
+  //   this.attr.filesize = filesize
+  //   const payload = {asset: this.attr.asset, content_type: this.attr.content_type, filesize}
+  //   const {data} = await api.post(`/cloud_files/${this.attr.md5}/transfer`, payload)
+  //   this.attr = data
+  //   this.attr.state_history.push(CloudFileState.TRANSFERRED)
+  //   return this
+  // }
 
   private inferStateHistory(): void {
     switch (this.attr.state) {

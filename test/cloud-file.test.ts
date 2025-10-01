@@ -3,6 +3,7 @@ import nock from 'nock'
 
 import {CloudFile} from '../src/cloud-file'
 import {AI_OVERLORDS_RESERVATION} from './fixtures/responses'
+import {CloudFileState} from '../src/types/cloud-file-type'
 
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
@@ -54,7 +55,7 @@ describe('CloudFile', () => {
           .query({keyFormat: 'camel_lower'})
           .reply(200, AI_OVERLORDS_RESERVATION)
 
-        const cloudFile = await CloudFile.reserve(pathToFile)
+        const cloudFile = await CloudFile.reserve({pathToFile})
         expect(cloudFile).toBeDefined()
         expect(cloudFile.localPathToFile).toEqual(pathToFile)
         expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
@@ -73,7 +74,7 @@ describe('CloudFile', () => {
           .query({keyFormat: 'camel_lower'})
           .reply(422, {error: 'A file with that MD5 hash already exists'})
 
-        await expect(CloudFile.reserve(pathToFile)).rejects.toThrow('Request failed with status code 422')
+        await expect(CloudFile.reserve({pathToFile})).rejects.toThrow('Request failed with status code 422')
         expect(req.isDone()).toBe(true)
       })
     })
@@ -89,7 +90,7 @@ describe('CloudFile', () => {
           .query({keyFormat: 'camel_lower'})
           .reply(200, AI_OVERLORDS_RESERVATION)
 
-        const cloudFile = await CloudFile.fetchOrReserveBy(pathToFile)
+        const cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
         expect(cloudFile).toBeDefined()
         expect(cloudFile.localPathToFile).toEqual(pathToFile)
         expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
@@ -111,12 +112,21 @@ describe('CloudFile', () => {
           .get(`${URL_BUCKET_PREFIX}/cloud_files/${md5}`)
           .query({keyFormat: 'camel_lower'})
           .reply(200, AI_OVERLORDS_RESERVATION)
-        const cloudFile = await CloudFile.fetchOrReserveBy(pathToFile)
+        const cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
         expect(cloudFile).toBeDefined()
         expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
         expect(reserveReq.isDone()).toBe(true)
         expect(fetchReq.isDone()).toBe(true)
       })
+    })
+  })
+
+  describe('transfer', () => {
+    it('marks a CloudFile as transferred', async () => {
+      const cloudFile = new CloudFile(AI_OVERLORDS_RESERVATION, 'test/fixtures/ai overlords.jpg')
+      expect(cloudFile).toBeDefined()
+      // expect(cloudFile.attr.state_history).toEqual([CloudFileState.RESERVED, CloudFileState.TRANSFERRED])
+      // expect(cloudFile.attr.filesize).toEqual(204800)
     })
   })
 })

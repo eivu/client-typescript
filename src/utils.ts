@@ -23,6 +23,13 @@ export async function generateMd5(pathToFile: string): Promise<string> {
   })
 }
 
+// remotePath(): string {
+//   const ext = path.extname(pathToFile)
+//   const dir = path.dirname(pathToFile)
+//   const base = path.basename(pathToFile, ext)
+//   return '${cloud_file.s3_folder}/${Utils.cleansedAssetName(path_to_file)}'
+// }
+
 export const detectMime = (pathToFile: string): {mediatype: string; subtype: string; type: string} => {
   const type = mimeLookup(pathToFile) || 'unknown/unknown'
   const [mediatype, subtype] = type.split('/')

@@ -1,7 +1,7 @@
 import {promises as fs} from 'node:fs'
 
 import {CloudFile} from './cloud-file'
-import {cleansedAssetName, generateMd5} from './utils'
+import {cleansedAssetName} from './utils'
 // import {file} from '@oclif/core/args'
 
 export class Client {
@@ -17,7 +17,7 @@ export class Client {
 
     const asset = cleansedAssetName(pathToFile)
     console.log(`Fetching/Reserving: ${asset}`)
-    return CloudFile.fetchOrReserveBy(pathToFile)
+    return CloudFile.fetchOrReserveBy({pathToFile})
 
     //  def upload_file(pathToFile:, peepy: false, nsfw: false, override: {}, metadata_list: [])
     //     raise "Can not upload empty file: #{pathToFile}" if File.empty?(pathToFile)
@@ -51,13 +51,17 @@ export class Client {
     //   end
   }
 
-  private async processTransfer(cloudFile: CloudFile): Promise<CloudFile> {
-    const asset = cleansedAssetName(cloudFile.localPathToFile as string)
-    console.log(`Fetching/Reserving: ${asset}`)
+  private async isEmptyFile(pathToFile: string): Promise<boolean> {
+    try {
+      const stats = await fs.stat(pathToFile)
+      return stats.size === 0
+    } catch {
+      return false
+    }
+  }
 
-    const stats = await fs.stat(cloudFile.localPathToFile as string)
-    const filesize = stats.size
-    return cloudFile
+  private async processTransfer(cloudFile: CloudFile): Promise<CloudFile> {
+    console.log(`Fetching/Reserving: ${cloudFile.localPathToFile}`)
 
     //   def process_reservation_and_transfer(cloud_file:, pathToFile:, md5:, asset:)
     //   return unless cloud_file.reserved?
@@ -81,14 +85,6 @@ export class Client {
     //   Eivu::Logger.info 'Transfering', tags: log_tag, label: Eivu::Client
     //   cloud_file.transfer!(asset:, filesize:)
     // end
-  }
-
-  private async isEmptyFile(pathToFile: string): Promise<boolean> {
-    try {
-      const stats = await fs.stat(pathToFile)
-      return stats.size === 0
-    } catch {
-      return false
-    }
+    return cloudFile
   }
 }
