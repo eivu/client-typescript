@@ -1,5 +1,5 @@
 import {CloudFile} from '@src/cloud-file'
-import {S3Uploader} from '@src/s3-uploader'
+import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {cleansedAssetName} from '@src/utils'
 import {promises as fs} from 'node:fs'
 
@@ -18,6 +18,17 @@ export class Client {
     console.log(`Fetching/Reserving: ${asset}`)
     const cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
     await this.processTransfer({asset, cloudFile})
+
+    const s3Config: S3UploaderConfig = {
+      accessKeyId: process.env.EIVU_ACCESS_KEY_ID as string,
+      bucketName: process.env.EIVU_BUCKET_NAME as string,
+      endpoint: process.env.EIVU_ENDPOINT as string,
+      region: process.env.EIVU_REGION as string,
+      secretAccessKey: process.env.EIVU_SECRET_ACCESS_KEY as string,
+    }
+
+    const s3Uploader = new S3Uploader({asset, cloudFile, s3Config})
+    await s3Uploader.putLocalFile()
 
     //  def upload_file(pathToFile:, peepy: false, nsfw: false, override: {}, metadata_list: [])
     //     raise "Can not upload empty file: #{pathToFile}" if File.empty?(pathToFile)
@@ -69,14 +80,12 @@ export class Client {
 
   private async processTransfer({asset, cloudFile}: {asset: string; cloudFile: CloudFile}): Promise<CloudFile> {
     if (!cloudFile.reserved()) {
-      console.log(
-        `CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.remoteAttr.state}`,
-      )
+      console.log(`CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.remoteAttr.state}`)
       return cloudFile
     }
 
     if (!cloudFile.localPathToFile) {
-      throw new Error('CloudFile#processTransfer requires CloudFile\'localPathToFile to be set')
+      throw new Error("CloudFile#processTransfer requires CloudFile'localPathToFile to be set")
     }
 
     console.log(`Processing Transfer: ${cloudFile.localPathToFile}`)
