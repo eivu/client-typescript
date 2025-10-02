@@ -1,11 +1,26 @@
-import {describe, expect, it} from '@jest/globals'
-import nock from 'nock'
-
+import {afterEach, beforeEach, describe, expect, it, jest} from '@jest/globals'
 
 import {CloudFile} from '../src/cloud-file'
 import {S3Uploader, type S3UploaderConfig} from '../src/s3-uploader'
 import {cleansedAssetName} from '../src/utils'
-import {AI_OVERLORDS_RESERVATION, MOV_BBB_RESERVATION} from './fixtures/responses'
+import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_S3_RESPONSE, MOV_BBB_RESERVATION} from './fixtures/responses'
+
+// Mock the AWS SDK S3Client
+const mockSend = jest.fn() as jest.MockedFunction<(command: unknown) => Promise<unknown>>
+jest.mock('@aws-sdk/client-s3', () => ({
+  PutObjectCommand: jest.fn(),
+  S3Client: jest.fn().mockImplementation(() => ({
+    send: mockSend
+  })),
+  S3ServiceException: class S3ServiceException extends Error {
+    name: string
+
+    constructor(message: string, name = 'S3ServiceException') {
+      super(message)
+      this.name = name
+    }
+  }
+}))
 
 describe('S3Uploader', () => {
   const s3Config: S3UploaderConfig = {
@@ -17,7 +32,12 @@ describe('S3Uploader', () => {
   }
 
   beforeEach(() => {
-    nock.cleanAll()
+    jest.clearAllMocks()
+    mockSend.mockClear()
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
   })
 
   describe('generateRemotePath', () => {
@@ -76,6 +96,28 @@ describe('S3Uploader', () => {
         expect(s3Uploader.md5AsFolders('198918F40ECC7CAB0FC4231ADAF67C96')).toBe(
           '19/89/18/F4/0E/CC/7C/AB/0F/C4/23/1A/DA/F6/7C/96',
         )
+      })
+    })
+  })
+
+  describe('putLocalFile', () => {
+    describe('image: ai overlords', () => {
+      it('uploads the local file to S3 and returns true', async () => {
+        // Setup the mock to return the expected response
+        mockSend.mockResolvedValue(AI_OVERLORDS_S3_RESPONSE)
+
+        const cloudFile = new CloudFile({
+          localPathToFile: 'test/fixtures/samples/image/ai overlords.jpg',
+          remoteAttr: AI_OVERLORDS_RESERVATION,
+          resourceType: 'image',
+        })
+
+        const asset = cleansedAssetName(cloudFile.localPathToFile as string)
+        const s3Uploader = new S3Uploader({asset, cloudFile, s3Config})
+        const result = await s3Uploader.putLocalFile()
+        
+        expect(result).toBe(true)
+        expect(mockSend).toHaveBeenCalledTimes(1)
       })
     })
   })

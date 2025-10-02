@@ -32,5 +32,10 @@ describe('Client', () => {
     //     expect(cloudFile.resourceType).toBe('image')
     //   })
     // })
+
+    it('can be instantiated', () => {
+      const client = new Client()
+      expect(client).toBeInstanceOf(Client)
+    })
   })
 })

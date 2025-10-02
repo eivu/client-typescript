@@ -72,7 +72,6 @@ export class S3Uploader {
 
     try {
       const response: PutObjectCommandOutput = await s3Client.send(putObjectCommand)
-      // console.log(response)
       return this.validateRemoteMd5(response)
     } catch (error) {
       if (error instanceof S3ServiceException && error.name === 'EntityTooLarge') {
