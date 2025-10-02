@@ -18,3 +18,7 @@ console.log(cleansedAssetName('/Users/jinx/Desktop/ai overlords.jpg'))
 await demo('F04CD103EDDFB64EFD8D9FC48F3023FD')
 const x = await CloudFile.fetchOrReserveBy({pathToFile: '/Users/jinx/Desktop/ai overlords.jpg'})
 console.dir(x)
+
+
+
+console.log(md5AsFolders('F04CD103EDDFB64EFD8D9FC48F3023FD'))

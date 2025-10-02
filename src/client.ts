@@ -1,8 +1,7 @@
+import {CloudFile} from '@src/cloud-file'
+import {S3Uploader} from '@src/s3-uploader'
+import {cleansedAssetName} from '@src/utils'
 import {promises as fs} from 'node:fs'
-
-import {CloudFile} from './cloud-file'
-import {cleansedAssetName} from './utils'
-// import {file} from '@oclif/core/args'
 
 export class Client {
   status = {
@@ -17,7 +16,8 @@ export class Client {
 
     const asset = cleansedAssetName(pathToFile)
     console.log(`Fetching/Reserving: ${asset}`)
-    return CloudFile.fetchOrReserveBy({pathToFile})
+    const cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
+    await this.processTransfer({cloudFile})
 
     //  def upload_file(pathToFile:, peepy: false, nsfw: false, override: {}, metadata_list: [])
     //     raise "Can not upload empty file: #{pathToFile}" if File.empty?(pathToFile)
@@ -49,6 +49,7 @@ export class Client {
 
     //     cloud_file
     //   end
+    return cloudFile
   }
 
   private async isEmptyFile(pathToFile: string): Promise<boolean> {
@@ -60,9 +61,14 @@ export class Client {
     }
   }
 
-  private async processTransfer(cloudFile: CloudFile): Promise<CloudFile> {
+  private async processTransfer({asset, cloudFile}: {asset: string; cloudFile: CloudFile}): Promise<CloudFile> {
     console.log(`Fetching/Reserving: ${cloudFile.localPathToFile}`)
 
+    this.md5AsFolders(cloudFile.attr.md5)
+    const stats = await fs.stat(cloudFile!.localPathToFile as string)
+    const filesize = stats.size
+
+    const s3Uploader = new S3Uploader({asset, cloudFile})
     //   def process_reservation_and_transfer(cloud_file:, pathToFile:, md5:, asset:)
     //   return unless cloud_file.reserved?
 
@@ -85,6 +91,13 @@ export class Client {
     //   Eivu::Logger.info 'Transfering', tags: log_tag, label: Eivu::Client
     //   cloud_file.transfer!(asset:, filesize:)
     // end
+    await cloudFile.transfer({asset, filesize})
     return cloudFile
+  }
+
+  private md5AsFolders(md5: string): string {
+    const upper = md5.toUpperCase() // Convert to uppercase
+    const parts = upper.match(/.{2}|.+/g) // Match pairs of 2 characters, and if odd-length, the last leftover chunk
+    return parts ? parts.join('/') : '' // Join with "/"
   }
 }

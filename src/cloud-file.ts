@@ -10,6 +10,7 @@ import {detectMime, generateMd5} from './utils'
 export class CloudFile {
   attr: CloudFileType
   localPathToFile: null | string
+  resourceType: null | string = null
 
   constructor(attributes: CloudFileType, localPathToFile: null | string = null) {
     this.attr = attributes
@@ -67,24 +68,25 @@ export class CloudFile {
       throw new Error('CloudFile#identifyContentType requires this.localPathToFile to be set')
     }
 
-    const {type} = detectMime(this.localPathToFile)
+    const {mediatype, type} = detectMime(this.localPathToFile)
+    this.resourceType = this.attr.peepy ? 'secured' : mediatype
     this.attr.content_type = type
   }
 
-  // async transfer(filesize: number): Promise<CloudFile> {
-  //   this.identifyContentType()
+  async transfer({asset, filesize}: {asset: string; filesize: number}): Promise<CloudFile> {
+    this.identifyContentType()
 
-  //   if (!this.attr.content_type) {
-  //     throw new Error('CloudFile#transfer requires this.contentType to be set')
-  //   }
+    if (!this.attr.content_type) {
+      throw new Error('CloudFile#transfer requires this.contentType to be set')
+    }
 
-  //   this.attr.filesize = filesize
-  //   const payload = {asset: this.attr.asset, content_type: this.attr.content_type, filesize}
-  //   const {data} = await api.post(`/cloud_files/${this.attr.md5}/transfer`, payload)
-  //   this.attr = data
-  //   this.attr.state_history.push(CloudFileState.TRANSFERRED)
-  //   return this
-  // }
+    this.attr.filesize = filesize
+    const payload = {asset, content_type: this.attr.content_type, filesize}
+    const {data} = await api.post(`/cloud_files/${this.attr.md5}/transfer`, payload)
+    this.attr = data
+    this.attr.state_history.push(CloudFileState.TRANSFERRED)
+    return this
+  }
 
   private inferStateHistory(): void {
     switch (this.attr.state) {
