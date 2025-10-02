@@ -37,6 +37,10 @@ export class S3Uploader {
   }
 
   generateRemotePath(): string {
+    if (!this.cloudFile.resourceType) {
+      throw new Error('S3Uploader#generateRemotePath requires CloudFile.resourceType to be set')
+    }
+
     return `${this.cloudFile.resourceType}/${this.md5AsFolders(this.cloudFile.remoteAttr.md5)}/${this.asset}`
   }
 
