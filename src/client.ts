@@ -64,11 +64,21 @@ export class Client {
   private async processTransfer({asset, cloudFile}: {asset: string; cloudFile: CloudFile}): Promise<CloudFile> {
     console.log(`Fetching/Reserving: ${cloudFile.localPathToFile}`)
 
+    if (!cloudFile.reserved()) {
+      console.log(`CloudFile is not in reserved state: ${cloudFile.attr.state}`)
+      return cloudFile
+    }
+
+    if (!cloudFile.localPathToFile) {
+      throw new Error('CloudFile#processTransfer requires this.localPathToFile to be set')
+    }
+
     this.md5AsFolders(cloudFile.attr.md5)
-    const stats = await fs.stat(cloudFile!.localPathToFile as string)
+    const stats = await fs.stat(cloudFile.localPathToFile as string)
     const filesize = stats.size
 
     const s3Uploader = new S3Uploader({asset, cloudFile})
+    await s3Uploader.putFile()
     //   def process_reservation_and_transfer(cloud_file:, pathToFile:, md5:, asset:)
     //   return unless cloud_file.reserved?
 

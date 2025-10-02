@@ -63,6 +63,10 @@ export class CloudFile {
     return new CloudFile(data, pathToFile)
   }
 
+  completed(): boolean {
+    return this.attr.state === CloudFileState.COMPLETED
+  }
+
   identifyContentType(): void {
     if (!this.localPathToFile) {
       throw new Error('CloudFile#identifyContentType requires this.localPathToFile to be set')
@@ -71,6 +75,10 @@ export class CloudFile {
     const {mediatype, type} = detectMime(this.localPathToFile)
     this.resourceType = this.attr.peepy ? 'secured' : mediatype
     this.attr.content_type = type
+  }
+
+  reserved(): boolean {
+    return this.attr.state === CloudFileState.RESERVED
   }
 
   async transfer({asset, filesize}: {asset: string; filesize: number}): Promise<CloudFile> {
@@ -86,6 +94,10 @@ export class CloudFile {
     this.attr = data
     this.attr.state_history.push(CloudFileState.TRANSFERRED)
     return this
+  }
+
+  transfered(): boolean {
+    return this.attr.state === CloudFileState.TRANSFERRED
   }
 
   private inferStateHistory(): void {

@@ -23,7 +23,7 @@ export class S3Uploader {
     return `${md5.slice(0, 2)}/${md5.slice(2, 4)}/${md5.slice(4, 6)}/${md5.slice(6)}`
   }
 
-  async putFile(): Promise<Boolean> {
+  async putFile(): Promise<boolean> {
     const s3Client = new S3Client({region: process.env.AWS_REGION || 'us-east-1'})
     const configuration: Config = {
       bucketName: 'your-bucket-name',
