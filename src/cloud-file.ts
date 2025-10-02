@@ -7,20 +7,27 @@ import {CloudFileState, type CloudFileType} from './types/cloud-file-type'
 import {detectMime, generateMd5} from './utils'
 // import {file} from '@oclif/core/args'
 
+type CloudFileConstructorParams = {
+  localPathToFile?: null | string
+  remoteAttr: CloudFileType
+  resourceType?: null | string
+}
+
 export class CloudFile {
   localPathToFile: null | string
   remoteAttr: CloudFileType
   resourceType: null | string = null
 
-  constructor({localPathToFile = null, remoteAttr}: {localPathToFile?: null | string; remoteAttr: CloudFileType}) {
+  constructor({localPathToFile = null, remoteAttr, resourceType = null}: CloudFileConstructorParams) {
     this.remoteAttr = remoteAttr
     this.inferStateHistory()
     this.localPathToFile = localPathToFile
+    this.resourceType = resourceType
   }
 
   static async fetch(md5: string): Promise<CloudFile> {
-    const {data} = await api.get(`/cloud_files/${md5}`)
-    return new CloudFile({remoteAttr: data})
+    const {data: remoteAttr} = await api.get(`/cloud_files/${md5}`)
+    return new CloudFile({remoteAttr})
   }
 
   static async fetchOrReserveBy({

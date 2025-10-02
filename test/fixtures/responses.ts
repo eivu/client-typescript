@@ -34,8 +34,15 @@ export const AI_OVERLORDS_RESERVATION: CloudFileType = {
   state: CloudFileState.RESERVED,
   state_history: [CloudFileState.RESERVED],
   updated_at: '2025-09-29T23:32:35.951Z',
-  url: 'https://eivu-test.s3.wasabisys.com/archive/7E/D9/71/31/3D/1A/EA/1B/6E/2B/F8/AF/24/BE/D6/4A/',
+  url: 'https://eivu-test.s3.wasabisys.com/image/7E/D9/71/31/3D/1A/EA/1B/6E/2B/F8/AF/24/BE/D6/4A/',
   user_uuid: '0f703c04-b448-455c-8a26-4edc22bf76dd',
   uuid: '',
   year: null,
+}
+
+export const MOV_BBB_RESERVATION: CloudFileType = {
+  ...AI_OVERLORDS_RESERVATION,
+  md5: '198918F40ECC7CAB0FC4231ADAF67C96',
+  name: '198918f40ecc7cab0fc4231adaf67c96 (reserved)',
+  url: 'https://eivu-test.s3.wasabisys.com/video/19/89/18/F4/0E/CC/7C/AB/0F/C4/23/1A/DA/F6/7C/96/',
 }

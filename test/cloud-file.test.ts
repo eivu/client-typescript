@@ -60,7 +60,7 @@ describe('CloudFile', () => {
   describe('fetchOrReserveBy', () => {
     describe('when the file does not exist', () => {
       it('reserves a cloud file via the MD5 hash', async () => {
-        const pathToFile = 'test/fixtures/ai overlords.jpg'
+        const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
         const md5 = '7ED971313D1AEA1B6E2BF8AF24BED64A'
         const req = nock(SERVER_HOST)
           .post(`${URL_BUCKET_PREFIX}/cloud_files/${md5}/reserve`, {nsfw: false, secured: false})
@@ -77,7 +77,7 @@ describe('CloudFile', () => {
 
     describe('when the file already exists', () => {
       it('fetches the existing cloud file via the MD5 hash', async () => {
-        const pathToFile = 'test/fixtures/ai overlords.jpg'
+        const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
         const md5 = '7ED971313D1AEA1B6E2BF8AF24BED64A'
 
         const reserveReq = nock(SERVER_HOST)
@@ -101,7 +101,7 @@ describe('CloudFile', () => {
   describe('reserve', () => {
     describe('when the file does not exist', () => {
       it('reserves a cloud file by path', async () => {
-        const pathToFile = 'test/fixtures/ai overlords.jpg'
+        const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
         const md5 = '7ED971313D1AEA1B6E2BF8AF24BED64A'
         const req = nock(SERVER_HOST)
           .post(`${URL_BUCKET_PREFIX}/cloud_files/${md5}/reserve`, {nsfw: false, secured: false})
@@ -147,7 +147,10 @@ describe('CloudFile', () => {
 
   describe('transfer', () => {
     it('marks a CloudFile as transferred', async () => {
-      const cloudFile = new CloudFile({localPathToFile: 'test/fixtures/ai overlords.jpg', remoteAttr: AI_OVERLORDS_RESERVATION})
+      const cloudFile = new CloudFile({
+        localPathToFile: 'test/fixtures/samples/image/ai overlords.jpg',
+        remoteAttr: AI_OVERLORDS_RESERVATION,
+      })
       expect(cloudFile).toBeDefined()
       // expect(cloudFile.remoteAttr.state_history).toEqual([CloudFileState.RESERVED, CloudFileState.TRANSFERRED])
       // expect(cloudFile.remoteAttr.filesize).toEqual(204800)

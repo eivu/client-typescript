@@ -23,7 +23,9 @@ export class S3Uploader {
   }
 
   md5AsFolders(md5: string): string {
-    return `${md5.slice(0, 2)}/${md5.slice(2, 4)}/${md5.slice(4, 6)}/${md5.slice(6)}`
+    const upper = md5.toUpperCase() // Convert to uppercase
+    const parts = upper.match(/.{2}|.+/g) // Match pairs of 2 characters, and if odd-length, the last leftover chunk
+    return parts ? parts.join('/') : '' // Join with "/"
   }
 
   async putLocalFile(): Promise<boolean> {
