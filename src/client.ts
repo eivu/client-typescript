@@ -20,17 +20,6 @@ export class Client {
     await this.processTransfer({asset, cloudFile})
 
     //  def upload_file(pathToFile:, peepy: false, nsfw: false, override: {}, metadata_list: [])
-    //     raise "Can not upload empty file: #{pathToFile}" if File.empty?(pathToFile)
-
-    //     asset         = Utils.cleansed_asset_name(pathToFile)
-    //     md5           = Eivu::Client::CloudFile.generate_md5(pathToFile)&.downcase
-    //     log_tag       = "#{md5.first(5)}:#{asset}"
-    //     data_profile  = Utils.generate_data_profile(pathToFile:, override:, metadata_list:)
-
-    //     Eivu::Logger.info 'Fetching/Reserving', tags: log_tag, label: Eivu::Client
-    //     cloud_file = CloudFile.reserve_or_fetch_by(bucket_uuid: configuration.bucket_uuid,
-    //                                                pathToFile:, peepy:, nsfw:)
-
     //     process_reservation_and_transfer(cloud_file:, pathToFile:, md5:, asset:)
 
     //     # Generate remote URL and raise error if file offline
@@ -61,12 +50,6 @@ export class Client {
     }
   }
 
-  private md5AsFolders(md5: string): string {
-    const upper = md5.toUpperCase() // Convert to uppercase
-    const parts = upper.match(/.{2}|.+/g) // Match pairs of 2 characters, and if odd-length, the last leftover chunk
-    return parts ? parts.join('/') : '' // Join with "/"
-  }
-
   private async processTransfer({asset, cloudFile}: {asset: string; cloudFile: CloudFile}): Promise<CloudFile> {
     if (!cloudFile.reserved()) {
       console.log(`CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.remoteAttr.state}`)
@@ -81,7 +64,6 @@ export class Client {
 
     cloudFile.identifyContentType()
     console.log(`Determined resourceType: ${cloudFile.resourceType}`)
-    this.md5AsFolders(cloudFile.remoteAttr.md5)
     const stats = await fs.stat(cloudFile.localPathToFile as string)
     const filesize = stats.size
 

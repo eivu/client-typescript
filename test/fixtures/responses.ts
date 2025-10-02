@@ -1,4 +1,6 @@
 /* eslint-disable camelcase */
+import {type PutObjectCommandOutput} from '@aws-sdk/client-s3'
+
 import {CloudFileState, CloudFileType} from '../../src/types/cloud-file-type'
 
 export const AI_OVERLORDS_RESERVATION: CloudFileType = {
@@ -38,6 +40,20 @@ export const AI_OVERLORDS_RESERVATION: CloudFileType = {
   user_uuid: '0f703c04-b448-455c-8a26-4edc22bf76dd',
   uuid: '',
   year: null,
+}
+
+export const AI_OVERLORDS_S3_RESPONSE: PutObjectCommandOutput = {
+  $metadata: {
+    attempts: 1,
+    cfId: undefined,
+    extendedRequestId: 'AGUDJAmNF0dvmxE+gyRYef0Vunb8vN/IVxdSdsNyXA9ZQTaB3YHx6JY64pf5FiNaur0Us8dYnOsF',
+    httpStatusCode: 200,
+    requestId: '410C550F8648D56A:A',
+    totalRetryDelay: 0,
+  },
+  ChecksumCRC32: 'e0Y0jQ==',
+  ChecksumType: 'FULL_OBJECT',
+  ETag: '"7ed971313d1aea1b6e2bf8af24bed64a"',
 }
 
 export const MOV_BBB_RESERVATION: CloudFileType = {

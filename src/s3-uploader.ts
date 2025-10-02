@@ -1,11 +1,7 @@
-import {PutObjectCommand, S3Client, S3ServiceException} from '@aws-sdk/client-s3'
+import {PutObjectCommand, type PutObjectCommandOutput, S3Client, S3ServiceException} from '@aws-sdk/client-s3'
 import {Credentials} from '@aws-sdk/types'
 import {CloudFile} from '@src/cloud-file'
 import {readFile} from 'node:fs/promises'
-
-interface Config {
-  bucketName: string
-}
 
 enum TransferErrorMessages {
   ENTITY_TOO_LARGE = 'Error from S3 while uploading object. The object was too large. To upload objects larger than 5GB, use the S3 console (160GB max) or the multipart upload API (5TB max).',
@@ -75,8 +71,9 @@ export class S3Uploader {
     })
 
     try {
-      const response = await s3Client.send(putObjectCommand)
-      console.log(response)
+      const response: PutObjectCommandOutput = await s3Client.send(putObjectCommand)
+      // console.log(response)
+      return this.validateRemoteMd5(response)
     } catch (error) {
       if (error instanceof S3ServiceException && error.name === 'EntityTooLarge') {
         console.error(TransferErrorMessages.ENTITY_TOO_LARGE)
@@ -89,12 +86,13 @@ export class S3Uploader {
       }
     }
 
-    return this.validateRemoteMd5()
+    return false
   }
 
-  async validateRemoteMd5() {
-    // async validateRemoteMd5(remotePathToFile: string, pathToFile: string, md5: string) {
-    console.log('NEED TO IMPLEMENT: validateRemoteMd5')
-    return true
+  validateRemoteMd5(response: PutObjectCommandOutput) {
+    return (
+      response.$metadata.httpStatusCode === 200 && response.ETag === `"${this.cloudFile.remoteAttr.md5.toLowerCase()}"`
+    )
+    // return true
   }
 }
