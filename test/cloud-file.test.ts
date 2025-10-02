@@ -16,12 +16,12 @@ describe('CloudFile', () => {
 
   describe('completed', () => {
     it('returns true if the CloudFile state is completed', () => {
-      const cloudFile = new CloudFile({...AI_OVERLORDS_RESERVATION, state: CloudFileState.COMPLETED})
+      const cloudFile = new CloudFile({attributes: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.COMPLETED}})
       expect(cloudFile.completed()).toBe(true)
     })
 
     it('returns false if the CloudFile state is not completed', () => {
-      const cloudFile = new CloudFile({...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED})
+      const cloudFile = new CloudFile({attributes: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED}})
       expect(cloudFile.completed()).toBe(false)
     })
   })
@@ -135,19 +135,19 @@ describe('CloudFile', () => {
 
   describe('reserved', () => {
     it('returns true if the CloudFile state is reserved', () => {
-      const cloudFile = new CloudFile({...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED})
+      const cloudFile = new CloudFile({attributes: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED}})
       expect(cloudFile.reserved()).toBe(true)
     })
 
     it('returns false if the CloudFile state is not reserved', () => {
-      const cloudFile = new CloudFile({...AI_OVERLORDS_RESERVATION, state: CloudFileState.COMPLETED})
+      const cloudFile = new CloudFile({attributes: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.COMPLETED}})
       expect(cloudFile.reserved()).toBe(false)
     })
   })
 
   describe('transfer', () => {
     it('marks a CloudFile as transferred', async () => {
-      const cloudFile = new CloudFile(AI_OVERLORDS_RESERVATION, 'test/fixtures/ai overlords.jpg')
+      const cloudFile = new CloudFile({attributes: AI_OVERLORDS_RESERVATION, localPathToFile: 'test/fixtures/ai overlords.jpg'})
       expect(cloudFile).toBeDefined()
       // expect(cloudFile.attr.state_history).toEqual([CloudFileState.RESERVED, CloudFileState.TRANSFERRED])
       // expect(cloudFile.attr.filesize).toEqual(204800)
@@ -156,12 +156,12 @@ describe('CloudFile', () => {
 
   describe('transfered', () => {
     it('returns true if the CloudFile state is transferred', () => {
-      const cloudFile = new CloudFile({...AI_OVERLORDS_RESERVATION, state: CloudFileState.TRANSFERRED})
+      const cloudFile = new CloudFile({attributes: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.TRANSFERRED}})
       expect(cloudFile.transfered()).toBe(true)
     })
 
     it('returns false if the CloudFile state is not transferred', () => {
-      const cloudFile = new CloudFile({...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED})
+      const cloudFile = new CloudFile({attributes: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED}})
       expect(cloudFile.transfered()).toBe(false)
     })
   })

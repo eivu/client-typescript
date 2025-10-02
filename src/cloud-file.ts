@@ -12,7 +12,7 @@ export class CloudFile {
   localPathToFile: null | string
   resourceType: null | string = null
 
-  constructor(attributes: CloudFileType, localPathToFile: null | string = null) {
+  constructor({attributes, localPathToFile = null}: {attributes: CloudFileType; localPathToFile?: null | string}) {
     this.attr = attributes
     this.inferStateHistory()
     this.localPathToFile = localPathToFile
@@ -20,7 +20,7 @@ export class CloudFile {
 
   static async fetch(md5: string): Promise<CloudFile> {
     const {data} = await api.get(`/cloud_files/${md5}`)
-    return new CloudFile(data)
+    return new CloudFile({attributes: data})
   }
 
   static async fetchOrReserveBy({
@@ -60,7 +60,7 @@ export class CloudFile {
     const payload = {nsfw, secured}
     const {data: responseData} = await api.post(`/cloud_files/${md5}/reserve`, payload)
     const data: CloudFileType = responseData
-    return new CloudFile(data, pathToFile)
+    return new CloudFile({attributes: data, localPathToFile: pathToFile})
   }
 
   completed(): boolean {

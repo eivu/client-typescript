@@ -86,7 +86,7 @@ export class Client {
     const filesize = stats.size
 
     const s3Uploader = new S3Uploader({asset, cloudFile})
-    await s3Uploader.putFile()
+    await s3Uploader.putLocalFile()
     //   def process_reservation_and_transfer(cloud_file:, pathToFile:, md5:, asset:)
     //   return unless cloud_file.reserved?
 
