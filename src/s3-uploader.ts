@@ -60,7 +60,7 @@ export class S3Uploader {
     const s3Client = new S3Client(s3Config)
     const remotePathToFile = this.generateRemotePath()
 
-    // Example: pass into an S3 client
+    console.log(`Uploading to S3: ${this.cloudFile.localPathToFile} -> ${remotePathToFile}`)
     const putObjectCommand = new PutObjectCommand({
       ACL: 'public-read',
       Body: await readFile(this.cloudFile.localPathToFile as string),
@@ -75,7 +75,9 @@ export class S3Uploader {
       if (error instanceof S3ServiceException && error.name === 'EntityTooLarge') {
         console.error(TransferErrorMessages.ENTITY_TOO_LARGE)
       } else if (error instanceof S3ServiceException) {
-        console.error(`Error from S3 while uploading object to ${bucketName}.  ${error.name}: ${error.message}`)
+        console.error(
+          `Error from S3 while uploading object to ${this.s3Config.bucketName}.  ${error.name}: ${error.message}`,
+        )
       } else {
         throw error
       }

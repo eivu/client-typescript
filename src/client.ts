@@ -19,17 +19,6 @@ export class Client {
     const cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
     await this.processTransfer({asset, cloudFile})
 
-    const s3Config: S3UploaderConfig = {
-      accessKeyId: process.env.EIVU_ACCESS_KEY_ID as string,
-      bucketName: process.env.EIVU_BUCKET_NAME as string,
-      endpoint: process.env.EIVU_ENDPOINT as string,
-      region: process.env.EIVU_REGION as string,
-      secretAccessKey: process.env.EIVU_SECRET_ACCESS_KEY as string,
-    }
-
-    const s3Uploader = new S3Uploader({asset, cloudFile, s3Config})
-    await s3Uploader.putLocalFile()
-
     //  def upload_file(pathToFile:, peepy: false, nsfw: false, override: {}, metadata_list: [])
     //     raise "Can not upload empty file: #{pathToFile}" if File.empty?(pathToFile)
 
@@ -94,8 +83,18 @@ export class Client {
     const stats = await fs.stat(cloudFile.localPathToFile as string)
     const filesize = stats.size
 
-    const s3Uploader = new S3Uploader({asset, cloudFile})
-    await s3Uploader.putFile()
+    console.log(`filesize: ${filesize}`)
+    const s3Config: S3UploaderConfig = {
+      accessKeyId: process.env.EIVU_ACCESS_KEY_ID as string,
+      bucketName: process.env.EIVU_BUCKET_NAME as string,
+      endpoint: process.env.EIVU_ENDPOINT as string,
+      region: process.env.EIVU_REGION as string,
+      secretAccessKey: process.env.EIVU_SECRET_ACCESS_KEY as string,
+    }
+
+    const s3Uploader = new S3Uploader({asset, cloudFile, s3Config})
+    await s3Uploader.putLocalFile()
+
     //   def process_reservation_and_transfer(cloud_file:, pathToFile:, md5:, asset:)
     //   return unless cloud_file.reserved?
 
@@ -118,7 +117,7 @@ export class Client {
     //   Eivu::Logger.info 'Transfering', tags: log_tag, label: Eivu::Client
     //   cloud_file.transfer!(asset:, filesize:)
     // end
-    await cloudFile.transfer({asset, filesize})
+    // await cloudFile.transfer({asset, filesize})
     return cloudFile
   }
 }
