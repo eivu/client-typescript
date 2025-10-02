@@ -79,6 +79,8 @@ export class Client {
 
     console.log(`Processing Transfer: ${cloudFile.localPathToFile}`)
 
+    cloudFile.identifyContentType()
+    console.log(`Determined resourceType: ${cloudFile.resourceType}`)
     this.md5AsFolders(cloudFile.remoteAttr.md5)
     const stats = await fs.stat(cloudFile.localPathToFile as string)
     const filesize = stats.size

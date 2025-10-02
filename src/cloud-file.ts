@@ -89,8 +89,6 @@ export class CloudFile {
   }
 
   async transfer({asset, filesize}: {asset: string; filesize: number}): Promise<CloudFile> {
-    this.identifyContentType()
-
     if (!this.remoteAttr.content_type) {
       throw new Error('CloudFile#transfer requires this.contentType to be set')
     }
