@@ -38,9 +38,9 @@ export class S3Uploader {
     await s3Client.send(
       new PutObjectCommand({
         ACL: 'public-read',
+        Body: fileStream,
         Bucket: configuration.bucketName,
         Key: remotePathToFile,
-        Body: fileStream,
       }),
     )
 

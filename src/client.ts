@@ -61,6 +61,12 @@ export class Client {
     }
   }
 
+  private md5AsFolders(md5: string): string {
+    const upper = md5.toUpperCase() // Convert to uppercase
+    const parts = upper.match(/.{2}|.+/g) // Match pairs of 2 characters, and if odd-length, the last leftover chunk
+    return parts ? parts.join('/') : '' // Join with "/"
+  }
+
   private async processTransfer({asset, cloudFile}: {asset: string; cloudFile: CloudFile}): Promise<CloudFile> {
     console.log(`Fetching/Reserving: ${cloudFile.localPathToFile}`)
 
@@ -103,11 +109,5 @@ export class Client {
     // end
     await cloudFile.transfer({asset, filesize})
     return cloudFile
-  }
-
-  private md5AsFolders(md5: string): string {
-    const upper = md5.toUpperCase() // Convert to uppercase
-    const parts = upper.match(/.{2}|.+/g) // Match pairs of 2 characters, and if odd-length, the last leftover chunk
-    return parts ? parts.join('/') : '' // Join with "/"
   }
 }
