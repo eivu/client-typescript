@@ -17,7 +17,7 @@ export class Client {
     const asset = cleansedAssetName(pathToFile)
     console.log(`Fetching/Reserving: ${asset}`)
     const cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
-    await this.processTransfer({cloudFile})
+    await this.processTransfer({asset, cloudFile})
 
     //  def upload_file(pathToFile:, peepy: false, nsfw: false, override: {}, metadata_list: [])
     //     raise "Can not upload empty file: #{pathToFile}" if File.empty?(pathToFile)
@@ -69,12 +69,14 @@ export class Client {
 
   private async processTransfer({asset, cloudFile}: {asset: string; cloudFile: CloudFile}): Promise<CloudFile> {
     if (!cloudFile.reserved()) {
-      console.log(`CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.attr.state}`)
+      console.log(
+        `CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.attr.state}`,
+      )
       return cloudFile
     }
 
     if (!cloudFile.localPathToFile) {
-      throw new Error("CloudFile#processTransfer requires CloudFile's localPathToFile to be set")
+      throw new Error('CloudFile#processTransfer requires CloudFile\'localPathToFile to be set')
     }
 
     console.log(`Processing Transfer: ${cloudFile.localPathToFile}`)
