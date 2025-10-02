@@ -70,7 +70,7 @@ export class Client {
   private async processTransfer({asset, cloudFile}: {asset: string; cloudFile: CloudFile}): Promise<CloudFile> {
     if (!cloudFile.reserved()) {
       console.log(
-        `CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.attr.state}`,
+        `CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.remoteAttr.state}`,
       )
       return cloudFile
     }
@@ -81,12 +81,12 @@ export class Client {
 
     console.log(`Processing Transfer: ${cloudFile.localPathToFile}`)
 
-    this.md5AsFolders(cloudFile.attr.md5)
+    this.md5AsFolders(cloudFile.remoteAttr.md5)
     const stats = await fs.stat(cloudFile.localPathToFile as string)
     const filesize = stats.size
 
     const s3Uploader = new S3Uploader({asset, cloudFile})
-    await s3Uploader.putLocalFile()
+    await s3Uploader.putFile()
     //   def process_reservation_and_transfer(cloud_file:, pathToFile:, md5:, asset:)
     //   return unless cloud_file.reserved?
 

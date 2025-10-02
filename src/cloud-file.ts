@@ -8,19 +8,19 @@ import {detectMime, generateMd5} from './utils'
 // import {file} from '@oclif/core/args'
 
 export class CloudFile {
-  attr: CloudFileType
   localPathToFile: null | string
+  remoteAttr: CloudFileType
   resourceType: null | string = null
 
-  constructor({attributes, localPathToFile = null}: {attributes: CloudFileType; localPathToFile?: null | string}) {
-    this.attr = attributes
+  constructor({localPathToFile = null, remoteAttr}: {localPathToFile?: null | string; remoteAttr: CloudFileType}) {
+    this.remoteAttr = remoteAttr
     this.inferStateHistory()
     this.localPathToFile = localPathToFile
   }
 
   static async fetch(md5: string): Promise<CloudFile> {
     const {data} = await api.get(`/cloud_files/${md5}`)
-    return new CloudFile({attributes: data})
+    return new CloudFile({remoteAttr: data})
   }
 
   static async fetchOrReserveBy({
@@ -60,11 +60,11 @@ export class CloudFile {
     const payload = {nsfw, secured}
     const {data: responseData} = await api.post(`/cloud_files/${md5}/reserve`, payload)
     const data: CloudFileType = responseData
-    return new CloudFile({attributes: data, localPathToFile: pathToFile})
+    return new CloudFile({localPathToFile: pathToFile, remoteAttr: data})
   }
 
   completed(): boolean {
-    return this.attr.state === CloudFileState.COMPLETED
+    return this.remoteAttr.state === CloudFileState.COMPLETED
   }
 
   identifyContentType(): void {
@@ -73,52 +73,52 @@ export class CloudFile {
     }
 
     const {mediatype, type} = detectMime(this.localPathToFile)
-    this.resourceType = this.attr.peepy ? 'secured' : mediatype
-    this.attr.content_type = type
+    this.resourceType = this.remoteAttr.peepy ? 'secured' : mediatype
+    this.remoteAttr.content_type = type
   }
 
   reserved(): boolean {
-    return this.attr.state === CloudFileState.RESERVED
+    return this.remoteAttr.state === CloudFileState.RESERVED
   }
 
   async transfer({asset, filesize}: {asset: string; filesize: number}): Promise<CloudFile> {
     this.identifyContentType()
 
-    if (!this.attr.content_type) {
+    if (!this.remoteAttr.content_type) {
       throw new Error('CloudFile#transfer requires this.contentType to be set')
     }
 
-    this.attr.filesize = filesize
-    const payload = {asset, content_type: this.attr.content_type, filesize}
-    const {data} = await api.post(`/cloud_files/${this.attr.md5}/transfer`, payload)
-    this.attr = data
-    this.attr.state_history.push(CloudFileState.TRANSFERRED)
+    this.remoteAttr.filesize = filesize
+    const payload = {asset, content_type: this.remoteAttr.content_type, filesize}
+    const {data} = await api.post(`/cloud_files/${this.remoteAttr.md5}/transfer`, payload)
+    this.remoteAttr = data
+    this.remoteAttr.state_history.push(CloudFileState.TRANSFERRED)
     return this
   }
 
   transfered(): boolean {
-    return this.attr.state === CloudFileState.TRANSFERRED
+    return this.remoteAttr.state === CloudFileState.TRANSFERRED
   }
 
   private inferStateHistory(): void {
-    switch (this.attr.state) {
+    switch (this.remoteAttr.state) {
       case CloudFileState.COMPLETED: {
-        this.attr.state_history = [CloudFileState.RESERVED, CloudFileState.TRANSFERRED, CloudFileState.COMPLETED]
+        this.remoteAttr.state_history = [CloudFileState.RESERVED, CloudFileState.TRANSFERRED, CloudFileState.COMPLETED]
         break
       }
 
       case CloudFileState.RESERVED: {
-        this.attr.state_history = [CloudFileState.RESERVED]
+        this.remoteAttr.state_history = [CloudFileState.RESERVED]
         break
       }
 
       case CloudFileState.TRANSFERRED: {
-        this.attr.state_history = [CloudFileState.RESERVED, CloudFileState.TRANSFERRED]
+        this.remoteAttr.state_history = [CloudFileState.RESERVED, CloudFileState.TRANSFERRED]
         break
       }
 
       default: {
-        this.attr.state_history = []
+        this.remoteAttr.state_history = []
       }
     }
   }

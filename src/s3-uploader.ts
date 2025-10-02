@@ -19,7 +19,7 @@ export class S3Uploader {
   }
 
   generateRemotePath(): string {
-    return `${this.cloudFile.resourceType}/${this.md5AsFolders(this.cloudFile.attr.md5)}/${this.asset}`
+    return `${this.cloudFile.resourceType}/${this.md5AsFolders(this.cloudFile.remoteAttr.md5)}/${this.asset}`
   }
 
   md5AsFolders(md5: string): string {

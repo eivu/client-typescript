@@ -16,12 +16,12 @@ describe('CloudFile', () => {
 
   describe('completed', () => {
     it('returns true if the CloudFile state is completed', () => {
-      const cloudFile = new CloudFile({attributes: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.COMPLETED}})
+      const cloudFile = new CloudFile({remoteAttr: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.COMPLETED}})
       expect(cloudFile.completed()).toBe(true)
     })
 
     it('returns false if the CloudFile state is not completed', () => {
-      const cloudFile = new CloudFile({attributes: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED}})
+      const cloudFile = new CloudFile({remoteAttr: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED}})
       expect(cloudFile.completed()).toBe(false)
     })
   })
@@ -38,7 +38,7 @@ describe('CloudFile', () => {
         const cloudFile = await CloudFile.fetch(md5)
         expect(cloudFile).toBeDefined()
         expect(cloudFile.localPathToFile).toBeNull()
-        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
+        expect(cloudFile.remoteAttr).toEqual(AI_OVERLORDS_RESERVATION)
         expect(req.isDone()).toBe(true)
       })
     })
@@ -70,7 +70,7 @@ describe('CloudFile', () => {
         const cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
         expect(cloudFile).toBeDefined()
         expect(cloudFile.localPathToFile).toEqual(pathToFile)
-        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
+        expect(cloudFile.remoteAttr).toEqual(AI_OVERLORDS_RESERVATION)
         expect(req.isDone()).toBe(true)
       })
     })
@@ -91,7 +91,7 @@ describe('CloudFile', () => {
           .reply(200, AI_OVERLORDS_RESERVATION)
         const cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
         expect(cloudFile).toBeDefined()
-        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
+        expect(cloudFile.remoteAttr).toEqual(AI_OVERLORDS_RESERVATION)
         expect(reserveReq.isDone()).toBe(true)
         expect(fetchReq.isDone()).toBe(true)
       })
@@ -111,7 +111,7 @@ describe('CloudFile', () => {
         const cloudFile = await CloudFile.reserve({pathToFile})
         expect(cloudFile).toBeDefined()
         expect(cloudFile.localPathToFile).toEqual(pathToFile)
-        expect(cloudFile.attr).toEqual(AI_OVERLORDS_RESERVATION)
+        expect(cloudFile.remoteAttr).toEqual(AI_OVERLORDS_RESERVATION)
         expect(req.isDone()).toBe(true)
       })
     })
@@ -135,33 +135,33 @@ describe('CloudFile', () => {
 
   describe('reserved', () => {
     it('returns true if the CloudFile state is reserved', () => {
-      const cloudFile = new CloudFile({attributes: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED}})
+      const cloudFile = new CloudFile({remoteAttr: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED}})
       expect(cloudFile.reserved()).toBe(true)
     })
 
     it('returns false if the CloudFile state is not reserved', () => {
-      const cloudFile = new CloudFile({attributes: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.COMPLETED}})
+      const cloudFile = new CloudFile({remoteAttr: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.COMPLETED}})
       expect(cloudFile.reserved()).toBe(false)
     })
   })
 
   describe('transfer', () => {
     it('marks a CloudFile as transferred', async () => {
-      const cloudFile = new CloudFile({attributes: AI_OVERLORDS_RESERVATION, localPathToFile: 'test/fixtures/ai overlords.jpg'})
+      const cloudFile = new CloudFile({localPathToFile: 'test/fixtures/ai overlords.jpg', remoteAttr: AI_OVERLORDS_RESERVATION})
       expect(cloudFile).toBeDefined()
-      // expect(cloudFile.attr.state_history).toEqual([CloudFileState.RESERVED, CloudFileState.TRANSFERRED])
-      // expect(cloudFile.attr.filesize).toEqual(204800)
+      // expect(cloudFile.remoteAttr.state_history).toEqual([CloudFileState.RESERVED, CloudFileState.TRANSFERRED])
+      // expect(cloudFile.remoteAttr.filesize).toEqual(204800)
     })
   })
 
   describe('transfered', () => {
     it('returns true if the CloudFile state is transferred', () => {
-      const cloudFile = new CloudFile({attributes: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.TRANSFERRED}})
+      const cloudFile = new CloudFile({remoteAttr: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.TRANSFERRED}})
       expect(cloudFile.transfered()).toBe(true)
     })
 
     it('returns false if the CloudFile state is not transferred', () => {
-      const cloudFile = new CloudFile({attributes: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED}})
+      const cloudFile = new CloudFile({remoteAttr: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED}})
       expect(cloudFile.transfered()).toBe(false)
     })
   })
