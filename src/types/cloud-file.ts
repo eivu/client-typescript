@@ -33,7 +33,6 @@ export type CloudFileType = {
   secured?: boolean
   shared?: boolean
   state: State
-  statestory: State[]
   updated_at: string
   url?: null | string
   user_uuid?: string
