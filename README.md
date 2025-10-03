@@ -7,88 +7,41 @@ TS Upload Client for Eivu
 [![Downloads/week](https://img.shields.io/npm/dw/eivu-upload-client.svg)](https://npmjs.org/package/eivu-upload-client)
 
 <!-- toc -->
-
-- [Usage](#usage)
-- [Commands](#commands)
+* [eivu-upload-client](#eivu-upload-client)
+* [Usage](#usage)
+* [Commands](#commands)
 <!-- tocstop -->
 
 # Usage
 
 <!-- usage -->
-
 ```sh-session
 $ npm install -g eivu-upload-client
 $ eivu-upload COMMAND
 running command...
 $ eivu-upload (--version)
-eivu-upload-client/0.0.0 darwin-x64 node-v22.14.0
+eivu-upload-client/0.0.0 linux-x64 node-v20.19.5
 $ eivu-upload --help [COMMAND]
 USAGE
   $ eivu-upload COMMAND
 ...
 ```
-
 <!-- usagestop -->
 
 # Commands
 
 <!-- commands -->
-
-- [`eivu-upload hello PERSON`](#eivu-upload-hello-person)
-- [`eivu-upload hello world`](#eivu-upload-hello-world)
-- [`eivu-upload help [COMMAND]`](#eivu-upload-help-command)
-- [`eivu-upload plugins`](#eivu-upload-plugins)
-- [`eivu-upload plugins add PLUGIN`](#eivu-upload-plugins-add-plugin)
-- [`eivu-upload plugins:inspect PLUGIN...`](#eivu-upload-pluginsinspect-plugin)
-- [`eivu-upload plugins install PLUGIN`](#eivu-upload-plugins-install-plugin)
-- [`eivu-upload plugins link PATH`](#eivu-upload-plugins-link-path)
-- [`eivu-upload plugins remove [PLUGIN]`](#eivu-upload-plugins-remove-plugin)
-- [`eivu-upload plugins reset`](#eivu-upload-plugins-reset)
-- [`eivu-upload plugins uninstall [PLUGIN]`](#eivu-upload-plugins-uninstall-plugin)
-- [`eivu-upload plugins unlink [PLUGIN]`](#eivu-upload-plugins-unlink-plugin)
-- [`eivu-upload plugins update`](#eivu-upload-plugins-update)
-
-## `eivu-upload hello PERSON`
-
-Say hello
-
-```
-USAGE
-  $ eivu-upload hello PERSON -f <value>
-
-ARGUMENTS
-  PERSON  Person to say hello to
-
-FLAGS
-  -f, --from=<value>  (required) Who is saying hello
-
-DESCRIPTION
-  Say hello
-
-EXAMPLES
-  $ eivu-upload hello friend --from oclif
-  hello friend from oclif! (./src/commands/hello/index.ts)
-```
-
-_See code: [src/commands/hello/index.ts](https://github.com/eivu/eivu-upload-client/blob/v0.0.0/src/commands/hello/index.ts)_
-
-## `eivu-upload hello world`
-
-Say hello world
-
-```
-USAGE
-  $ eivu-upload hello world
-
-DESCRIPTION
-  Say hello world
-
-EXAMPLES
-  $ eivu-upload hello world
-  hello world! (./src/commands/hello/world.ts)
-```
-
-_See code: [src/commands/hello/world.ts](https://github.com/eivu/eivu-upload-client/blob/v0.0.0/src/commands/hello/world.ts)_
+* [`eivu-upload help [COMMAND]`](#eivu-upload-help-command)
+* [`eivu-upload plugins`](#eivu-upload-plugins)
+* [`eivu-upload plugins add PLUGIN`](#eivu-upload-plugins-add-plugin)
+* [`eivu-upload plugins:inspect PLUGIN...`](#eivu-upload-pluginsinspect-plugin)
+* [`eivu-upload plugins install PLUGIN`](#eivu-upload-plugins-install-plugin)
+* [`eivu-upload plugins link PATH`](#eivu-upload-plugins-link-path)
+* [`eivu-upload plugins remove [PLUGIN]`](#eivu-upload-plugins-remove-plugin)
+* [`eivu-upload plugins reset`](#eivu-upload-plugins-reset)
+* [`eivu-upload plugins uninstall [PLUGIN]`](#eivu-upload-plugins-uninstall-plugin)
+* [`eivu-upload plugins unlink [PLUGIN]`](#eivu-upload-plugins-unlink-plugin)
+* [`eivu-upload plugins update`](#eivu-upload-plugins-update)
 
 ## `eivu-upload help [COMMAND]`
 
@@ -399,5 +352,4 @@ DESCRIPTION
 ```
 
 _See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/update.ts)_
-
 <!-- commandsstop -->
