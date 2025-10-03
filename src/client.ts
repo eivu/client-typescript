@@ -57,7 +57,7 @@ export class Client {
     }
 
     if (!cloudFile.localPathToFile) {
-      throw new Error("CloudFile#processTransfer requires CloudFile'localPathToFile to be set")
+      throw new Error("CloudFile#processTransfer requires CloudFile's localPathToFile to be set")
     }
 
     console.log(`Processing Transfer: ${cloudFile.localPathToFile}`)
