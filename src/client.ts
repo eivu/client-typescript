@@ -77,31 +77,10 @@ export class Client {
     }
 
     const s3Uploader = new S3Uploader({asset, cloudFile, s3Config})
-    await s3Uploader.putLocalFile()
+    if (!(await s3Uploader.putLocalFile())) {
+      throw new Error(`Failed to upload file to S3: ${cloudFile.localPathToFile}`)
+    }
 
-    //   def process_reservation_and_transfer(cloud_file:, pathToFile:, md5:, asset:)
-    //   return unless cloud_file.reserved?
-
-    //   filesize = File.size(pathToFile)
-    //   remote_pathToFile = Eivu::Client::Utils.generate_remote_path(cloud_file, pathToFile)
-
-    //   log_tag = "#{md5.first(5)}:#{asset}"
-    //   Eivu::Logger.info 'Writing to S3', tags: log_tag, label: Eivu::Client
-
-    //   File.open(pathToFile, 'rb') do |file|
-    //     s3_client.put_object(
-    //       acl: 'public-read',
-    //       bucket: configuration.bucket_name,
-    //       key: remote_pathToFile, body: file
-    //     )
-    //   end
-
-    //   validate_remote_md5!(remote_pathToFile:, pathToFile:, md5:)
-
-    //   Eivu::Logger.info 'Transfering', tags: log_tag, label: Eivu::Client
-    //   cloud_file.transfer!(asset:, filesize:)
-    // end
-    // await cloudFile.transfer({asset, filesize})
-    return cloudFile
+    return cloudFile.transfer({asset, filesize})
   }
 }

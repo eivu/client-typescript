@@ -93,9 +93,9 @@ export class CloudFile {
       throw new Error('CloudFile#transfer requires this.contentType to be set')
     }
 
-    this.remoteAttr.filesize = filesize
     const payload = {asset, content_type: this.remoteAttr.content_type, filesize}
     const {data} = await api.post(`/cloud_files/${this.remoteAttr.md5}/transfer`, payload)
+    // Sets asset, content_type and filesize
     this.remoteAttr = data
     this.remoteAttr.state_history.push(CloudFileState.TRANSFERRED)
     return this

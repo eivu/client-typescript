@@ -4,7 +4,7 @@ import {type PutObjectCommandOutput} from '@aws-sdk/client-s3'
 import {CloudFileState, CloudFileType} from '../../src/types/cloud-file-type'
 
 export const AI_OVERLORDS_RESERVATION: CloudFileType = {
-  artists: {},
+  artists: [],
   artwork_url: null,
   asset: null,
   bucket_name: 'eivu-test',
@@ -54,6 +54,15 @@ export const AI_OVERLORDS_S3_RESPONSE: PutObjectCommandOutput = {
   ChecksumCRC32: 'e0Y0jQ==',
   ChecksumType: 'FULL_OBJECT',
   ETag: '"7ed971313d1aea1b6e2bf8af24bed64a"',
+}
+
+export const AI_OVERLORDS_TRANSFER: CloudFileType = {
+  ...AI_OVERLORDS_RESERVATION,
+  asset: 'ai_overlords.jpg',
+  content_type: 'image/jpeg',
+  filesize: 66_034,
+  state: CloudFileState.TRANSFERRED,
+  state_history: [CloudFileState.RESERVED, CloudFileState.TRANSFERRED],
 }
 
 export const MOV_BBB_RESERVATION: CloudFileType = {
