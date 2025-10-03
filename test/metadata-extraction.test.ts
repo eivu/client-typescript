@@ -1,6 +1,6 @@
 import {describe, expect, it} from '@jest/globals'
 
-import {extractMetadataList, extractRating, extractYear} from '../src/metadata-extraction'
+import {extractMetadataList, extractRating, extractYear, pruneMetadata} from '../src/metadata-extraction'
 
 describe('Metadata Extraction', () => {
   describe('extractMetadataList', () => {
@@ -77,6 +77,39 @@ describe('Metadata Extraction', () => {
     it('returns null when no year is present in `Cowboy Bebop - Asteroid Blues ((anime)) ((blues)) ((all time best)).wmv', () => {
       const string = '`Cowboy Bebop - Asteroid Blues ((anime)) ((blues)) ((all time best)).wmv'
       expect(extractYear(string)).toBeNull()
+    })
+  })
+
+  describe('pruneMetadata', () => {
+    it('removes metadata tags from the _Dred', () => {
+      const string =
+        '_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt'
+      const expected = 'Dredd.txt'
+      expect(pruneMetadata(string)).toBe(expected)
+    })
+
+    it('removes metadata tags from the `Cowboy Bebop', () => {
+      const string = '`Cowboy Bebop - Asteroid Blues ((anime)) ((blues)) ((all time best)).wmv'
+      const expected = 'Cowboy Bebop - Asteroid Blues.wmv'
+      expect(pruneMetadata(string)).toBe(expected)
+    })
+
+    it('removes metadata tags from the 123((456))789((012))345.txt', () => {
+      const string = '123((456))789((012))345.txt'
+      const expected = '123789345.txt'
+      expect(pruneMetadata(string)).toBe(expected)
+    })
+
+    it('removes metadata tags from the __my_potato.rb', () => {
+      const string = '__my_potato.rb'
+      const expected = 'my_potato.rb'
+      expect(pruneMetadata(string)).toBe(expected)
+    })
+
+    it('removes metadata tags from the _Judge Dredd', () => {
+      const string = '_Judge Dredd ((Comic Book Movie)).mp4'
+      const expected = 'Judge Dredd.mp4'
+      expect(pruneMetadata(string)).toBe(expected)
     })
   })
 })
