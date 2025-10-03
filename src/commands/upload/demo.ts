@@ -1,20 +1,13 @@
+import {Client} from '@src/client'
 import {CloudFile} from '@src/cloud-file'
-import {cleansedAssetName, generateMd5} from '@src/utils'
 
-async function demo(md5: string) {
-  try {
-    const cloudFile = await CloudFile.fetch(md5)
-    console.dir(cloudFile)
-    const aiImage = await CloudFile.reserve('/Users/jinx/Desktop/ai overlords.jpg')
-    console.dir(aiImage)
-  } catch (error) {
-    console.error('Error fetching cloud file:', error)
-  }
-}
-
-console.log(await generateMd5('./package.json'))
-console.log(await generateMd5('/Users/jinx/Desktop/ai overlords.jpg'))
-console.log(cleansedAssetName('/Users/jinx/Desktop/ai overlords.jpg'))
-await demo('F04CD103EDDFB64EFD8D9FC48F3023FD')
-const x = await CloudFile.fetchOrReserveBy('/Users/jinx/Desktop/ai overlords.jpg')
+const x = await CloudFile.fetchOrReserveBy({pathToFile: 'test/fixtures/samples/image/ai overlords.jpg'})
 console.dir(x)
+
+const client = new Client()
+const y = await client.upload('/Users/jinx/Downloads/Funny/20160328_190901.jpg')
+console.dir(y)
+
+// const reservedMd5 = 'B41BDA7B436091F9DBC2B3AD1299D729'
+// const reservedFile = await CloudFile.fetch(reservedMd5)
+// console.dir(reservedFile)

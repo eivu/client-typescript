@@ -5,7 +5,7 @@ export enum CloudFileState {
 }
 
 export type CloudFileType = {
-  artists?: Record<string, unknown>
+  artists?: Record<string, unknown>[]
   artwork_md5?: null | string
   artwork_url?: null | string
   asset?: null | string
@@ -38,7 +38,6 @@ export type CloudFileType = {
   secured?: boolean
   shared?: boolean
   state: CloudFileState
-  state_history: CloudFileState[]
   updated_at: string
   url?: null | string
   user_uuid?: string

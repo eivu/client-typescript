@@ -1,3 +1,4 @@
+import axios from 'axios'
 import mime from 'mime-types'
 import * as crypto from 'node:crypto'
 import * as fs from 'node:fs'
@@ -12,7 +13,7 @@ export async function generateMd5(pathToFile: string): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(pathToFile)) {
       reject(new Error(`File not found: ${pathToFile}`))
-      return;
+      return
     }
 
     const hash = crypto.createHash('md5')
@@ -23,11 +24,26 @@ export async function generateMd5(pathToFile: string): Promise<string> {
   })
 }
 
-export const detectMime = (pathToFile: string): false | {mediatype: string; subtype: string; type: string} => {
-  const type = mimeLookup(pathToFile)
+export const isOnline = async (uri: string, localFilesize?: number): Promise<boolean> => {
+  try {
+    const response = await axios.head(uri)
+    const headerOk = response.status === 200
+    let filesizeOk = true
+    if (localFilesize !== undefined) {
+      const remoteFilesizeHeader = response.headers['content-length']
+      const remoteFilesize = remoteFilesizeHeader ? Number.parseInt(remoteFilesizeHeader, 10) : Number.NaN
+      filesizeOk = !Number.isNaN(remoteFilesize) && remoteFilesize === localFilesize
+    }
 
-  if (!type) return false
+    return headerOk && filesizeOk
+  } catch {
+    // If the request fails, treat as not online
+    return false
+  }
+}
 
+export const detectMime = (pathToFile: string): {mediatype: string; subtype: string; type: string} => {
+  const type = mimeLookup(pathToFile) || 'unknown/unknown'
   const [mediatype, subtype] = type.split('/')
 
   return {mediatype, subtype, type}
@@ -45,7 +61,6 @@ const mimeLookup = (pathToFile: string): false | string => {
 }
 
 export function cleansedAssetName(name: string): string {
-  console.log('NEED TO IMPLEMENT: cleansedAssetName')
   console.log('NEED TO IMPLEMENT: func(coverart logic)')
   return sanitize(name)
 }
