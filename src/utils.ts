@@ -36,7 +36,7 @@ export const isOnline = async (uri: string, localFilesize?: number): Promise<boo
     }
 
     return headerOk && filesizeOk
-  } catch (error) {
+  } catch {
     // If the request fails, treat as not online
     return false
   }

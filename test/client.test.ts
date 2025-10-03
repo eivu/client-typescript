@@ -3,7 +3,7 @@ import nock from 'nock'
 
 import {Client} from '../src/client'
 import {CloudFile} from '../src/cloud-file'
-import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_S3_RESPONSE} from './fixtures/responses'
+import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_S3_RESPONSE, AI_OVERLORDS_TRANSFER} from './fixtures/responses'
 
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
@@ -51,6 +51,16 @@ describe('Client', () => {
           .query({keyFormat: 'camel_lower'})
           .reply(200, AI_OVERLORDS_RESERVATION)
 
+        const transferReq = nock(SERVER_HOST)
+          .post(`${URL_BUCKET_PREFIX}/cloud_files/7ED971313D1AEA1B6E2BF8AF24BED64A/transfer`, {
+            asset: 'ai_overlords.jpg',
+            // eslint-disable-next-line camelcase
+            content_type: 'image/jpeg',
+            filesize: 66_034,
+          })
+          .query({keyFormat: 'camel_lower'})
+          .reply(200, AI_OVERLORDS_TRANSFER)
+
         const cloudFile = await client.upload(pathToFile)
 
         expect(cloudFile).toBeInstanceOf(CloudFile)
@@ -58,6 +68,7 @@ describe('Client', () => {
         expect(cloudFile.remoteAttr).toBeDefined()
         expect(cloudFile.resourceType).toBe('image')
         expect(reserveReq.isDone()).toBe(true)
+        expect(transferReq.isDone()).toBe(true)
         expect(mockSend).toHaveBeenCalledTimes(1)
       })
     })

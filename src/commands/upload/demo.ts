@@ -4,9 +4,9 @@ import {CloudFile} from '@src/cloud-file'
 const x = await CloudFile.fetchOrReserveBy({pathToFile: 'test/fixtures/samples/image/ai overlords.jpg'})
 console.dir(x)
 
-// const client = new Client()
-// const y = await client.upload('test/fixtures/samples/image/ai overlords.jpg')
-// console.dir(y)
+const client = new Client()
+const y = await client.upload('test/fixtures/samples/image/ai overlords.jpg')
+console.dir(y)
 
 const reservedMd5 = 'B41BDA7B436091F9DBC2B3AD1299D729'
 const reservedFile = await CloudFile.fetch(reservedMd5)
