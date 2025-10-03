@@ -1,3 +1,4 @@
+import axios from 'axios'
 import mime from 'mime-types'
 import * as crypto from 'node:crypto'
 import * as fs from 'node:fs'
@@ -21,6 +22,24 @@ export async function generateMd5(pathToFile: string): Promise<string> {
     stream.on('data', (chunk) => hash.update(chunk))
     stream.on('end', () => resolve(hash.digest('hex').toUpperCase()))
   })
+}
+
+export const isOnline = async (uri: string, localFilesize?: number): Promise<boolean> => {
+  try {
+    const response = await axios.head(uri)
+    const headerOk = response.status === 200
+    let filesizeOk = true
+    if (localFilesize !== undefined) {
+      const remoteFilesizeHeader = response.headers['content-length']
+      const remoteFilesize = remoteFilesizeHeader ? Number.parseInt(remoteFilesizeHeader, 10) : Number.NaN
+      filesizeOk = !Number.isNaN(remoteFilesize) && remoteFilesize === localFilesize
+    }
+
+    return headerOk && filesizeOk
+  } catch (error) {
+    // If the request fails, treat as not online
+    return false
+  }
 }
 
 export const detectMime = (pathToFile: string): {mediatype: string; subtype: string; type: string} => {
