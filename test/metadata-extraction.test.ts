@@ -1,6 +1,6 @@
 import {describe, expect, it} from '@jest/globals'
 
-import {extractMetadataList, extractRating, extractYear} from '../src/metadata-extaction'
+import {extractMetadataList, extractRating, extractYear} from '../src/metadata-extraction'
 
 describe('Metadata Extraction', () => {
   describe('extractMetadataList', () => {
