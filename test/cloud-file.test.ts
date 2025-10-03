@@ -152,7 +152,7 @@ describe('CloudFile', () => {
         remoteAttr: AI_OVERLORDS_RESERVATION,
       })
       expect(cloudFile).toBeDefined()
-      // expect(cloudFile.remoteAttr.state_history).toEqual([CloudFileState.RESERVED, CloudFileState.TRANSFERRED])
+      // expect(cloudFile.stateHistory).toEqual([CloudFileState.RESERVED, CloudFileState.TRANSFERRED])
       // expect(cloudFile.remoteAttr.filesize).toEqual(204800)
     })
   })

@@ -61,7 +61,6 @@ const mimeLookup = (pathToFile: string): false | string => {
 }
 
 export function cleansedAssetName(name: string): string {
-  console.log('NEED TO IMPLEMENT: cleansedAssetName')
   console.log('NEED TO IMPLEMENT: func(coverart logic)')
   return sanitize(name)
 }

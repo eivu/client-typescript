@@ -17,6 +17,7 @@ export class CloudFile {
   localPathToFile: null | string
   remoteAttr: CloudFileType
   resourceType: null | string = null
+  stateHistory: CloudFileState[] = []
 
   constructor({localPathToFile = null, remoteAttr, resourceType = null}: CloudFileConstructorParams) {
     this.remoteAttr = remoteAttr
@@ -97,7 +98,7 @@ export class CloudFile {
     const {data} = await api.post(`/cloud_files/${this.remoteAttr.md5}/transfer`, payload)
     // Sets asset, content_type and filesize
     this.remoteAttr = data
-    this.remoteAttr.state_history.push(CloudFileState.TRANSFERRED)
+    this.stateHistory.push(CloudFileState.TRANSFERRED)
     return this
   }
 
@@ -108,22 +109,22 @@ export class CloudFile {
   private inferStateHistory(): void {
     switch (this.remoteAttr.state) {
       case CloudFileState.COMPLETED: {
-        this.remoteAttr.state_history = [CloudFileState.RESERVED, CloudFileState.TRANSFERRED, CloudFileState.COMPLETED]
+        this.stateHistory = [CloudFileState.RESERVED, CloudFileState.TRANSFERRED, CloudFileState.COMPLETED]
         break
       }
 
       case CloudFileState.RESERVED: {
-        this.remoteAttr.state_history = [CloudFileState.RESERVED]
+        this.stateHistory = [CloudFileState.RESERVED]
         break
       }
 
       case CloudFileState.TRANSFERRED: {
-        this.remoteAttr.state_history = [CloudFileState.RESERVED, CloudFileState.TRANSFERRED]
+        this.stateHistory = [CloudFileState.RESERVED, CloudFileState.TRANSFERRED]
         break
       }
 
       default: {
-        this.remoteAttr.state_history = []
+        this.stateHistory = []
       }
     }
   }

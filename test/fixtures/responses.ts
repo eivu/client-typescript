@@ -34,7 +34,6 @@ export const AI_OVERLORDS_RESERVATION: CloudFileType = {
   secured: false,
   shared: true,
   state: CloudFileState.RESERVED,
-  state_history: [CloudFileState.RESERVED],
   updated_at: '2025-09-29T23:32:35.951Z',
   url: 'https://eivu-test.s3.wasabisys.com/image/7E/D9/71/31/3D/1A/EA/1B/6E/2B/F8/AF/24/BE/D6/4A/',
   user_uuid: '0f703c04-b448-455c-8a26-4edc22bf76dd',
@@ -62,7 +61,6 @@ export const AI_OVERLORDS_TRANSFER: CloudFileType = {
   content_type: 'image/jpeg',
   filesize: 66_034,
   state: CloudFileState.TRANSFERRED,
-  state_history: [CloudFileState.RESERVED, CloudFileState.TRANSFERRED],
 }
 
 export const MOV_BBB_RESERVATION: CloudFileType = {
