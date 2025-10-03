@@ -1,6 +1,7 @@
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
 import path from 'node:path'
+import {R} from 'node_modules/tsx/dist/types-Cxp8y2TL'
 
 // Regex constants
 const TAG_REGEX = /\(\((?![psy] )([^)]+)\)\)/g
@@ -9,6 +10,7 @@ const STUDIO_REGEX = /\(\(s ([^)]+)\)\)/g
 const YEAR_REGEX = /\(\(y ([^)]+)\)\)/g
 const RATING_500_475_REGEX = /^_+/g
 const RATING_425_REGEX = /^`/g
+export const COVERART_PREFIX = 'eivu-coverart'
 
 export type MetadataProfile = {
   artists: Artist[]
@@ -21,25 +23,16 @@ export type MetadataProfile = {
   year?: null | number
 }
 
-export const COVERART_PREFIX = 'eivu-coverart'
+export type OverrideOptions = {
+  skipOriginalLocalPathToFile?: boolean | null
+  name?: null | string
+}
 
 // Extract year from filename
 export const extractYear = (input: string): null | number => {
   const base = path.basename(input)
   const match = /\(\(y ([^)]+)\)\)/.exec(base)
   return match ? Number(match[1].trim()) : null
-}
-
-export const pruneMetadata = (string: string): string => {
-  // trim spaces around metadata tags
-  let output = string.trim().replaceAll(' ((', '((').replaceAll(')) ', '))')
-  // Remove metadata tags
-  const regexes = [TAG_REGEX, PERFORMER_REGEX, STUDIO_REGEX, YEAR_REGEX, RATING_500_475_REGEX, RATING_425_REGEX]
-  for (const regex of regexes) {
-    output = output.replaceAll(regex, '')
-  }
-
-  return output
 }
 
 export const extractMetadataList = (input: string): Array<Record<string, string>> => {
@@ -80,4 +73,42 @@ export function extractRating(input: string): null | number {
   if (base.startsWith('`')) return 4.25
 
   return null
+}
+
+export const generateDataProfile = ({
+  metadataList = [],
+  override = {},
+  pathToFile,
+}: {
+  metadataList?: Array<Record<string, string>>
+  override?: OverrideOptions
+  pathToFile: string
+}): MetadataProfile => {
+  metadataList = [...metadataList, ...extractMetadataList(pathToFile)]
+
+  // Optionally include original local path
+  if (!override?.skipOriginalLocalPathToFile) {
+    metadataList.push({original_local_path_to_file: pathToFile})
+  }
+
+  // const year = extractYear(pathToFile) ?? pruneFromMetadataList(metadataList, 'eivu:year')
+}
+
+export const pruneMetadata = (string: string): string => {
+  // trim spaces around metadata tags
+  let output = string.trim().replaceAll(' ((', '((').replaceAll(')) ', '))')
+  // Remove metadata tags
+  const regexes = [TAG_REGEX, PERFORMER_REGEX, STUDIO_REGEX, YEAR_REGEX, RATING_500_475_REGEX, RATING_425_REGEX]
+  for (const regex of regexes) {
+    output = output.replaceAll(regex, '')
+  }
+
+  return output
+}
+
+export const pruneFromMetadataList = (
+  metadataList: Array<Record<string, any>>,
+  key: string,
+): Array<Record<string, any>> => {
+  return metadataList.filter((item) => !item.hasOwnProperty(key))
 }

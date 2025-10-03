@@ -1,6 +1,12 @@
 import {describe, expect, it} from '@jest/globals'
 
-import {extractMetadataList, extractRating, extractYear, pruneMetadata} from '../src/metadata-extraction'
+import {
+  extractMetadataList,
+  extractRating,
+  extractYear,
+  pruneFromMetadataList,
+  pruneMetadata,
+} from '../src/metadata-extraction'
 
 describe('Metadata Extraction', () => {
   describe('extractMetadataList', () => {
@@ -110,6 +116,34 @@ describe('Metadata Extraction', () => {
       const string = '_Judge Dredd ((Comic Book Movie)).mp4'
       const expected = 'Judge Dredd.mp4'
       expect(pruneMetadata(string)).toBe(expected)
+    })
+  })
+
+  describe('pruneFromMetadataList', () => {
+    let metadataList = [{title: 'Cowboy Bebop'}, {studio: 'Sunrise'}, {tag: 'anime'}]
+
+    describe('when values for key are present', () => {
+      it('returns "studio" key and removes the pair from metadataList', () => {
+        const prunedList = pruneFromMetadataList(metadataList, 'studio')
+        expect(prunedList).toEqual([{title: 'Cowboy Bebop'}, {tag: 'anime'}])
+      })
+
+      it('returns "title" key and removes the pair from metadataList', () => {
+        const prunedList = pruneFromMetadataList(metadataList, 'title')
+        expect(prunedList).toEqual([{studio: 'Sunrise'}, {tag: 'anime'}])
+      })
+
+      it('returns "tag" key and removes the pair from metadataList', () => {
+        const prunedList = pruneFromMetadataList(metadataList, 'tag')
+        expect(prunedList).toEqual([{title: 'Cowboy Bebop'}, {studio: 'Sunrise'}])
+      })
+    })
+
+    describe('when values for key are not present', () => {
+      it('returns original list when key is "director"', () => {
+        const prunedList = pruneFromMetadataList(metadataList, 'director')
+        expect(prunedList).toEqual(metadataList)
+      })
     })
   })
 })
