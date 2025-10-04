@@ -120,29 +120,37 @@ describe('Metadata Extraction', () => {
   })
 
   describe('pruneFromMetadataList', () => {
-    let metadataList = [{title: 'Cowboy Bebop'}, {studio: 'Sunrise'}, {tag: 'anime'}]
+    let metadataList: Array<Record<string, unknown>>
+
+    beforeEach(() => {
+      metadataList = [{title: 'Cowboy Bebop'}, {studio: 'Sunrise'}, {tag: 'anime'}]
+    })
 
     describe('when values for key are present', () => {
-      it('returns "studio" key and removes the pair from metadataList', () => {
-        const prunedList = pruneFromMetadataList(metadataList, 'studio')
-        expect(prunedList).toEqual([{title: 'Cowboy Bebop'}, {tag: 'anime'}])
+      it('returns "studio" pair and removes the pair from metadataList', () => {
+        const item = pruneFromMetadataList(metadataList, 'studio')
+        expect(metadataList).toEqual([{title: 'Cowboy Bebop'}, {tag: 'anime'}])
+        expect(item).toEqual({studio: 'Sunrise'})
       })
 
-      it('returns "title" key and removes the pair from metadataList', () => {
-        const prunedList = pruneFromMetadataList(metadataList, 'title')
-        expect(prunedList).toEqual([{studio: 'Sunrise'}, {tag: 'anime'}])
+      it('returns "title" pair and removes the pair from metadataList', () => {
+        const item = pruneFromMetadataList(metadataList, 'title')
+        expect(metadataList).toEqual([{studio: 'Sunrise'}, {tag: 'anime'}])
+        expect(item).toEqual({title: 'Cowboy Bebop'})
       })
 
-      it('returns "tag" key and removes the pair from metadataList', () => {
-        const prunedList = pruneFromMetadataList(metadataList, 'tag')
-        expect(prunedList).toEqual([{title: 'Cowboy Bebop'}, {studio: 'Sunrise'}])
+      it('returns "tag" pair and removes the pair from metadataList', () => {
+        const item = pruneFromMetadataList(metadataList, 'tag')
+        expect(metadataList).toEqual([{title: 'Cowboy Bebop'}, {studio: 'Sunrise'}])
+        expect(item).toEqual({tag: 'anime'})
       })
     })
 
     describe('when values for key are not present', () => {
       it('returns original list when key is "director"', () => {
-        const prunedList = pruneFromMetadataList(metadataList, 'director')
-        expect(prunedList).toEqual(metadataList)
+        const item = pruneFromMetadataList(metadataList, 'director')
+        expect(metadataList).toEqual([{title: 'Cowboy Bebop'}, {studio: 'Sunrise'}, {tag: 'anime'}])
+        expect(item).toBeNull()
       })
     })
   })

@@ -1,7 +1,6 @@
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
 import path from 'node:path'
-import {R} from 'node_modules/tsx/dist/types-Cxp8y2TL'
 
 // Regex constants
 const TAG_REGEX = /\(\((?![psy] )([^)]+)\)\)/g
@@ -24,8 +23,8 @@ export type MetadataProfile = {
 }
 
 export type OverrideOptions = {
-  skipOriginalLocalPathToFile?: boolean | null
   name?: null | string
+  skipOriginalLocalPathToFile?: boolean | null
 }
 
 // Extract year from filename
@@ -88,10 +87,12 @@ export const generateDataProfile = ({
 
   // Optionally include original local path
   if (!override?.skipOriginalLocalPathToFile) {
+    // eslint-disable-next-line camelcase
     metadataList.push({original_local_path_to_file: pathToFile})
   }
 
   // const year = extractYear(pathToFile) ?? pruneFromMetadataList(metadataList, 'eivu:year')
+  return {} as MetadataProfile
 }
 
 export const pruneMetadata = (string: string): string => {
@@ -107,8 +108,14 @@ export const pruneMetadata = (string: string): string => {
 }
 
 export const pruneFromMetadataList = (
-  metadataList: Array<Record<string, any>>,
+  metadataList: Array<Record<string, unknown>>,
   key: string,
-): Array<Record<string, any>> => {
-  return metadataList.filter((item) => !item.hasOwnProperty(key))
+): null | Record<string, unknown> => {
+  const index = metadataList.findIndex((item) => Object.hasOwn(item, key))
+  if (index !== -1) {
+    const [item] = metadataList.splice(index, 1)
+    return item
+  }
+
+  return null
 }
