@@ -128,21 +128,21 @@ describe('Metadata Extraction', () => {
 
     describe('when values for key are present', () => {
       it('returns "studio" pair and removes the pair from metadataList', () => {
-        const item = pruneFromMetadataList(metadataList, 'studio')
+        const value = pruneFromMetadataList(metadataList, 'studio')
         expect(metadataList).toEqual([{title: 'Cowboy Bebop'}, {tag: 'anime'}])
-        expect(item).toEqual({studio: 'Sunrise'})
+        expect(value).toEqual('Sunrise')
       })
 
       it('returns "title" pair and removes the pair from metadataList', () => {
-        const item = pruneFromMetadataList(metadataList, 'title')
+        const value = pruneFromMetadataList(metadataList, 'title')
         expect(metadataList).toEqual([{studio: 'Sunrise'}, {tag: 'anime'}])
-        expect(item).toEqual({title: 'Cowboy Bebop'})
+        expect(value).toEqual('Cowboy Bebop')
       })
 
       it('returns "tag" pair and removes the pair from metadataList', () => {
-        const item = pruneFromMetadataList(metadataList, 'tag')
+        const value = pruneFromMetadataList(metadataList, 'tag')
         expect(metadataList).toEqual([{title: 'Cowboy Bebop'}, {studio: 'Sunrise'}])
-        expect(item).toEqual({tag: 'anime'})
+        expect(value).toEqual('anime')
       })
     })
 
