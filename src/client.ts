@@ -3,12 +3,23 @@ import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {cleansedAssetName} from '@src/utils'
 import {promises as fs} from 'node:fs'
 
+/**
+ * Client for managing file uploads to the cloud storage service
+ * Handles file validation, reservation, transfer, and status tracking
+ */
 export class Client {
   status = {
     failure: {},
     success: {},
   }
 
+  /**
+   * Uploads a file to cloud storage
+   * Validates the file, reserves a slot, and transfers the file to S3
+   * @param pathToFile - Path to the local file to upload
+   * @returns The CloudFile instance representing the uploaded file
+   * @throws Error if the file is empty or upload fails
+   */
   async upload(pathToFile: string): Promise<CloudFile> {
     if (await this.isEmptyFile(pathToFile)) {
       throw new Error(`Can not upload empty file: ${pathToFile}`)
@@ -41,6 +52,12 @@ export class Client {
     return cloudFile
   }
 
+  /**
+   * Checks if a file is empty (has zero size)
+   * @param pathToFile - Path to the file to check
+   * @returns True if the file is empty or doesn't exist
+   * @private
+   */
   private async isEmptyFile(pathToFile: string): Promise<boolean> {
     try {
       const stats = await fs.stat(pathToFile)
@@ -50,6 +67,15 @@ export class Client {
     }
   }
 
+  /**
+   * Processes the transfer of a file to S3 cloud storage
+   * @param params - Transfer parameters
+   * @param params.asset - The cleansed asset name
+   * @param params.cloudFile - The CloudFile instance to transfer
+   * @returns The updated CloudFile instance after transfer
+   * @throws Error if the CloudFile is not in reserved state or localPathToFile is not set
+   * @private
+   */
   private async processTransfer({asset, cloudFile}: {asset: string; cloudFile: CloudFile}): Promise<CloudFile> {
     if (!cloudFile.reserved()) {
       console.log(`CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.remoteAttr.state}`)

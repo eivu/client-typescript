@@ -3,10 +3,16 @@ import {Credentials} from '@aws-sdk/types'
 import {CloudFile} from '@src/cloud-file'
 import {readFile} from 'node:fs/promises'
 
+/**
+ * Error messages for S3 transfer failures
+ */
 enum TransferErrorMessages {
   ENTITY_TOO_LARGE = 'Error from S3 while uploading object. The object was too large. To upload objects larger than 5GB, use the S3 console (160GB max) or the multipart upload API (5TB max).',
 }
 
+/**
+ * Configuration for S3 uploader
+ */
 export type S3UploaderConfig = {
   accessKeyId: string
   bucketName: string
@@ -15,23 +21,43 @@ export type S3UploaderConfig = {
   secretAccessKey: string
 }
 
+/**
+ * Parameters for constructing an S3Uploader instance
+ */
 type S3UploaderConstructorParams = {
   asset: string
   cloudFile: CloudFile
   s3Config: S3UploaderConfig
 }
 
+/**
+ * Handles uploading files to S3-compatible cloud storage
+ * Manages path generation, file upload, and MD5 validation
+ */
 export class S3Uploader {
   asset: string
   cloudFile: CloudFile
   s3Config: S3UploaderConfig
 
+  /**
+   * Creates a new S3Uploader instance
+   * @param params - Constructor parameters
+   * @param params.asset - The asset name for the uploaded file
+   * @param params.cloudFile - The CloudFile instance to upload
+   * @param params.s3Config - S3 configuration settings
+   */
   constructor({asset, cloudFile, s3Config}: S3UploaderConstructorParams) {
     this.cloudFile = cloudFile
     this.asset = asset
     this.s3Config = s3Config
   }
 
+  /**
+   * Generates the remote S3 path for the file
+   * Format: resourceType/MD5_AS_FOLDERS/asset
+   * @returns The remote path string
+   * @throws Error if resourceType is not set
+   */
   generateRemotePath(): string {
     if (!this.cloudFile.resourceType) {
       throw new Error('S3Uploader#generateRemotePath requires CloudFile.resourceType to be set')
@@ -40,12 +66,22 @@ export class S3Uploader {
     return `${this.cloudFile.resourceType}/${this.md5AsFolders(this.cloudFile.remoteAttr.md5)}/${this.asset}`
   }
 
+  /**
+   * Converts an MD5 hash into a folder path structure
+   * Example: "ABC123" -> "AB/C1/23"
+   * @param md5 - The MD5 hash string
+   * @returns The MD5 hash formatted as a folder path
+   */
   md5AsFolders(md5: string): string {
     const upper = md5.toUpperCase() // Convert to uppercase
     const parts = upper.match(/.{2}|.+/g) // Match pairs of 2 characters, and if odd-length, the last leftover chunk
     return parts ? parts.join('/') : '' // Join with "/"
   }
 
+  /**
+   * Uploads a local file to S3 cloud storage
+   * @returns True if upload successful and MD5 validation passes, false otherwise
+   */
   async putLocalFile(): Promise<boolean> {
     const credentials: Credentials = {
       accessKeyId: this.s3Config.accessKeyId,
@@ -88,6 +124,11 @@ export class S3Uploader {
     return false
   }
 
+  /**
+   * Validates that the remote file's MD5 hash matches the local file
+   * @param response - The S3 PutObject response
+   * @returns True if MD5 hashes match and status is 200
+   */
   validateRemoteMd5(response: PutObjectCommandOutput) {
     return (
       response.$metadata.httpStatusCode === 200 && response.ETag === `"${this.cloudFile.remoteAttr.md5.toLowerCase()}"`

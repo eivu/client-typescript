@@ -9,8 +9,13 @@ const STUDIO_REGEX = /\(\(s ([^)]+)\)\)/g
 const YEAR_REGEX = /\(\(y ([^)]+)\)\)/g
 const RATING_500_475_REGEX = /^_+/g
 const RATING_425_REGEX = /^`/g
+
+/** Prefix used for cover art identification */
 export const COVERART_PREFIX = 'eivu-coverart'
 
+/**
+ * Metadata profile containing extracted file information and tags
+ */
 export type MetadataProfile = {
   artists: Artist[]
   duration?: null | number
@@ -22,18 +27,30 @@ export type MetadataProfile = {
   year?: null | number
 }
 
+/**
+ * Options for overriding metadata extraction behavior
+ */
 export type OverrideOptions = {
   name?: null | string
   skipOriginalLocalPathToFile?: boolean | null
 }
 
-// Extract year from filename
+/**
+ * Extracts the year from a filename using the ((y YEAR)) tag format
+ * @param input - The file path or filename to extract the year from
+ * @returns The extracted year as a number, or null if not found
+ */
 export const extractYear = (input: string): null | number => {
   const base = path.basename(input)
   const match = /\(\(y ([^)]+)\)\)/.exec(base)
   return match ? Number(match[1].trim()) : null
 }
 
+/**
+ * Extracts metadata tags from a filename, including performers, studios, and general tags
+ * @param input - The file path or filename to extract metadata from
+ * @returns An array of metadata objects with type-value pairs
+ */
 export const extractMetadataList = (input: string): Array<Record<string, string>> => {
   let base = path.basename(input)
 
@@ -63,7 +80,14 @@ export const extractMetadataList = (input: string): Array<Record<string, string>
   return results
 }
 
-// Extract rating from filename
+/**
+ * Extracts the rating from a filename based on prefix characters
+ * - '__' prefix = 5.0 rating
+ * - '_' prefix = 4.75 rating
+ * - '`' prefix = 4.25 rating
+ * @param input - The file path or filename to extract the rating from
+ * @returns The extracted rating as a number, or null if not found
+ */
 export function extractRating(input: string): null | number {
   const base = path.basename(input)
 
@@ -74,6 +98,14 @@ export function extractRating(input: string): null | number {
   return null
 }
 
+/**
+ * Generates a complete metadata profile for a file by extracting and combining metadata from the filename and provided metadata list
+ * @param params - Configuration object
+ * @param params.metadataList - Additional metadata to include in the profile
+ * @param params.override - Options to override default extraction behavior
+ * @param params.pathToFile - Path to the file being processed
+ * @returns A complete metadata profile including artists, release info, and extracted tags
+ */
 export const generateDataProfile = ({
   metadataList = [],
   override = {},
@@ -124,6 +156,11 @@ export const generateDataProfile = ({
   return dataProfile
 }
 
+/**
+ * Removes metadata tags and rating prefixes from a string
+ * @param string - The string to clean
+ * @returns The string with all metadata tags removed
+ */
 export const pruneMetadata = (string: string): string => {
   // trim spaces around metadata tags
   let output = string.trim().replaceAll(' ((', '((').replaceAll(')) ', '))')
@@ -136,6 +173,13 @@ export const pruneMetadata = (string: string): string => {
   return output
 }
 
+/**
+ * Searches for and removes a specific key from the metadata list, returning its value
+ * Mutates the metadata list by removing the found item
+ * @param metadataList - The array of metadata objects to search
+ * @param key - The key to search for
+ * @returns The value associated with the key, or null if not found
+ */
 export const pruneFromMetadataList = (
   metadataList: Array<Record<string, unknown>>,
   key: string,
@@ -149,12 +193,23 @@ export const pruneFromMetadataList = (
   return null
 }
 
-// Typed helper functions for extracting specific types from metadata
+/**
+ * Helper function to extract a string value from the metadata list
+ * @param metadataList - The array of metadata objects
+ * @param key - The key to search for
+ * @returns The string value, or null if not found
+ */
 const pruneString = (metadataList: Array<Record<string, unknown>>, key: string): null | string => {
   const value = pruneFromMetadataList(metadataList, key)
   return value === null ? null : String(value)
 }
 
+/**
+ * Helper function to extract a number value from the metadata list
+ * @param metadataList - The array of metadata objects
+ * @param key - The key to search for
+ * @returns The number value, or null if not found
+ */
 const pruneNumber = (metadataList: Array<Record<string, unknown>>, key: string): null | number => {
   const value = pruneFromMetadataList(metadataList, key)
   return value === null ? null : Number(value)

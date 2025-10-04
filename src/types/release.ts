@@ -1,3 +1,6 @@
+/**
+ * Represents a release (album, EP, single, etc.) entity
+ */
 export type Release = {
   artwork_md5?: null | string
   bundle_pos?: null | string

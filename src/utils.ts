@@ -25,6 +25,13 @@ export async function generateMd5(pathToFile: string): Promise<string> {
   })
 }
 
+/**
+ * Checks if a file is available online by sending a HEAD request
+ * Optionally verifies that the remote file size matches the local file size
+ * @param uri - The URL of the remote file to check
+ * @param localFilesize - Optional local file size to compare against remote content-length header
+ * @returns True if the file is online and file sizes match (if provided), false otherwise
+ */
 export const isOnline = async (uri: string, localFilesize?: number): Promise<boolean> => {
   try {
     const response = await axios.head(uri)
@@ -43,6 +50,11 @@ export const isOnline = async (uri: string, localFilesize?: number): Promise<boo
   }
 }
 
+/**
+ * Detects the MIME type of a file based on its extension
+ * @param pathToFile - The path to the file
+ * @returns An object containing the mediatype, subtype, and full type string
+ */
 export const detectMime = (pathToFile: string): {mediatype: string; subtype: string; type: string} => {
   const type = mimeLookup(pathToFile) || 'unknown/unknown'
   const [mediatype, subtype] = type.split('/')
@@ -50,6 +62,11 @@ export const detectMime = (pathToFile: string): {mediatype: string; subtype: str
   return {mediatype, subtype, type}
 }
 
+/**
+ * Performs MIME type lookup with custom mappings for specific file extensions
+ * @param pathToFile - The path to the file
+ * @returns The MIME type string, or false if not found
+ */
 const mimeLookup = (pathToFile: string): false | string => {
   if (pathToFile.endsWith('.m4a')) return 'audio/mpeg'
   if (pathToFile.endsWith('.mp3')) return 'audio/mpeg'
@@ -61,11 +78,22 @@ const mimeLookup = (pathToFile: string): false | string => {
   return mime.lookup(pathToFile) || false
 }
 
+/**
+ * Returns a cleansed and sanitized asset name from a file path
+ * Removes metadata tags and sanitizes the filename for storage
+ * @param name - The original file name or path
+ * @returns The cleansed asset name
+ */
 export function cleansedAssetName(name: string): string {
   console.log('NEED TO IMPLEMENT: func(coverart logic)')
   return sanitize(name)
 }
 
+/**
+ * Sanitizes a filename by removing metadata, special characters, and normalizing the result
+ * @param name - The filename to sanitize
+ * @returns The sanitized filename safe for storage
+ */
 function sanitize(name: string): string {
   name = pruneMetadata(name)
   name = name.replaceAll('\\', '/')
