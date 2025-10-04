@@ -1,9 +1,11 @@
 import {describe, expect, it} from '@jest/globals'
 
+import {DREDD_DATA_PROFILE} from './fixtures/responses'
 import {
   extractMetadataList,
   extractRating,
   extractYear,
+  generateDataProfile,
   pruneFromMetadataList,
   pruneMetadata,
 } from '../src/metadata-extraction'
@@ -83,6 +85,14 @@ describe('Metadata Extraction', () => {
     it('returns null when no year is present in `Cowboy Bebop - Asteroid Blues ((anime)) ((blues)) ((all time best)).wmv', () => {
       const string = '`Cowboy Bebop - Asteroid Blues ((anime)) ((blues)) ((all time best)).wmv'
       expect(extractYear(string)).toBeNull()
+    })
+  })
+
+  describe('generateDataProfile', () => {
+    it('generates a data profile for _Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt', () => {
+      const pathToFile =
+        'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt'
+      expect(generateDataProfile({pathToFile})).toEqual(DREDD_DATA_PROFILE)
     })
   })
 

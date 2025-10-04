@@ -91,35 +91,34 @@ export const generateDataProfile = ({
     metadataList.push({original_local_path_to_file: pathToFile})
   }
 
-  const year = extractYear(pathToFile) ?? (pruneFromMetadataList(metadataList, 'eivu:year') as null | number)
-  const name = override?.name ?? (pruneFromMetadataList(metadataList, 'eivu:name') as null | string)
-  const artwork_md5 = pruneFromMetadataList(metadataList, 'eivu:artwork_md5') as null | string
-  const position = pruneFromMetadataList(metadataList, 'eivu:release_pos') as null | number
-  const bundle_pos = pruneFromMetadataList(metadataList, 'eivu:bundle_pos') as null | number
-  const duration = pruneFromMetadataList(metadataList, 'eivu:duration') as null | number
-  const artist_name = pruneFromMetadataList(metadataList, 'eivu:artist_name') as null | string
-  const release_name = pruneFromMetadataList(metadataList, 'eivu:release_name') as null | string
-  const album_artist = pruneFromMetadataList(metadataList, 'eivu:album_artist') as null | string
-  const matched_recording = null
-  const param_path_to_file = override?.skipOriginalLocalPathToFile ? null : pathToFile
+  const year = extractYear(pathToFile) ?? pruneNumber(metadataList, 'eivu:year')
+  const name = override?.name ?? pruneString(metadataList, 'eivu:name')
+  const artwork_md5 = pruneString(metadataList, 'eivu:artwork_md5') // eslint-disable-line camelcase
+  const position = pruneNumber(metadataList, 'eivu:release_pos')
+  const bundle_pos = pruneNumber(metadataList, 'eivu:bundle_pos') // eslint-disable-line camelcase
+  const duration = pruneNumber(metadataList, 'eivu:duration')
+  const artist_name = pruneString(metadataList, 'eivu:artist_name') // eslint-disable-line camelcase
+  const release_name = pruneString(metadataList, 'eivu:release_name') // eslint-disable-line camelcase
+  const album_artist = pruneString(metadataList, 'eivu:album_artist') // eslint-disable-line camelcase
+  // const matched_recording = null
+  const param_path_to_file = override?.skipOriginalLocalPathToFile ? null : pathToFile // eslint-disable-line camelcase
 
   const dataProfile: MetadataProfile = {
-    path_to_file: param_path_to_file,
-    rating: extractRating(pathToFile),
-    name,
-    year,
+    artists: [{name: artist_name} as Artist], // eslint-disable-line camelcase
     duration,
-    artists: [{name: artist_name} as Artist],
+    metadata_list: metadataList, // eslint-disable-line camelcase
+    name,
+    path_to_file: param_path_to_file, // eslint-disable-line camelcase
+    rating: extractRating(pathToFile),
     release: {
-      primary_artist_name: album_artist,
-      name: release_name,
-      year,
-      position,
-      bundle_pos,
-      artwork_md5,
+      artwork_md5, // eslint-disable-line camelcase
+      bundle_pos: bundle_pos === null ? null : String(bundle_pos), // eslint-disable-line camelcase
+      name: release_name, // eslint-disable-line camelcase
+      position: position === null ? null : String(position),
+      primary_artist_name: album_artist, // eslint-disable-line camelcase
+      year: year === null ? null : String(year),
     },
-    matched_recording: matched_recording,
-    metadata_list: metadataList,
+    year,
   }
 
   return dataProfile
@@ -137,12 +136,26 @@ export const pruneMetadata = (string: string): string => {
   return output
 }
 
-export const pruneFromMetadataList = (metadataList: Array<Record<string, unknown>>, key: string): null | unknown => {
+export const pruneFromMetadataList = (
+  metadataList: Array<Record<string, unknown>>,
+  key: string,
+): null | number | string => {
   const index = metadataList.findIndex((item) => Object.hasOwn(item, key))
   if (index !== -1) {
     const [item] = metadataList.splice(index, 1)
-    return Object.values(item)[0]
+    return Object.values(item)[0] as number | string
   }
 
   return null
+}
+
+// Typed helper functions for extracting specific types from metadata
+const pruneString = (metadataList: Array<Record<string, unknown>>, key: string): null | string => {
+  const value = pruneFromMetadataList(metadataList, key)
+  return value === null ? null : String(value)
+}
+
+const pruneNumber = (metadataList: Array<Record<string, unknown>>, key: string): null | number => {
+  const value = pruneFromMetadataList(metadataList, key)
+  return value === null ? null : Number(value)
 }

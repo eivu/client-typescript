@@ -69,3 +69,32 @@ export const MOV_BBB_RESERVATION: CloudFileType = {
   name: '198918f40ecc7cab0fc4231adaf67c96 (reserved)',
   url: 'https://eivu-test.s3.wasabisys.com/video/19/89/18/F4/0E/CC/7C/AB/0F/C4/23/1A/DA/F6/7C/96/',
 }
+
+export const DREDD_DATA_PROFILE = {
+  artists: [{name: null}],
+  duration: null,
+  metadata_list: [
+    {performer: 'karl urban'},
+    {performer: 'lena headey'},
+    {studio: 'dna films'},
+    {tag: 'comic book movie'},
+    {tag: 'script'},
+    {
+      original_local_path_to_file:
+        'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
+    },
+  ],
+  name: null,
+  path_to_file:
+    'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
+  rating: 4.75,
+  release: {
+    artwork_md5: null,
+    bundle_pos: null,
+    name: null,
+    position: null,
+    primary_artist_name: null,
+    year: '2012',
+  },
+  year: 2012,
+}
