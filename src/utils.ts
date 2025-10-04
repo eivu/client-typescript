@@ -4,6 +4,7 @@ import * as crypto from 'node:crypto'
 import * as fs from 'node:fs'
 import path from 'node:path'
 
+import {pruneMetadata} from './metadata-extraction'
 /**
  * Generate the MD5 hash of a file's contents asynchronously using streams.
  * @param pathToFile - The path to the file to hash
@@ -63,11 +64,6 @@ const mimeLookup = (pathToFile: string): false | string => {
 export function cleansedAssetName(name: string): string {
   console.log('NEED TO IMPLEMENT: func(coverart logic)')
   return sanitize(name)
-}
-
-function pruneMetadata(name: string): string {
-  console.log('NEED TO IMPLEMENT: pruneMetadata')
-  return name
 }
 
 function sanitize(name: string): string {

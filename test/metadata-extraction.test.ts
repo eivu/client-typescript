@@ -1,6 +1,5 @@
 import {describe, expect, it} from '@jest/globals'
 
-import {DREDD_DATA_PROFILE} from './fixtures/responses'
 import {
   extractMetadataList,
   extractRating,
@@ -9,6 +8,7 @@ import {
   pruneFromMetadataList,
   pruneMetadata,
 } from '../src/metadata-extraction'
+import {DREDD_DATA_PROFILE} from './fixtures/responses'
 
 describe('Metadata Extraction', () => {
   describe('extractMetadataList', () => {

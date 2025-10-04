@@ -15,6 +15,14 @@ console.dir(
       'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
   }),
 )
+console.log('-========')
+console.dir(
+  generateDataProfile({
+    pathToFile:
+      'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
+  }),
+)
+
 
 // const reservedMd5 = 'B41BDA7B436091F9DBC2B3AD1299D729'
 // const reservedFile = await CloudFile.fetch(reservedMd5)
