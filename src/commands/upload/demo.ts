@@ -10,7 +10,7 @@ const y = await client.upload('/Users/jinx/Downloads/Funny/20160328_190901.jpg')
 console.dir(y)
 console.log('-========')
 console.dir(
-  generateDataProfile({
+  await generateDataProfile({
     pathToFile:
       'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
   }),
@@ -21,7 +21,7 @@ console.log('Extracted Audio Info:')
 console.dir(await extractAudioInfo('test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'))
 console.log('****************************')
 console.dir(
-  generateDataProfile({
+  await generateDataProfile({
     pathToFile: 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp',
   }),
 )

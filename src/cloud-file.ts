@@ -5,7 +5,6 @@ import {type AxiosError} from 'axios'
 
 import {CloudFileState, type CloudFileType} from './types/cloud-file-type'
 import {detectMime, generateMd5} from './utils'
-// import {file} from '@oclif/core/args'
 
 /**
  * Parameters for constructing a CloudFile instance

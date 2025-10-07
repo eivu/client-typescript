@@ -1,6 +1,8 @@
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
+import {detectMime} from '@src/utils'
 import {parseFile} from 'music-metadata'
+import {exec} from 'node:child_process'
 import path from 'node:path'
 
 // Regex constants
@@ -155,6 +157,14 @@ export enum V2_FRAMES {
 export const COVERART_PREFIX = 'eivu-coverart'
 
 /**
+ * Acoustid fingerprint containing the fingerprint and duration
+ */
+export type AcoustidFingerprint = {
+  duration: number
+  fingerprint: string
+}
+
+/**
  * Metadata profile containing extracted file information and tags
  */
 export type MetadataProfile = {
@@ -178,31 +188,68 @@ export type OverrideOptions = {
 
 /**
  * Extracts metadata tags from a filename, including performers, studios, and general tags
- * @param input - The file path or filename to extract metadata from
+ * @param pathToFile - The file path to extract metadata from
  * @returns An array of metadata objects with type-value pairs
  */
 export const extractAudioInfo = async (pathToFile: string): Promise<Array<Record<string, string>>> => {
   const metadata = await parseFile(pathToFile)
   const v2TagsIds = metadata.format.tagTypes.filter((value) => ['ID3v2.2', 'ID3v2.3', 'ID3v2.4'].includes(value))
 
-  if (v2TagsIds.length > 0) {
-    const v2TagsId = v2TagsIds[0]
-    let extractedValue: string
-    const tags = metadata.native[v2TagsId]
-      .map((tag): Record<string, string> | undefined => {
-        if (Object.keys(V2_FRAMES).includes(tag.id)) {
-          extractedValue =
-            typeof tag.value === 'object' && tag.value !== null && !Array.isArray(tag.value)
-              ? tag.value.text
-              : tag.value
-          return {[V2_FRAMES[tag.id as keyof typeof V2_FRAMES]]: extractedValue}
-        }
-      })
-      .filter((tag): tag is Record<string, string> => tag !== undefined)
-    return tags
-  }
+  // short cirtcuit if no v2 tags found
+  if (v2TagsIds.length === 0) return []
 
-  return []
+  const v2TagsId = v2TagsIds[0]
+  let extractedValue: string
+  const tags = metadata.native[v2TagsId]
+    .map((tag): Record<string, string> | undefined => {
+      if (Object.keys(V2_FRAMES).includes(tag.id)) {
+        extractedValue =
+          typeof tag.value === 'object' && tag.value !== null && !Array.isArray(tag.value) && 'text' in tag.value
+            ? (tag.value.text as string)
+            : (tag.value as string)
+        return {[`id3:${V2_FRAMES[tag.id as keyof typeof V2_FRAMES]}`]: extractedValue}
+      }
+
+      return undefined
+    })
+    .filter((tag): tag is Record<string, string> => tag !== undefined)
+  const metadataHash = {} as Record<string, number | string | undefined>
+  const {duration, fingerprint} = await generateAcoustidFingerprint(pathToFile)
+  metadataHash['acoustid:fingerprint'] = fingerprint
+  metadataHash['acoustid:duration'] = duration
+  metadataHash['eivu:release_pos'] = metadataHash.track_nr
+  metadataHash['eivu:year'] = metadataHash.year
+  metadataHash['eivu:duration'] = duration
+  metadataHash['eivu:name'] = metadataHash['id3:title']
+  // metadataHash['eivu:artist_name'] = metadataHash
+
+  // metadata_hash['acoustid:fingerprint'] = acoustid_client.fingerprint
+  // metadata_hash['acoustid:duration']    = acoustid_client.duration
+  // metadata_hash['eivu:release_pos']     = metadata_hash['id3:track_nr']
+  // metadata_hash['eivu:year']            = metadata_hash['id3:year']
+  // metadata_hash['eivu:duration']        = acoustid_client.duration
+  // metadata_hash['eivu:name']            = metadata_hash['id3:title']
+  // metadata_hash['eivu:artist_name']     = metadata_hash['id3:artist']
+  // metadata_hash['eivu:release_name']    = metadata_hash['id3:album']
+  // metadata_hash['eivu:bundle_pos']      = metadata_hash['id3:disc_nr']
+  // metadata_hash['eivu:album_artist']    = metadata_hash['id3:band']
+  // artwork = upload_audio_artwork(path_to_file, metadata_hash.dup)
+  // metadata_hash['eivu:artwork_md5'] = artwork.md5 if artwork.present?
+  // metadata_hash.compact_blank.map { |k, v| { k => v } }
+
+  return tags
+}
+
+/**
+ * Extracts metadata from a file
+ * @param pathToFile - The file path to extract metadata from
+ * @returns The extracted metadata
+ */
+export const extractInfo = async (pathToFile: string): Promise<Array<Record<string, string>>> => {
+  const {mediatype} = detectMime(pathToFile)
+  if (mediatype === 'audio') return extractAudioInfo(pathToFile)
+
+  return extractMetadataList(pathToFile)
 }
 
 /**
@@ -258,6 +305,22 @@ export function extractRating(input: string): null | number {
 }
 
 /**
+ * Generates an Acoustid fingerprint for a file
+ * @param pathToFile - The file path to generate an Acoustid fingerprint for
+ * @returns A promise that resolves to the Acoustid fingerprint
+ */
+export const generateAcoustidFingerprint = (pathToFile: string): Promise<AcoustidFingerprint> =>
+  new Promise((resolve, reject) => {
+    exec(`fpcalc -json "${pathToFile}"`, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(`Error executing fpcalc: ${stderr}`))
+      } else {
+        resolve(JSON.parse(stdout))
+      }
+    })
+  })
+
+/**
  * Generates a complete metadata profile for a file by extracting and combining metadata from the filename and provided metadata list
  * @param params - Configuration object
  * @param params.metadataList - Additional metadata to include in the profile
@@ -265,7 +328,7 @@ export function extractRating(input: string): null | number {
  * @param params.pathToFile - Path to the file being processed
  * @returns A complete metadata profile including artists, release info, and extracted tags
  */
-export const generateDataProfile = ({
+export const generateDataProfile = async ({
   metadataList = [],
   override = {},
   pathToFile,
@@ -273,8 +336,10 @@ export const generateDataProfile = ({
   metadataList?: Array<Record<string, string>>
   override?: OverrideOptions
   pathToFile: string
-}): MetadataProfile => {
-  metadataList = [...metadataList, ...extractMetadataList(pathToFile)]
+}): Promise<MetadataProfile> => {
+  // Extract additional metadata from the filename and merge with provided metadata list
+  const fileInfo = await extractInfo(pathToFile)
+  metadataList = [...metadataList, ...fileInfo]
 
   // Optionally include original local path
   if (!override?.skipOriginalLocalPathToFile) {

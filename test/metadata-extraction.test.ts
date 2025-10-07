@@ -5,11 +5,16 @@ import {
   extractMetadataList,
   extractRating,
   extractYear,
+  generateAcoustidFingerprint,
   generateDataProfile,
   pruneFromMetadataList,
   pruneMetadata,
 } from '../src/metadata-extraction'
-import {DREDD_DATA_PROFILE, FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO} from './fixtures/responses'
+import {
+  DREDD_DATA_PROFILE,
+  FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO,
+  FROG_PRINCE_PARAGRAPH_1_FINGERPRINT,
+} from './fixtures/responses'
 
 describe('Metadata Extraction', () => {
   describe('extractAudioInfo', () => {
@@ -97,11 +102,28 @@ describe('Metadata Extraction', () => {
     })
   })
 
+  describe('generateAcoustidFingerprint', () => {
+    it('generates an AcoustidFingerprint for paragraph1.mp3', async () => {
+      const pathToFile = 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'
+      const result = await generateAcoustidFingerprint(pathToFile)
+      expect(result).toEqual({
+        duration: 45.24,
+        fingerprint: FROG_PRINCE_PARAGRAPH_1_FINGERPRINT,
+      })
+    })
+  })
+
   describe('generateDataProfile', () => {
-    it('generates a data profile for _Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt', () => {
+    it('generates a data profile for _Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt', async () => {
       const pathToFile =
         'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt'
-      expect(generateDataProfile({pathToFile})).toEqual(DREDD_DATA_PROFILE)
+      expect(await generateDataProfile({pathToFile})).toEqual(DREDD_DATA_PROFILE)
+    })
+
+    it('generates a data profile for paragraph1.mp3', async () => {
+      const pathToFile = 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'
+      const profile = generateDataProfile({pathToFile})
+      expect(await profile).toBeDefined()
     })
   })
 
