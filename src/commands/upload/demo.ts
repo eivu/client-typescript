@@ -1,6 +1,8 @@
 import {Client} from '@src/client'
 import {CloudFile} from '@src/cloud-file'
+import {parseFile} from 'music-metadata'
 import {generateDataProfile} from '@src/metadata-extraction'
+import {extractAudioInfo} from '@src/audio-info-parser'
 
 const x = await CloudFile.fetchOrReserveBy({pathToFile: 'test/fixtures/samples/image/ai overlords.jpg'})
 console.dir(x)
@@ -15,15 +17,19 @@ console.dir(
       'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
   }),
 )
-console.log('-========')
-console.dir(
-  generateDataProfile({
-    pathToFile:
-      'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
-  }),
-)
 
+console.log('****************************')
 
 // const reservedMd5 = 'B41BDA7B436091F9DBC2B3AD1299D729'
 // const reservedFile = await CloudFile.fetch(reservedMd5)
 // console.dir(reservedFile)
+// try {
+//   const filePath = 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'
+//   // const metadata = await parseFile(filePath)
+
+//   // Output the parsed metadata to the console in a readable format
+//   console.dir(metadata, {depth: null})
+// } catch (error) {
+//   console.error('Error parsing metadata:', error.message)
+// }
+await extractAudioInfo('test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3')
