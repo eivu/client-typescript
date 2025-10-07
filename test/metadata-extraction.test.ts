@@ -1,6 +1,7 @@
 import {describe, expect, it} from '@jest/globals'
 
 import {
+  extractAudioInfo,
   extractMetadataList,
   extractRating,
   extractYear,
@@ -8,9 +9,17 @@ import {
   pruneFromMetadataList,
   pruneMetadata,
 } from '../src/metadata-extraction'
-import {DREDD_DATA_PROFILE} from './fixtures/responses'
+import {DREDD_DATA_PROFILE, FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO} from './fixtures/responses'
 
 describe('Metadata Extraction', () => {
+  describe('extractAudioInfo', () => {
+    it('extracts audio info from paragraph1.mp3', async () => {
+      const pathToFile = 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'
+      const result = await extractAudioInfo(pathToFile)
+      expect(result).toEqual(FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO)
+    })
+  })
+
   describe('extractMetadataList', () => {
     it('returns found values for 123((456))789((012))345.txt', () => {
       const string = '123((456))789((012))345.txt'

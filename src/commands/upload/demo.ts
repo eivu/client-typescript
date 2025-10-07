@@ -1,8 +1,6 @@
 import {Client} from '@src/client'
 import {CloudFile} from '@src/cloud-file'
-import {parseFile} from 'music-metadata'
-import {generateDataProfile} from '@src/metadata-extraction'
-import {extractAudioInfo} from '@src/audio-info-parser'
+import {extractAudioInfo, generateDataProfile} from '@src/metadata-extraction'
 
 const x = await CloudFile.fetchOrReserveBy({pathToFile: 'test/fixtures/samples/image/ai overlords.jpg'})
 console.dir(x)
@@ -32,4 +30,4 @@ console.log('****************************')
 // } catch (error) {
 //   console.error('Error parsing metadata:', error.message)
 // }
-await extractAudioInfo('test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3')
+console.dir(await extractAudioInfo('test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'))

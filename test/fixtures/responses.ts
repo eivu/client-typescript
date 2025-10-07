@@ -63,6 +63,23 @@ export const AI_OVERLORDS_TRANSFER: CloudFileType = {
   state: CloudFileState.TRANSFERRED,
 }
 
+export const FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO = [
+  {title: 'Paragraph #1'},
+  {artist: 'The Brothers Grimm'},
+  {album: 'The Frog Prince'},
+  {genre: 'Audiobook Sample'},
+  {
+    comments: 'First paragraph of the story The Frog Prince by The Brothers Grimm',
+  },
+  {track_nr: '1'},
+  {band: 'brothers grimm'},
+  {year: '1811-01-01'},
+  {
+    lyrics:
+      'One fine evening a young princess put on her bonnet and clogs, and went out to take a walk by herself in a wood; and when she came to a cool spring of water, that rose in the midst of it, she sat herself down to rest a while. Now she had a golden ball in her hand, which was her favourite plaything; and she was always tossing it up into the air, and catching it again as it fell. After a time she threw it up so high that she missed catching it as it fell; and the ball bounded away, and rolled along upon the ground, till at last it fell down into the spring. The princess looked into the spring after her ball, but it was very deep, so deep that she could not see the bottom of it. Then she began to bewail her loss, and said, ’Alas! if I could only get my ball again, I would give all my fine clothes and jewels, and everything that I have in the world.',
+  },
+]
+
 export const MOV_BBB_RESERVATION: CloudFileType = {
   ...AI_OVERLORDS_RESERVATION,
   md5: '198918F40ECC7CAB0FC4231ADAF67C96',
