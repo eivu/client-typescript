@@ -208,13 +208,17 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Record
   if (v2TagsIds.length > 0) {
     const v2TagsId = v2TagsIds[0]
     let extractedValue: string
-    const tags = metadata.native[v2TagsId].map((tag): Record<string, string> => {
-      if (Object.keys(V2_FRAMES).includes(tag.id)) {
-        extractedValue =
-          typeof tag.value === 'object' && tag.value !== null && !Array.isArray(tag.value) ? tag.value.text : tag.value
-        return {[V2_FRAMES[tag.id as keyof typeof V2_FRAMES]]: extractedValue}
-      }
-    })
+    const tags = metadata.native[v2TagsId]
+      .map((tag): Record<string, string> | undefined => {
+        if (Object.keys(V2_FRAMES).includes(tag.id)) {
+          extractedValue =
+            typeof tag.value === 'object' && tag.value !== null && !Array.isArray(tag.value)
+              ? tag.value.text
+              : tag.value
+          return {[V2_FRAMES[tag.id as keyof typeof V2_FRAMES]]: extractedValue}
+        }
+      })
+      .filter((tag): tag is Record<string, string> => tag !== undefined)
     return tags
   }
 
