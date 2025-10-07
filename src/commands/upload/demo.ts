@@ -17,6 +17,14 @@ console.dir(
 )
 
 console.log('****************************')
+console.log('Extracted Audio Info:')
+console.dir(await extractAudioInfo('test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'))
+console.log('****************************')
+console.dir(
+  generateDataProfile({
+    pathToFile: 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp',
+  }),
+)
 
 // const reservedMd5 = 'B41BDA7B436091F9DBC2B3AD1299D729'
 // const reservedFile = await CloudFile.fetch(reservedMd5)
@@ -30,4 +38,4 @@ console.log('****************************')
 // } catch (error) {
 //   console.error('Error parsing metadata:', error.message)
 // }
-console.dir(await extractAudioInfo('test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'))
+// console.dir(await extractAudioInfo('test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'))
