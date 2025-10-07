@@ -203,6 +203,7 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Record
 */
 export const extractAudioInfo = async (pathToFile: string): Promise<Array<Record<string, string>>> => {
   const metadata = await parseFile(pathToFile)
+  console.dir(metadata, {depth: null})
   const v2TagsIds = metadata.format.tagTypes.filter((value) => ['ID3v2.2', 'ID3v2.3', 'ID3v2.4'].includes(value))
 
   if (v2TagsIds.length > 0) {
@@ -212,9 +213,9 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Record
       .map((tag): Record<string, string> | undefined => {
         if (Object.keys(V2_FRAMES).includes(tag.id)) {
           extractedValue =
-            typeof tag.value === 'object' && tag.value !== null && !Array.isArray(tag.value)
-              ? tag.value.text
-              : tag.value
+            typeof tag.value === 'object' && tag.value !== null && !Array.isArray(tag.value) && 'text' in tag.value
+              ? (tag.value as {text: string}).text
+              : String(tag.value)
           return {[V2_FRAMES[tag.id as keyof typeof V2_FRAMES]]: extractedValue}
         }
       })
