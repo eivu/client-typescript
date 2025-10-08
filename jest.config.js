@@ -13,7 +13,9 @@ export default {
   moduleFileExtensions: ['ts', 'js', 'json'],
   moduleNameMapper: {
     '^@src/(.*)$': '<rootDir>/src/$1',
-    '^@test/(.*)$': '<rootDir>/test/$1'
+    '^@test/(.*)$': '<rootDir>/test/$1',
+    '^file-type$': '<rootDir>/node_modules/file-type/index.js',
+    '^music-metadata$': '<rootDir>/node_modules/music-metadata/lib/index.js'
   },
   setupFiles: ['<rootDir>/jest.setup.js'],
   setupFilesAfterEnv: [],
@@ -23,10 +25,16 @@ export default {
     '<rootDir>/src/**/*.test.ts'
   ],
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
+    '^.+\\.(ts|js)$': ['ts-jest', {
+      tsconfig: {
+        moduleResolution: 'node'
+      },
       useESM: true
     }]
-  }
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(music-metadata|strtok3|token-types|file-type|@tokenizer|uint8array-extras|@borewit))'
+  ]
 }
 
 // module.exports = {

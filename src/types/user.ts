@@ -1,3 +1,6 @@
+/**
+ * Represents a user with JWT authentication details
+ */
 export interface User {
   email: string;
   exp: number;

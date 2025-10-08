@@ -1,9 +1,15 @@
+/**
+ * Represents the state of a cloud file in the upload lifecycle
+ */
 export enum CloudFileState {
   COMPLETED = 'completed',
   RESERVED = 'reserved',
   TRANSFERRED = 'transfered',
 }
 
+/**
+ * Type definition for cloud file attributes returned from the API
+ */
 export type CloudFileType = {
   artists?: Record<string, unknown>[]
   artwork_md5?: null | string
