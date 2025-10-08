@@ -164,13 +164,15 @@ export type AcoustidFingerprint = {
   fingerprint: string
 }
 
+export type MetadataPair = Record<string, number | string>
+
 /**
  * Metadata profile containing extracted file information and tags
  */
 export type MetadataProfile = {
   artists: Artist[]
   duration?: null | number
-  metadata_list: Array<Record<string, string>>
+  metadata_list: Array<MetadataPair>
   name?: null | string
   path_to_file: null | string
   rating: null | number
@@ -191,7 +193,7 @@ export type OverrideOptions = {
  * @param pathToFile - The file path to extract metadata from
  * @returns An array of metadata objects with type-value pairs
  */
-export const extractAudioInfo = async (pathToFile: string): Promise<Array<Record<string, string>>> => {
+export const extractAudioInfo = async (pathToFile: string): Promise<Array<MetadataPair>> => {
   const metadata = await parseFile(pathToFile)
   const v2TagsIds = metadata.format.tagTypes.filter((value) => ['ID3v2.2', 'ID3v2.3', 'ID3v2.4'].includes(value))
 
@@ -199,45 +201,34 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Record
   if (v2TagsIds.length === 0) return []
 
   const v2TagsId = v2TagsIds[0]
-  let extractedValue: string
-  const tags = metadata.native[v2TagsId]
-    .map((tag): Record<string, string> | undefined => {
-      if (Object.keys(V2_FRAMES).includes(tag.id)) {
-        extractedValue =
-          typeof tag.value === 'object' && tag.value !== null && !Array.isArray(tag.value) && 'text' in tag.value
-            ? (tag.value.text as string)
-            : (tag.value as string)
-        return {[`id3:${V2_FRAMES[tag.id as keyof typeof V2_FRAMES]}`]: extractedValue}
-      }
+  const id3Info: MetadataPair = {}
+  for (const tag of metadata.native[v2TagsId]) {
+    if (Object.keys(V2_FRAMES).includes(tag.id)) {
+      const finalValue =
+        typeof tag.value === 'object' && tag.value !== null && !Array.isArray(tag.value) && 'text' in tag.value
+          ? (tag.value.text as string)
+          : (tag.value as string)
 
-      return undefined
-    })
-    .filter((tag): tag is Record<string, string> => tag !== undefined)
-  const metadataHash = {} as Record<string, number | string | undefined>
+      const finalKey = `id3:${V2_FRAMES[tag.id as keyof typeof V2_FRAMES]}`
+      id3Info[finalKey] = finalValue
+    }
+  }
+
   const {duration, fingerprint} = await generateAcoustidFingerprint(pathToFile)
-  metadataHash['acoustid:fingerprint'] = fingerprint
-  metadataHash['acoustid:duration'] = duration
-  metadataHash['eivu:release_pos'] = metadataHash.track_nr
-  metadataHash['eivu:year'] = metadataHash.year
-  metadataHash['eivu:duration'] = duration
-  metadataHash['eivu:name'] = metadataHash['id3:title']
-  // metadataHash['eivu:artist_name'] = metadataHash
+  const audioInfo: Array<MetadataPair> = [
+    {'acoustid:duration': duration},
+    {'acoustid:fingerprint': fingerprint},
+    {'eivu:duration': duration},
+  ]
+  if (id3Info['id3:title']) audioInfo.push({'eivu:name': id3Info['id3:title']})
+  if (id3Info['id3:track_nr']) audioInfo.push({'eivu:release_pos': id3Info['id3:track_nr']})
+  if (id3Info['id3:year']) audioInfo.push({'eivu:year': id3Info['id3:year']})
+  if (id3Info['id3:album']) audioInfo.push({'eivu:release_name': id3Info['id3:album']})
+  if (id3Info['id3:artist']) audioInfo.push({'eivu:artist_name': id3Info['id3:artist']})
+  if (id3Info['id3:band']) audioInfo.push({'eivu:album_artist': id3Info['id3:band']})
+  if (id3Info['id3:disc_nr']) audioInfo.push({'eivu:bundle_pos': id3Info['id3:disc_nr']})
 
-  // metadata_hash['acoustid:fingerprint'] = acoustid_client.fingerprint
-  // metadata_hash['acoustid:duration']    = acoustid_client.duration
-  // metadata_hash['eivu:release_pos']     = metadata_hash['id3:track_nr']
-  // metadata_hash['eivu:year']            = metadata_hash['id3:year']
-  // metadata_hash['eivu:duration']        = acoustid_client.duration
-  // metadata_hash['eivu:name']            = metadata_hash['id3:title']
-  // metadata_hash['eivu:artist_name']     = metadata_hash['id3:artist']
-  // metadata_hash['eivu:release_name']    = metadata_hash['id3:album']
-  // metadata_hash['eivu:bundle_pos']      = metadata_hash['id3:disc_nr']
-  // metadata_hash['eivu:album_artist']    = metadata_hash['id3:band']
-  // artwork = upload_audio_artwork(path_to_file, metadata_hash.dup)
-  // metadata_hash['eivu:artwork_md5'] = artwork.md5 if artwork.present?
-  // metadata_hash.compact_blank.map { |k, v| { k => v } }
-
-  return tags
+  return audioInfo
 }
 
 /**
@@ -245,7 +236,7 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Record
  * @param pathToFile - The file path to extract metadata from
  * @returns The extracted metadata
  */
-export const extractInfo = async (pathToFile: string): Promise<Array<Record<string, string>>> => {
+export const extractInfo = async (pathToFile: string): Promise<Array<MetadataPair>> => {
   const {mediatype} = detectMime(pathToFile)
   if (mediatype === 'audio') return extractAudioInfo(pathToFile)
 
@@ -257,7 +248,7 @@ export const extractInfo = async (pathToFile: string): Promise<Array<Record<stri
  * @param input - The file path or filename to extract metadata from
  * @returns An array of metadata objects with type-value pairs
  */
-export const extractMetadataList = (input: string): Array<Record<string, string>> => {
+export const extractMetadataList = (input: string): Array<MetadataPair> => {
   let base = path.basename(input)
 
   // remove year
@@ -269,7 +260,7 @@ export const extractMetadataList = (input: string): Array<Record<string, string>
     tag: TAG_REGEX,
   }
 
-  const results: Array<Record<string, string>> = []
+  const results: Array<MetadataPair> = []
 
   for (const [type, regex] of Object.entries(regexMap)) {
     const matches = [...base.matchAll(regex)].map((m) => m[1]).filter(Boolean)
@@ -333,7 +324,7 @@ export const generateDataProfile = async ({
   override = {},
   pathToFile,
 }: {
-  metadataList?: Array<Record<string, string>>
+  metadataList?: Array<MetadataPair>
   override?: OverrideOptions
   pathToFile: string
 }): Promise<MetadataProfile> => {
@@ -347,35 +338,38 @@ export const generateDataProfile = async ({
     metadataList.push({original_local_path_to_file: pathToFile})
   }
 
+  /* eslint-disable camelcase */
   const year = extractYear(pathToFile) ?? pruneNumber(metadataList, 'eivu:year')
   const name = override?.name ?? pruneString(metadataList, 'eivu:name')
-  const artwork_md5 = pruneString(metadataList, 'eivu:artwork_md5') // eslint-disable-line camelcase
+  const artwork_md5 = pruneString(metadataList, 'eivu:artwork_md5')
   const position = pruneNumber(metadataList, 'eivu:release_pos')
-  const bundle_pos = pruneNumber(metadataList, 'eivu:bundle_pos') // eslint-disable-line camelcase
+  const bundle_pos = pruneNumber(metadataList, 'eivu:bundle_pos')
   const duration = pruneNumber(metadataList, 'eivu:duration')
-  const artist_name = pruneString(metadataList, 'eivu:artist_name') // eslint-disable-line camelcase
-  const release_name = pruneString(metadataList, 'eivu:release_name') // eslint-disable-line camelcase
-  const album_artist = pruneString(metadataList, 'eivu:album_artist') // eslint-disable-line camelcase
+  const artist_name = pruneString(metadataList, 'eivu:artist_name')
+  const release_name = pruneString(metadataList, 'eivu:release_name')
+  const album_artist = pruneString(metadataList, 'eivu:album_artist')
   // const matched_recording = null
-  const param_path_to_file = override?.skipOriginalLocalPathToFile ? null : pathToFile // eslint-disable-line camelcase
+  const param_path_to_file = override?.skipOriginalLocalPathToFile ? null : pathToFile
 
   const dataProfile: MetadataProfile = {
-    artists: name ? [{name: artist_name} as Artist] : [], // eslint-disable-line camelcase
+    artists: name ? [{name: artist_name} as Artist] : [],
     duration,
-    metadata_list: metadataList, // eslint-disable-line camelcase
+    metadata_list: metadataList,
     name,
-    path_to_file: param_path_to_file, // eslint-disable-line camelcase
+    path_to_file: param_path_to_file,
     rating: extractRating(pathToFile),
     release: {
-      artwork_md5, // eslint-disable-line camelcase
-      bundle_pos: bundle_pos === null ? null : String(bundle_pos), // eslint-disable-line camelcase
-      name: release_name, // eslint-disable-line camelcase
+      artwork_md5,
+      bundle_pos: bundle_pos === null ? null : String(bundle_pos),
+      name: release_name,
+      // matched_recording,
       position: position === null ? null : String(position),
-      primary_artist_name: album_artist, // eslint-disable-line camelcase
+      primary_artist_name: album_artist,
       year: year === null ? null : String(year),
     },
     year,
   }
+  /* eslint-enable camelcase */
 
   return dataProfile
 }
@@ -404,10 +398,7 @@ export const pruneMetadata = (string: string): string => {
  * @param key - The key to search for
  * @returns The value associated with the key, or null if not found
  */
-export const pruneFromMetadataList = (
-  metadataList: Array<Record<string, unknown>>,
-  key: string,
-): null | number | string => {
+export const pruneFromMetadataList = (metadataList: Array<MetadataPair>, key: string): null | number | string => {
   const index = metadataList.findIndex((item) => Object.hasOwn(item, key))
   if (index !== -1) {
     const [item] = metadataList.splice(index, 1)
@@ -423,7 +414,7 @@ export const pruneFromMetadataList = (
  * @param key - The key to search for
  * @returns The string value, or null if not found
  */
-const pruneString = (metadataList: Array<Record<string, unknown>>, key: string): null | string => {
+const pruneString = (metadataList: Array<MetadataPair>, key: string): null | string => {
   const value = pruneFromMetadataList(metadataList, key)
   return value === null ? null : String(value)
 }
@@ -434,7 +425,7 @@ const pruneString = (metadataList: Array<Record<string, unknown>>, key: string):
  * @param key - The key to search for
  * @returns The number value, or null if not found
  */
-const pruneNumber = (metadataList: Array<Record<string, unknown>>, key: string): null | number => {
+const pruneNumber = (metadataList: Array<MetadataPair>, key: string): null | number => {
   const value = pruneFromMetadataList(metadataList, key)
   return value === null ? null : Number(value)
 }
