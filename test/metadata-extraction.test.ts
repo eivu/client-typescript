@@ -23,6 +23,15 @@ describe('Metadata Extraction', () => {
       const result = await extractAudioInfo(pathToFile)
       expect(result).toEqual(FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO)
     })
+
+    it('extracts audio info from piano_brokencrash', async () => {
+      const pathToFile = 'test/fixtures/samples/audio/Piano_brokencrash-Brandondorf-1164520478.mp3'
+      const result = await extractAudioInfo(pathToFile)
+      expect(result).toEqual({
+        'acoustid:duration': 4,
+        'acoustid:fingerprint': 'AQAADEnGJKEUSkHEn2hUpqi0ZMiFr0qh5TrCzfnQxNmDPoyRCyUDYAwQAghgAA',
+      })
+    })
   })
 
   describe('extractMetadataList', () => {
@@ -109,6 +118,15 @@ describe('Metadata Extraction', () => {
       expect(result).toEqual({
         duration: 45.24,
         fingerprint: FROG_PRINCE_PARAGRAPH_1_FINGERPRINT,
+      })
+    })
+
+    it('generates an AcoustidFingerprint for piano_brokencrash', async () => {
+      const pathToFile = 'test/fixtures/samples/audio/Piano_brokencrash-Brandondorf-1164520478.mp3'
+      const result = await generateAcoustidFingerprint(pathToFile)
+      expect(result).toEqual({
+        duration: 4,
+        fingerprint: 'AQAADEnGJKEUSkHEn2hUpqi0ZMiFr0qh5TrCzfnQxNmDPoyRCyUDYAwQAghgAA',
       })
     })
   })

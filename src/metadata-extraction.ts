@@ -189,55 +189,48 @@ export type OverrideOptions = {
 /**
  * Extracts metadata tags from a filename, including performers, studios, and general tags
  * @param pathToFile - The file path to extract metadata from
- * @returns An array of metadata objects with type-value pairs
+ * @returns An object containing metadata key-value pairs
  */
-export const extractAudioInfo = async (pathToFile: string): Promise<Array<Record<string, string>>> => {
+export const extractAudioInfo = async (pathToFile: string): Promise<Record<string, number | string>> => {
   const metadata = await parseFile(pathToFile)
   const v2TagsIds = metadata.format.tagTypes.filter((value) => ['ID3v2.2', 'ID3v2.3', 'ID3v2.4'].includes(value))
+  const acoustidInfo = await generateAcoustidFingerprint(pathToFile)
 
-  // short cirtcuit if no v2 tags found
-  if (v2TagsIds.length === 0) return []
+  // short cirtcuit with acoustidInfo if no v2 tags found
+  if (v2TagsIds.length === 0) return acoustidInfo
 
   const v2TagsId = v2TagsIds[0]
-  let extractedValue: string
-  const tags = metadata.native[v2TagsId]
-    .map((tag): Record<string, string> | undefined => {
-      if (Object.keys(V2_FRAMES).includes(tag.id)) {
-        extractedValue =
-          typeof tag.value === 'object' && tag.value !== null && !Array.isArray(tag.value) && 'text' in tag.value
-            ? (tag.value.text as string)
-            : (tag.value as string)
-        return {[`id3:${V2_FRAMES[tag.id as keyof typeof V2_FRAMES]}`]: extractedValue}
-      }
+  const id3Info: Record<string, string> = {}
+  for (const tag of metadata.native[v2TagsId]) {
+    if (Object.keys(V2_FRAMES).includes(tag.id)) {
+      const finalValue =
+        typeof tag.value === 'object' && tag.value !== null && !Array.isArray(tag.value) && 'text' in tag.value
+          ? (tag.value.text as string)
+          : (tag.value as string)
 
-      return undefined
-    })
-    .filter((tag): tag is Record<string, string> => tag !== undefined)
-  const metadataHash = {} as Record<string, number | string | undefined>
-  const {duration, fingerprint} = await generateAcoustidFingerprint(pathToFile)
-  metadataHash['acoustid:fingerprint'] = fingerprint
-  metadataHash['acoustid:duration'] = duration
-  metadataHash['eivu:release_pos'] = metadataHash.track_nr
-  metadataHash['eivu:year'] = metadataHash.year
-  metadataHash['eivu:duration'] = duration
-  metadataHash['eivu:name'] = metadataHash['id3:title']
-  // metadataHash['eivu:artist_name'] = metadataHash
+      const finalKey = `id3:${V2_FRAMES[tag.id as keyof typeof V2_FRAMES]}`
+      id3Info[finalKey] = finalValue
+    }
+  }
 
-  // metadata_hash['acoustid:fingerprint'] = acoustid_client.fingerprint
-  // metadata_hash['acoustid:duration']    = acoustid_client.duration
-  // metadata_hash['eivu:release_pos']     = metadata_hash['id3:track_nr']
-  // metadata_hash['eivu:year']            = metadata_hash['id3:year']
-  // metadata_hash['eivu:duration']        = acoustid_client.duration
-  // metadata_hash['eivu:name']            = metadata_hash['id3:title']
-  // metadata_hash['eivu:artist_name']     = metadata_hash['id3:artist']
-  // metadata_hash['eivu:release_name']    = metadata_hash['id3:album']
-  // metadata_hash['eivu:bundle_pos']      = metadata_hash['id3:disc_nr']
-  // metadata_hash['eivu:album_artist']    = metadata_hash['id3:band']
-  // artwork = upload_audio_artwork(path_to_file, metadata_hash.dup)
-  // metadata_hash['eivu:artwork_md5'] = artwork.md5 if artwork.present?
-  // metadata_hash.compact_blank.map { |k, v| { k => v } }
+  const audioInfo = {
+    ...id3Info,
+    'acoustid:duration': acoustidInfo.duration,
+    'acoustid:fingerprint': acoustidInfo.fingerprint,
+    'eivu:album_artist': id3Info['id3:band'],
+    'eivu:artist_name': id3Info['id3:artist'],
+    'eivu:bundle_pos': id3Info['id3:disc_nr'] ? Number.parseInt(id3Info['id3:disc_nr'], 10) : undefined,
+    'eivu:duration': acoustidInfo.duration,
+    'eivu:name': id3Info['id3:title'],
+    'eivu:release_name': id3Info['id3:album'],
+    'eivu:release_pos': id3Info['id3:track_nr'] ? Number.parseInt(id3Info['id3:track_nr'], 10) : undefined,
+    'eivu:year': id3Info['id3:year'] ? Number.parseInt(id3Info['id3:year'], 10) : undefined,
+  }
 
-  return tags
+  // Remove null and undefined values
+  return Object.fromEntries(
+    Object.entries(audioInfo).filter(([, value]) => value !== null && value !== undefined),
+  ) as Record<string, number | string>
 }
 
 /**
