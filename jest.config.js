@@ -18,7 +18,7 @@ export default {
     '^music-metadata$': '<rootDir>/node_modules/music-metadata/lib/index.js'
   },
   setupFiles: ['<rootDir>/jest.setup.js'],
-  setupFilesAfterEnv: [],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup-matchers.js'],
   testEnvironment: 'node',
   testMatch: [
     '<rootDir>/test/**/*.test.ts',
@@ -27,7 +27,8 @@ export default {
   transform: {
     '^.+\\.(ts|js)$': ['ts-jest', {
       tsconfig: {
-        moduleResolution: 'node'
+        moduleResolution: 'node',
+        types: ['jest', 'node', 'jest-extended']
       },
       useESM: true
     }]

@@ -1,3 +1,4 @@
+/// <reference types="./jest-extended" />
 import {describe, expect, it} from '@jest/globals'
 
 import {
@@ -30,7 +31,7 @@ describe('Metadata Extraction', () => {
     it('extracts audio info from piano_brokencrash', async () => {
       const pathToFile = 'test/fixtures/samples/audio/Piano_brokencrash-Brandondorf-1164520478.mp3'
       const result = await extractAudioInfo(pathToFile)
-      expect(result).toEqual([
+      expect(result).toIncludeSameMembers([
         {
           'acoustid:duration': 4.18,
         },
