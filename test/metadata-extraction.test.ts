@@ -23,9 +23,7 @@ describe('Metadata Extraction', () => {
     it('extracts audio info from paragraph1.mp3', async () => {
       const pathToFile = 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'
       const result = await extractAudioInfo(pathToFile)
-      // expect(result).toEqual(FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO)
-      expect(FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO).toBeDefined()
-      expect(result).toBeDefined()
+      expect(result).toIncludeSameMembers(FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO)
     })
 
     it('extracts audio info from piano_brokencrash', async () => {
