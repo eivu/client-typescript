@@ -195,13 +195,12 @@ export type OverrideOptions = {
  */
 export const extractAudioInfo = async (pathToFile: string): Promise<Array<MetadataPair>> => {
   const metadata = await parseFile(pathToFile)
+  const id3InfoArray: Array<MetadataPair> = []
   const v2TagsIds = metadata.format.tagTypes.filter((value) => ['ID3v2.2', 'ID3v2.3', 'ID3v2.4'].includes(value))
-
-  // short cirtcuit if no v2 tags found
-  if (v2TagsIds.length === 0) return []
-
   const v2TagsId = v2TagsIds[0]
-  const id3Info: MetadataPair = {}
+  const id3InfoObject: MetadataPair = {}
+
+  // construct an object i id3 info
   for (const tag of metadata.native[v2TagsId]) {
     if (Object.keys(V2_FRAMES).includes(tag.id)) {
       const finalValue =
@@ -209,9 +208,16 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Metada
           ? (tag.value.text as string)
           : (tag.value as string)
 
+      // skip empty values
+      if (!finalValue) continue
+
       const finalKey = `id3:${V2_FRAMES[tag.id as keyof typeof V2_FRAMES]}`
-      id3Info[finalKey] = finalValue
+      id3InfoObject[finalKey] = finalValue
     }
+  }
+
+  for (const [key, value] of Object.entries(id3InfoObject)) {
+    id3InfoArray.push({[key]: value})
   }
 
   const {duration, fingerprint} = await generateAcoustidFingerprint(pathToFile)
@@ -219,14 +225,15 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Metada
     {'acoustid:duration': duration},
     {'acoustid:fingerprint': fingerprint},
     {'eivu:duration': duration},
+    ...id3InfoArray,
   ]
-  if (id3Info['id3:title']) audioInfo.push({'eivu:name': id3Info['id3:title']})
-  if (id3Info['id3:track_nr']) audioInfo.push({'eivu:release_pos': id3Info['id3:track_nr']})
-  if (id3Info['id3:year']) audioInfo.push({'eivu:year': id3Info['id3:year']})
-  if (id3Info['id3:album']) audioInfo.push({'eivu:release_name': id3Info['id3:album']})
-  if (id3Info['id3:artist']) audioInfo.push({'eivu:artist_name': id3Info['id3:artist']})
-  if (id3Info['id3:band']) audioInfo.push({'eivu:album_artist': id3Info['id3:band']})
-  if (id3Info['id3:disc_nr']) audioInfo.push({'eivu:bundle_pos': id3Info['id3:disc_nr']})
+  if (id3InfoObject['id3:title']) audioInfo.push({'eivu:name': id3InfoObject['id3:title']})
+  if (id3InfoObject['id3:track_nr']) audioInfo.push({'eivu:release_pos': id3InfoObject['id3:track_nr']})
+  if (id3InfoObject['id3:year']) audioInfo.push({'eivu:year': id3InfoObject['id3:year']})
+  if (id3InfoObject['id3:album']) audioInfo.push({'eivu:release_name': id3InfoObject['id3:album']})
+  if (id3InfoObject['id3:artist']) audioInfo.push({'eivu:artist_name': id3InfoObject['id3:artist']})
+  if (id3InfoObject['id3:band']) audioInfo.push({'eivu:album_artist': id3InfoObject['id3:band']})
+  if (id3InfoObject['id3:disc_nr']) audioInfo.push({'eivu:bundle_pos': id3InfoObject['id3:disc_nr']})
 
   return audioInfo
 }
