@@ -15,6 +15,7 @@ import {
 import {
   DREDD_DATA_PROFILE,
   FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO,
+  FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE,
   FROG_PRINCE_PARAGRAPH_1_FINGERPRINT,
 } from './fixtures/responses'
 
@@ -149,8 +150,11 @@ describe('Metadata Extraction', () => {
 
     it('generates a data profile for paragraph1.mp3', async () => {
       const pathToFile = 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'
-      const profile = generateDataProfile({pathToFile})
-      expect(await profile).toBeDefined()
+      const profile = await generateDataProfile({pathToFile})
+      const sourceProfile = FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE
+      const alteredMetadataList = profile.metadata_list.filter((item) => !Object.keys(item)[0].startsWith('eivu:'))
+      sourceProfile.metadata_list = alteredMetadataList as any // eslint-disable-line camelcase, @typescript-eslint/no-explicit-any
+      expect(profile).toEqual(sourceProfile)
     })
   })
 
