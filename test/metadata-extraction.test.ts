@@ -153,6 +153,7 @@ describe('Metadata Extraction', () => {
       const profile = await generateDataProfile({pathToFile})
       const sourceProfile = FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE
       const alteredMetadataList = profile.metadata_list.filter((item) => !Object.keys(item)[0].startsWith('eivu:'))
+      // alteredMetadataList.push({original_local_path_to_file: pathToFile}) // eslint-disable-line camelcase
       sourceProfile.metadata_list = alteredMetadataList as any // eslint-disable-line camelcase, @typescript-eslint/no-explicit-any
       expect(profile).toEqual(sourceProfile)
     })

@@ -1,7 +1,7 @@
 import {Client} from '@src/client'
 import {CloudFile} from '@src/cloud-file'
 import {extractAudioInfo, generateDataProfile} from '@src/metadata-extraction'
-
+import {parseFile} from 'music-metadata'
 const x = await CloudFile.fetchOrReserveBy({pathToFile: 'test/fixtures/samples/image/ai overlords.jpg'})
 console.dir(x)
 
@@ -22,10 +22,15 @@ console.dir(await extractAudioInfo('test/fixtures/samples/audio/brothers_grimm/t
 console.log('****************************')
 console.dir(
   await generateDataProfile({
-    pathToFile: 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp',
+    pathToFile: 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3',
   }),
 )
 
+console.log('****************************')
+console.log('Metadata Extraction Test')
+const metadata = await parseFile('test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3')
+console.dir(metadata, {depth: null})
+console.log(metadata.common.year)
 // const reservedMd5 = 'B41BDA7B436091F9DBC2B3AD1299D729'
 // const reservedFile = await CloudFile.fetch(reservedMd5)
 // console.dir(reservedFile)

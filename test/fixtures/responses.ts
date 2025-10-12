@@ -72,7 +72,7 @@ export const FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO = [
   {'eivu:duration': 45.24},
   {'eivu:name': 'Paragraph #1'},
   {'eivu:release_pos': '1'},
-  {'eivu:year': '1811-01-01'},
+  {'eivu:year': 1811},
   {'eivu:release_name': 'The Frog Prince'},
   {'eivu:artist_name': 'The Brothers Grimm'},
   {'eivu:album_artist': 'brothers grimm'},
@@ -85,7 +85,7 @@ export const FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO = [
   },
   {'id3:track_nr': '1'},
   {'id3:band': 'brothers grimm'},
-  {'id3:year': '1811-01-01'},
+  {'id3:year': 1811},
   {
     'id3:lyrics':
       'One fine evening a young princess put on her bonnet and clogs, and went out to take a walk by herself in a wood; and when she came to a cool spring of water, that rose in the midst of it, she sat herself down to rest a while. Now she had a golden ball in her hand, which was her favourite plaything; and she was always tossing it up into the air, and catching it again as it fell. After a time she threw it up so high that she missed catching it as it fell; and the ball bounded away, and rolled along upon the ground, till at last it fell down into the spring. The princess looked into the spring after her ball, but it was very deep, so deep that she could not see the bottom of it. Then she began to bewail her loss, and said, ’Alas! if I could only get my ball again, I would give all my fine clothes and jewels, and everything that I have in the world.',
@@ -106,9 +106,9 @@ export const FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE = {
     artwork_md5: null,
     bundle_pos: null,
     name: 'The Frog Prince',
-    position: '1',
+    position: 1,
     primary_artist_name: 'brothers grimm',
-    year: '1811-01-01',
+    year: 1811,
   },
   year: 1811,
 }
@@ -144,7 +144,7 @@ export const DREDD_DATA_PROFILE = {
     name: null,
     position: null,
     primary_artist_name: null,
-    year: '2012',
+    year: 2012,
   },
   year: 2012,
 }

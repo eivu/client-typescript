@@ -145,7 +145,7 @@ export enum V2_FRAMES {
   TXXX = 'user defined text',
   WXX = 'user defined url',
   WXXX = 'user defined url',
-  TDRC = 'year',
+  // TDRC = 'year',
   TYE = 'year',
   TYER = 'year',
   ITU = 'iTunesU?',
@@ -216,6 +216,10 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Metada
     }
   }
 
+  // id3 year tag can be mishappend and 1811 can be mangled to  1811-01-01
+  if (metadata.common.year) id3InfoObject['id3:year'] = metadata.common.year
+
+  // create an array of metadata pairs from the object
   for (const [key, value] of Object.entries(id3InfoObject)) {
     id3InfoArray.push({[key]: value})
   }
@@ -303,6 +307,17 @@ export function extractRating(input: string): null | number {
 }
 
 /**
+ * Extracts the year from a filename using the ((y YEAR)) tag format
+ * @param input - The file path or filename to extract the year from
+ * @returns The extracted year as a number, or null if not found
+ */
+export const extractYear = (input: string): null | number => {
+  const base = path.basename(input)
+  const match = /\(\(y ([^)]+)\)\)/.exec(base)
+  return match ? Number(match[1].trim()) : null
+}
+
+/**
  * Generates an Acoustid fingerprint for a file
  * @param pathToFile - The file path to generate an Acoustid fingerprint for
  * @returns A promise that resolves to the Acoustid fingerprint
@@ -367,12 +382,12 @@ export const generateDataProfile = async ({
     rating: extractRating(pathToFile),
     release: {
       artwork_md5,
-      bundle_pos: bundle_pos === null ? null : String(bundle_pos),
+      bundle_pos: bundle_pos === null ? null : Number(bundle_pos),
       name: release_name,
       // matched_recording,
-      position: position === null ? null : String(position),
+      position: position === null ? null : Number(position),
       primary_artist_name: album_artist,
-      year: year === null ? null : String(year),
+      year: year === null ? null : Number(year),
     },
     year,
   }
@@ -435,15 +450,4 @@ const pruneString = (metadataList: Array<MetadataPair>, key: string): null | str
 const pruneNumber = (metadataList: Array<MetadataPair>, key: string): null | number => {
   const value = pruneFromMetadataList(metadataList, key)
   return value === null ? null : Number(value)
-}
-
-/**
- * Extracts the year from a filename using the ((y YEAR)) tag format
- * @param input - The file path or filename to extract the year from
- * @returns The extracted year as a number, or null if not found
- */
-export const extractYear = (input: string): null | number => {
-  const base = path.basename(input)
-  const match = /\(\(y ([^)]+)\)\)/.exec(base)
-  return match ? Number(match[1].trim()) : null
 }

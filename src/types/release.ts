@@ -3,9 +3,9 @@
  */
 export type Release = {
   artwork_md5?: null | string
-  bundle_pos?: null | string
+  bundle_pos?: null | number
   name?: null | string
-  position?: null | string
+  position?: null | number
   primary_artist_name?: null | string
-  year?: null | string
+  year?: null | number
 }
