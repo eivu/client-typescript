@@ -3,7 +3,7 @@ import nock from 'nock'
 
 import {CloudFile} from '../src/cloud-file'
 import {CloudFileState} from '../src/types/cloud-file-type'
-import {AI_OVERLORDS_RESERVATION} from './fixtures/responses'
+import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_TRANSFER} from './fixtures/responses'
 
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
@@ -95,6 +95,27 @@ describe('CloudFile', () => {
         expect(reserveReq.isDone()).toBe(true)
         expect(fetchReq.isDone()).toBe(true)
       })
+    })
+  })
+
+  describe('reset', () => {
+    it('resets a CloudFile back to reserved state', async () => {
+      const cloudFile = new CloudFile({
+        localPathToFile: 'test/fixtures/samples/image/ai overlords.jpg',
+        remoteAttr: AI_OVERLORDS_TRANSFER,
+      })
+      const req = nock(SERVER_HOST)
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/${cloudFile.remoteAttr.md5}/reset`, {
+          content_type: cloudFile.remoteAttr.content_type, // eslint-disable-line camelcase
+        })
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED})
+
+      const resetCloudFile = await cloudFile.reset()
+      expect(resetCloudFile).toBeDefined()
+      expect(resetCloudFile.stateHistory).toEqual([CloudFileState.RESERVED])
+      expect(resetCloudFile.remoteAttr.state).toEqual(CloudFileState.RESERVED)
+      expect(req.isDone()).toBe(true)
     })
   })
 

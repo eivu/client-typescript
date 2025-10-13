@@ -135,6 +135,15 @@ export class CloudFile {
     return this.remoteAttr.state === CloudFileState.RESERVED
   }
 
+  async reset(): Promise<CloudFile> {
+    const {data} = await api.post(`/cloud_files/${this.remoteAttr.md5}/reset`, {
+      content_type: this.remoteAttr.content_type,
+    })
+    this.remoteAttr = data
+    this.stateHistory = [CloudFileState.RESERVED]
+    return this
+  }
+
   /**
    * Marks the file as transferred and updates the server with asset information
    * @param params - Transfer parameters
