@@ -8,6 +8,7 @@ import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_S3_RESPONSE, AI_OVERLORDS_TRANSFE
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
 const URL_BUCKET_PREFIX = `/api/upload/v1/buckets/${BUCKET_UUID}`
+const aiFilesize = 66_034
 
 const mockSend = jest.fn() as jest.MockedFunction<(command: unknown) => Promise<unknown>>
 jest.mock('@aws-sdk/client-s3', () => ({
@@ -56,7 +57,7 @@ describe('Client', () => {
             asset: 'ai_overlords.jpg',
             // eslint-disable-next-line camelcase
             content_type: 'image/jpeg',
-            filesize: 66_034,
+            filesize: aiFilesize,
           })
           .query({keyFormat: 'camel_lower'})
           .reply(200, AI_OVERLORDS_TRANSFER)

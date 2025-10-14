@@ -1,6 +1,7 @@
 import {CloudFile} from '@src/cloud-file'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
-import {cleansedAssetName} from '@src/utils'
+import {cleansedAssetName, isOnline} from '@src/utils'
+// import {type IAudioMetadata} from 'music-metadata'
 import {promises as fs} from 'node:fs'
 
 /**
@@ -12,6 +13,21 @@ export class Client {
     failure: {},
     success: {},
   }
+
+  // static async uploadMetadataArtwork(metadata: IAudioMetadata): Promise<CloudFile | null> {
+  //   if (!metadata.common.picture || metadata.common.picture.length === 0) {
+  //     return null
+  //   }
+
+  //   const bufferData = Buffer.from(metadata.common.picture[0].data)
+  //   fs.writeFile('newBinaryFile.bin', bufferData, (err) => {
+  //     if (err) {
+  //       console.error(err)
+  //       return
+  //     }
+  //     console.log('Binary file written successfully')
+  //   })
+  // }
 
   /**
    * Uploads a file to cloud storage
@@ -105,6 +121,13 @@ export class Client {
     const s3Uploader = new S3Uploader({asset, cloudFile, s3Config})
     if (!(await s3Uploader.putLocalFile())) {
       throw new Error(`Failed to upload file to S3: ${cloudFile.localPathToFile}`)
+    }
+
+    if (!(await isOnline(cloudFile.remoteAttr.url as string, filesize))) {
+      cloudFile.reset() // set state back to reserved
+      throw new Error(
+        `File ${cloudFile.remoteAttr.md5}:${asset} is offline/filesize mismatch. expected size: ${filesize} got: ${cloudFile.remoteAttr.filesize}`,
+      )
     }
 
     return cloudFile.transfer({asset, filesize})

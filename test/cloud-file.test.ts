@@ -8,6 +8,7 @@ import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_TRANSFER} from './fixtures/respon
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
 const URL_BUCKET_PREFIX = `/api/upload/v1/buckets/${BUCKET_UUID}`
+const aiFilesize = 66_034
 
 describe('CloudFile', () => {
   beforeEach(() => {
@@ -172,9 +173,20 @@ describe('CloudFile', () => {
         localPathToFile: 'test/fixtures/samples/image/ai overlords.jpg',
         remoteAttr: AI_OVERLORDS_RESERVATION,
       })
-      expect(cloudFile).toBeDefined()
-      // expect(cloudFile.stateHistory).toEqual([CloudFileState.RESERVED, CloudFileState.TRANSFERRED])
-      // expect(cloudFile.remoteAttr.filesize).toEqual(204800)
+      cloudFile.remoteAttr.content_type = 'image/jpeg' // eslint-disable-line camelcase
+      const req = nock(SERVER_HOST)
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/${cloudFile.remoteAttr.md5}/transfer`, {
+          asset: 'image',
+          content_type: 'image/jpeg', // eslint-disable-line camelcase
+          filesize: aiFilesize,
+        })
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, {...AI_OVERLORDS_TRANSFER, filesize: aiFilesize})
+      await cloudFile.transfer({asset: 'image', filesize: aiFilesize})
+      expect(cloudFile.stateHistory).toEqual([CloudFileState.RESERVED, CloudFileState.TRANSFERRED])
+      expect(cloudFile.remoteAttr).toEqual({...AI_OVERLORDS_TRANSFER, filesize: aiFilesize})
+      expect(cloudFile.remoteAttr.filesize).toEqual(aiFilesize)
+      expect(req.isDone()).toBe(true)
     })
   })
 
