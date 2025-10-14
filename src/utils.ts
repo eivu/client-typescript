@@ -63,6 +63,18 @@ export const detectMime = (pathToFile: string): {mediatype: string; subtype: str
 }
 
 /**
+ * Converts an MD5 hash into a folder path structure
+ * Example: "ABC123" -> "AB/C1/23"
+ * @param md5 - The MD5 hash string
+ * @returns The MD5 hash formatted as a folder path
+ */
+export const md5AsFolders = (md5: string): string => {
+  const upper = md5.toUpperCase() // Convert to uppercase
+  const parts = upper.match(/.{2}|.+/g) // Match pairs of 2 characters, and if odd-length, the last leftover chunk
+  return parts ? parts.join('/') : '' // Join with "/"
+}
+
+/**
  * Performs MIME type lookup with custom mappings for specific file extensions
  * @param pathToFile - The path to the file
  * @returns The MIME type string, or false if not found

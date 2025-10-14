@@ -1,6 +1,7 @@
 import {PutObjectCommand, type PutObjectCommandOutput, S3Client, S3ServiceException} from '@aws-sdk/client-s3'
 import {Credentials} from '@aws-sdk/types'
 import {CloudFile} from '@src/cloud-file'
+import {md5AsFolders} from '@src/utils'
 import {readFile} from 'node:fs/promises'
 
 /**
@@ -63,19 +64,7 @@ export class S3Uploader {
       throw new Error('S3Uploader#generateRemotePath requires CloudFile.resourceType to be set')
     }
 
-    return `${this.cloudFile.resourceType}/${this.md5AsFolders(this.cloudFile.remoteAttr.md5)}/${this.asset}`
-  }
-
-  /**
-   * Converts an MD5 hash into a folder path structure
-   * Example: "ABC123" -> "AB/C1/23"
-   * @param md5 - The MD5 hash string
-   * @returns The MD5 hash formatted as a folder path
-   */
-  md5AsFolders(md5: string): string {
-    const upper = md5.toUpperCase() // Convert to uppercase
-    const parts = upper.match(/.{2}|.+/g) // Match pairs of 2 characters, and if odd-length, the last leftover chunk
-    return parts ? parts.join('/') : '' // Join with "/"
+    return `${this.cloudFile.resourceType}/${md5AsFolders(this.cloudFile.remoteAttr.md5)}/${this.asset}`
   }
 
   /**
