@@ -4,7 +4,7 @@ import api from '@src/services/api.config'
 import {type AxiosError} from 'axios'
 
 import {CloudFileState, type CloudFileType} from './types/cloud-file-type'
-import {detectMime, generateMd5} from './utils'
+import {detectMime, generateMd5, md5AsFolders} from './utils'
 
 /**
  * Parameters for constructing a CloudFile instance
@@ -37,6 +37,9 @@ export class CloudFile {
     this.inferStateHistory()
     this.localPathToFile = localPathToFile
     this.resourceType = resourceType
+    if (!this.resourceType && this.remoteAttr.content_type) {
+      this.resourceType = this.remoteAttr.content_type.split('/')[0]
+    }
   }
 
   /**
@@ -171,6 +174,13 @@ export class CloudFile {
    */
   transfered(): boolean {
     return this.remoteAttr.state === CloudFileState.TRANSFERRED
+  }
+
+  url(): null | string {
+    if (this.reserved()) return null
+    return `https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com/${this.resourceType}/${md5AsFolders(
+      this.remoteAttr.md5,
+    )}/${this.remoteAttr.asset}`
   }
 
   /**

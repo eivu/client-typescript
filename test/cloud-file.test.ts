@@ -3,7 +3,7 @@ import nock from 'nock'
 
 import {CloudFile} from '../src/cloud-file'
 import {CloudFileState} from '../src/types/cloud-file-type'
-import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_TRANSFER} from './fixtures/responses'
+import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_TRANSFER, MOV_BBB_TRANSFER} from './fixtures/responses'
 
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
@@ -199,6 +199,27 @@ describe('CloudFile', () => {
     it('returns false if the CloudFile state is not transferred', () => {
       const cloudFile = new CloudFile({remoteAttr: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED}})
       expect(cloudFile.transfered()).toBe(false)
+    })
+  })
+
+  describe('url', () => {
+    it('returns null if the CloudFile state is reserved', () => {
+      const cloudFile = new CloudFile({remoteAttr: AI_OVERLORDS_RESERVATION})
+      expect(cloudFile.url()).toBeNull()
+    })
+
+    it('returns a valid URL for ai_overlords.jpg', () => {
+      const cloudFile = new CloudFile({remoteAttr: AI_OVERLORDS_TRANSFER})
+      expect(cloudFile.url()).toEqual(
+        'https://eivu-test.s3.wasabisys.com/image/7E/D9/71/31/3D/1A/EA/1B/6E/2B/F8/AF/24/BE/D6/4A/ai_overlords.jpg',
+      )
+    })
+
+    it('returns a valid URL for big_buck_bunny.mp4', () => {
+      const cloudFile = new CloudFile({remoteAttr: MOV_BBB_TRANSFER})
+      expect(cloudFile.url()).toEqual(
+        'https://eivu-test.s3.wasabisys.com/video/19/89/18/F4/0E/CC/7C/AB/0F/C4/23/1A/DA/F6/7C/96/mov_bbb.mp4',
+      )
     })
   })
 })

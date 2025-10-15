@@ -120,6 +120,14 @@ export const MOV_BBB_RESERVATION: CloudFileType = {
   url: 'https://eivu-test.s3.wasabisys.com/video/19/89/18/F4/0E/CC/7C/AB/0F/C4/23/1A/DA/F6/7C/96/',
 }
 
+export const MOV_BBB_TRANSFER: CloudFileType = {
+  ...MOV_BBB_RESERVATION,
+  asset: 'mov_bbb.mp4',
+  content_type: 'video/mp4',
+  filesize: 19_952_000,
+  state: CloudFileState.TRANSFERRED,
+}
+
 export const DREDD_DATA_PROFILE = {
   artists: [],
   duration: null,
