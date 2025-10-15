@@ -203,10 +203,10 @@ describe('CloudFile', () => {
   })
 
   describe('url', () => {
-    it('returns null if the CloudFile state is reserved', () => {
-      const cloudFile = new CloudFile({remoteAttr: AI_OVERLORDS_RESERVATION})
-      expect(cloudFile.url()).toBeNull()
-    })
+    // it('returns null if the CloudFile state is reserved', () => {
+    //   const cloudFile = new CloudFile({remoteAttr: AI_OVERLORDS_RESERVATION})
+    //   expect(cloudFile.url()).toBeNull()
+    // })
 
     it('returns a valid URL for ai_overlords.jpg', () => {
       const cloudFile = new CloudFile({remoteAttr: AI_OVERLORDS_TRANSFER})

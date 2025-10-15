@@ -42,8 +42,10 @@ export class Client {
     }
 
     const asset = cleansedAssetName(pathToFile)
+    console.warn('USE PINO: https://www.npmjs.com/package/pino')
     console.log(`Fetching/Reserving: ${asset}`)
     const cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
+    cloudFile.remoteAttr.asset = asset
     await this.processTransfer({asset, cloudFile})
 
     //  def upload_file(pathToFile:, peepy: false, nsfw: false, override: {}, metadata_list: [])
@@ -123,7 +125,7 @@ export class Client {
       throw new Error(`Failed to upload file to S3: ${cloudFile.localPathToFile}`)
     }
 
-    if (!(await isOnline(cloudFile.remoteAttr.url as string, filesize))) {
+    if (!(await isOnline(cloudFile.url(), filesize))) {
       cloudFile.reset() // set state back to reserved
       throw new Error(
         `File ${cloudFile.remoteAttr.md5}:${asset} is offline/filesize mismatch. expected size: ${filesize} got: ${cloudFile.remoteAttr.filesize}`,
