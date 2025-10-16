@@ -1,10 +1,10 @@
 /* eslint-disable camelcase */
 
+import {type MetadataProfile} from '@src/metadata-extraction'
 import api from '@src/services/api.config'
+import {CloudFileState, type CloudFileType} from '@src/types/cloud-file-type'
+import {detectMime, generateMd5, md5AsFolders} from '@src/utils'
 import {type AxiosError} from 'axios'
-
-import {CloudFileState, type CloudFileType} from './types/cloud-file-type'
-import {detectMime, generateMd5, md5AsFolders} from './utils'
 
 /**
  * Parameters for constructing a CloudFile instance
@@ -108,6 +108,10 @@ export class CloudFile {
     return new CloudFile({localPathToFile: pathToFile, remoteAttr: data})
   }
 
+  async complete(dataProfile: MetadataProfile): Promise<CloudFile> {
+    return this.updateData({action: 'complete', dataProfile})
+  }
+
   /**
    * Checks if the cloud file is in the completed state
    * @returns True if the file upload is completed
@@ -139,9 +143,7 @@ export class CloudFile {
   }
 
   async reset(): Promise<CloudFile> {
-    const {data} = await api.post(`/cloud_files/${this.remoteAttr.md5}/reset`, {
-      content_type: this.remoteAttr.content_type,
-    })
+    const {data} = await api.post(`/cloud_files/${this.remoteAttr.md5}/reset`)
     this.remoteAttr = data
     this.stateHistory = [CloudFileState.RESERVED]
     return this
@@ -174,6 +176,10 @@ export class CloudFile {
    */
   transfered(): boolean {
     return this.remoteAttr.state === CloudFileState.TRANSFERRED
+  }
+
+  async updateMetadata(dataProfile: MetadataProfile): Promise<CloudFile> {
+    return this.updateData({action: 'update_metadata', dataProfile})
   }
 
   url(): string {
@@ -211,5 +217,18 @@ export class CloudFile {
         this.stateHistory = []
       }
     }
+  }
+
+  private async updateData({
+    action,
+    dataProfile,
+  }: {
+    action: 'complete' | 'update_metadata'
+    dataProfile: MetadataProfile
+  }): Promise<CloudFile> {
+    const {data: parsedBody} = await api.post(`/cloud_files/${this.remoteAttr.md5}/${action}`, dataProfile)
+    this.remoteAttr = parsedBody
+    this.stateHistory.push(CloudFileState.COMPLETED)
+    return this
   }
 }

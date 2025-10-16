@@ -1,4 +1,5 @@
 import {CloudFile} from '@src/cloud-file'
+import {generateDataProfile} from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {cleansedAssetName, isOnline} from '@src/utils'
 // import {type IAudioMetadata} from 'music-metadata'
@@ -44,29 +45,20 @@ export class Client {
     const asset = cleansedAssetName(pathToFile)
     console.warn('USE PINO: https://www.npmjs.com/package/pino')
     console.log(`Fetching/Reserving: ${asset}`)
-    const cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
+    let cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
     cloudFile.remoteAttr.asset = asset
     await this.processTransfer({asset, cloudFile})
 
-    //  def upload_file(pathToFile:, peepy: false, nsfw: false, override: {}, metadata_list: [])
-    //     process_reservation_and_transfer(cloud_file:, pathToFile:, md5:, asset:)
+    const dataProfile = await generateDataProfile({pathToFile})
 
-    //     # Generate remote URL and raise error if file offline
-    //     if Utils.online?(cloud_file.url, File.size(pathToFile)) == false
-    //       cloud_file.reset # set state back to reserved
-    //       raise "File #{md5}:#{asset} is offline/filesize mismatch"
-    //     end
+    if (cloudFile.transfered()) {
+      console.log('Completing')
+      cloudFile = await cloudFile.complete(dataProfile)
+    } else {
+      console.log('Updating/Skipping')
+      cloudFile = await cloudFile.updateMetadata(dataProfile)
+    }
 
-    //     if cloud_file.transfered?
-    //       Eivu::Logger.info 'Completing', tags: log_tag, label: Eivu::Client
-    //       cloud_file.complete!(data_profile)
-    //     else
-    //       Eivu::Logger.info 'Updating/Skipping', tags: log_tag, label: Eivu::Client
-    //       cloud_file.update_metadata!(data_profile)
-    //     end
-
-    //     cloud_file
-    //   end
     return cloudFile
   }
 
