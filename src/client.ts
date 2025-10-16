@@ -120,7 +120,7 @@ export class Client {
       secretAccessKey: process.env.EIVU_SECRET_ACCESS_KEY as string,
     }
 
-    const s3Uploader = new S3Uploader({asset, cloudFile, s3Config})
+    const s3Uploader = new S3Uploader({cloudFile, s3Config})
     if (!(await s3Uploader.putLocalFile())) {
       throw new Error(`Failed to upload file to S3: ${cloudFile.localPathToFile}`)
     }

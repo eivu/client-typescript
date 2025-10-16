@@ -26,7 +26,6 @@ export type S3UploaderConfig = {
  * Parameters for constructing an S3Uploader instance
  */
 type S3UploaderConstructorParams = {
-  asset: string
   cloudFile: CloudFile
   s3Config: S3UploaderConfig
 }
@@ -36,7 +35,6 @@ type S3UploaderConstructorParams = {
  * Manages path generation, file upload, and MD5 validation
  */
 export class S3Uploader {
-  asset: string
   cloudFile: CloudFile
   s3Config: S3UploaderConfig
 
@@ -47,9 +45,8 @@ export class S3Uploader {
    * @param params.cloudFile - The CloudFile instance to upload
    * @param params.s3Config - S3 configuration settings
    */
-  constructor({asset, cloudFile, s3Config}: S3UploaderConstructorParams) {
+  constructor({cloudFile, s3Config}: S3UploaderConstructorParams) {
     this.cloudFile = cloudFile
-    this.asset = asset
     this.s3Config = s3Config
   }
 
@@ -64,7 +61,9 @@ export class S3Uploader {
       throw new Error('S3Uploader#generateRemotePath requires CloudFile.resourceType to be set')
     }
 
-    return `${this.cloudFile.resourceType}/${md5AsFolders(this.cloudFile.remoteAttr.md5)}/${this.asset}`
+    return `${this.cloudFile.resourceType}/${md5AsFolders(this.cloudFile.remoteAttr.md5)}/${
+      this.cloudFile.remoteAttr.asset
+    }`
   }
 
   /**
@@ -125,6 +124,5 @@ export class S3Uploader {
     return (
       response.$metadata.httpStatusCode === 200 && response.ETag === `"${this.cloudFile.remoteAttr.md5.toLowerCase()}"`
     )
-    // return true
   }
 }
