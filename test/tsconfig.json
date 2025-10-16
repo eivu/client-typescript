@@ -1,8 +1,14 @@
 {
   "extends": "../tsconfig",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["jest", "node", "jest-extended"]
   },
+  "include": [
+    "**/*.ts",
+    "jest-extended.d.ts"
+  ],
   "references": [
     {"path": ".."}
   ]

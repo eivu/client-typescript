@@ -8,6 +8,7 @@ import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_S3_RESPONSE, AI_OVERLORDS_TRANSFE
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
 const URL_BUCKET_PREFIX = `/api/upload/v1/buckets/${BUCKET_UUID}`
+const aiFilesize = 66_034
 
 const mockSend = jest.fn() as jest.MockedFunction<(command: unknown) => Promise<unknown>>
 jest.mock('@aws-sdk/client-s3', () => ({
@@ -54,12 +55,17 @@ describe('Client', () => {
         const transferReq = nock(SERVER_HOST)
           .post(`${URL_BUCKET_PREFIX}/cloud_files/7ED971313D1AEA1B6E2BF8AF24BED64A/transfer`, {
             asset: 'ai_overlords.jpg',
-            // eslint-disable-next-line camelcase
-            content_type: 'image/jpeg',
-            filesize: 66_034,
+            content_type: 'image/jpeg', // eslint-disable-line camelcase
+            filesize: aiFilesize,
           })
           .query({keyFormat: 'camel_lower'})
           .reply(200, AI_OVERLORDS_TRANSFER)
+
+        const checkOnlineReq = nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
+          .head('/image/7E/D9/71/31/3D/1A/EA/1B/6E/2B/F8/AF/24/BE/D6/4A/ai_overlords.jpg')
+          .reply(200, 'body', {
+            'Content-Length': String(aiFilesize),
+          })
 
         const cloudFile = await client.upload(pathToFile)
 
@@ -69,6 +75,7 @@ describe('Client', () => {
         expect(cloudFile.resourceType).toBe('image')
         expect(reserveReq.isDone()).toBe(true)
         expect(transferReq.isDone()).toBe(true)
+        expect(checkOnlineReq.isDone()).toBe(true)
         expect(mockSend).toHaveBeenCalledTimes(1)
       })
     })

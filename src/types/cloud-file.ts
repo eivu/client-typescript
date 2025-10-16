@@ -1,4 +1,11 @@
+/**
+ * Cloud file state type
+ */
 type State = 'completed' | 'reserved' | 'transfered'
+
+/**
+ * Type definition for cloud file attributes
+ */
 export type CloudFileType = {
   artists?: Record<string, unknown>
   artwork_md5?: null | string

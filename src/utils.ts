@@ -4,6 +4,7 @@ import * as crypto from 'node:crypto'
 import * as fs from 'node:fs'
 import path from 'node:path'
 
+import {pruneMetadata} from './metadata-extraction'
 /**
  * Generate the MD5 hash of a file's contents asynchronously using streams.
  * @param pathToFile - The path to the file to hash
@@ -24,7 +25,16 @@ export async function generateMd5(pathToFile: string): Promise<string> {
   })
 }
 
-export const isOnline = async (uri: string, localFilesize?: number): Promise<boolean> => {
+/**
+ * Checks if a file is available online by sending a HEAD request
+ * Optionally verifies that the remote file size matches the local file size
+ * @param uri - The URL of the remote file to check
+ * @param localFilesize - Optional local file size to compare against remote content-length header
+ * @returns True if the file is online and file sizes match (if provided), false otherwise
+ */
+export const isOnline = async (uri: null | string | undefined, localFilesize?: number): Promise<boolean> => {
+  if (!uri) return false
+
   try {
     const response = await axios.head(uri)
     const headerOk = response.status === 200
@@ -36,12 +46,19 @@ export const isOnline = async (uri: string, localFilesize?: number): Promise<boo
     }
 
     return headerOk && filesizeOk
-  } catch {
+  } catch (error) {
+    console.warn('USE PINO: https://www.npmjs.com/package/pino')
+    console.warn(`isOnline check failed for ${uri}: ${(error as Error).message}`)
     // If the request fails, treat as not online
     return false
   }
 }
 
+/**
+ * Detects the MIME type of a file based on its extension
+ * @param pathToFile - The path to the file
+ * @returns An object containing the mediatype, subtype, and full type string
+ */
 export const detectMime = (pathToFile: string): {mediatype: string; subtype: string; type: string} => {
   const type = mimeLookup(pathToFile) || 'unknown/unknown'
   const [mediatype, subtype] = type.split('/')
@@ -49,6 +66,23 @@ export const detectMime = (pathToFile: string): {mediatype: string; subtype: str
   return {mediatype, subtype, type}
 }
 
+/**
+ * Converts an MD5 hash into a folder path structure
+ * Example: "ABC123" -> "AB/C1/23"
+ * @param md5 - The MD5 hash string
+ * @returns The MD5 hash formatted as a folder path
+ */
+export const md5AsFolders = (md5: string): string => {
+  const upper = md5.toUpperCase() // Convert to uppercase
+  const parts = upper.match(/.{2}|.+/g) // Match pairs of 2 characters, and if odd-length, the last leftover chunk
+  return parts ? parts.join('/') : '' // Join with "/"
+}
+
+/**
+ * Performs MIME type lookup with custom mappings for specific file extensions
+ * @param pathToFile - The path to the file
+ * @returns The MIME type string, or false if not found
+ */
 const mimeLookup = (pathToFile: string): false | string => {
   if (pathToFile.endsWith('.m4a')) return 'audio/mpeg'
   if (pathToFile.endsWith('.mp3')) return 'audio/mpeg'
@@ -60,16 +94,22 @@ const mimeLookup = (pathToFile: string): false | string => {
   return mime.lookup(pathToFile) || false
 }
 
+/**
+ * Returns a cleansed and sanitized asset name from a file path
+ * Removes metadata tags and sanitizes the filename for storage
+ * @param name - The original file name or path
+ * @returns The cleansed asset name
+ */
 export function cleansedAssetName(name: string): string {
   console.log('NEED TO IMPLEMENT: func(coverart logic)')
   return sanitize(name)
 }
 
-function pruneMetadata(name: string): string {
-  console.log('NEED TO IMPLEMENT: pruneMetadata')
-  return name
-}
-
+/**
+ * Sanitizes a filename by removing metadata, special characters, and normalizing the result
+ * @param name - The filename to sanitize
+ * @returns The sanitized filename safe for storage
+ */
 function sanitize(name: string): string {
   name = pruneMetadata(name)
   name = name.replaceAll('\\', '/')
