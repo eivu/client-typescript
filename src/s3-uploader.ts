@@ -41,7 +41,6 @@ export class S3Uploader {
   /**
    * Creates a new S3Uploader instance
    * @param params - Constructor parameters
-   * @param params.asset - The asset name for the uploaded file
    * @param params.cloudFile - The CloudFile instance to upload
    * @param params.s3Config - S3 configuration settings
    */
