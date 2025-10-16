@@ -32,7 +32,9 @@ export async function generateMd5(pathToFile: string): Promise<string> {
  * @param localFilesize - Optional local file size to compare against remote content-length header
  * @returns True if the file is online and file sizes match (if provided), false otherwise
  */
-export const isOnline = async (uri: string, localFilesize?: number): Promise<boolean> => {
+export const isOnline = async (uri: null | string | undefined, localFilesize?: number): Promise<boolean> => {
+  if (!uri) return false
+
   try {
     const response = await axios.head(uri)
     const headerOk = response.status === 200
@@ -44,7 +46,9 @@ export const isOnline = async (uri: string, localFilesize?: number): Promise<boo
     }
 
     return headerOk && filesizeOk
-  } catch {
+  } catch (error) {
+    console.warn('USE PINO: https://www.npmjs.com/package/pino')
+    console.warn(`isOnline check failed for ${uri}: ${(error as Error).message}`)
     // If the request fails, treat as not online
     return false
   }
