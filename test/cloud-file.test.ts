@@ -106,9 +106,7 @@ describe('CloudFile', () => {
         remoteAttr: AI_OVERLORDS_TRANSFER,
       })
       const req = nock(SERVER_HOST)
-        .post(`${URL_BUCKET_PREFIX}/cloud_files/${cloudFile.remoteAttr.md5}/reset`, {
-          content_type: cloudFile.remoteAttr.content_type, // eslint-disable-line camelcase
-        })
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/${cloudFile.remoteAttr.md5}/reset`)
         .query({keyFormat: 'camel_lower'})
         .reply(200, {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED})
 
