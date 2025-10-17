@@ -3,7 +3,12 @@ import nock from 'nock'
 
 import {Client} from '../src/client'
 import {CloudFile} from '../src/cloud-file'
-import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_S3_RESPONSE, AI_OVERLORDS_TRANSFER} from './fixtures/responses'
+import {
+  AI_OVERLORDS_COMPLETE,
+  AI_OVERLORDS_RESERVATION,
+  AI_OVERLORDS_S3_RESPONSE,
+  AI_OVERLORDS_TRANSFER,
+} from './fixtures/responses'
 
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
@@ -67,6 +72,27 @@ describe('Client', () => {
             'Content-Length': String(aiFilesize),
           })
 
+        const completeReq = nock(SERVER_HOST)
+          .post(`${URL_BUCKET_PREFIX}/cloud_files/7ED971313D1AEA1B6E2BF8AF24BED64A/complete`, {
+            artists: [],
+            duration: null,
+            metadata_list: [{original_local_path_to_file: pathToFile}], // eslint-disable-line camelcase
+            name: null,
+            path_to_file: pathToFile, // eslint-disable-line camelcase
+            rating: null,
+            release: {
+              artwork_md5: null, // eslint-disable-line camelcase
+              bundle_pos: null, // eslint-disable-line camelcase
+              name: null,
+              position: null,
+              primary_artist_name: null, // eslint-disable-line camelcase
+              year: null,
+            },
+            year: null,
+          })
+          .query({keyFormat: 'camel_lower'})
+          .reply(200, AI_OVERLORDS_COMPLETE)
+
         const cloudFile = await client.upload(pathToFile)
 
         expect(cloudFile).toBeInstanceOf(CloudFile)
@@ -76,6 +102,7 @@ describe('Client', () => {
         expect(reserveReq.isDone()).toBe(true)
         expect(transferReq.isDone()).toBe(true)
         expect(checkOnlineReq.isDone()).toBe(true)
+        expect(completeReq.isDone()).toBe(true)
         expect(mockSend).toHaveBeenCalledTimes(1)
       })
     })

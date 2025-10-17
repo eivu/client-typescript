@@ -63,6 +63,23 @@ export const AI_OVERLORDS_TRANSFER: CloudFileType = {
   state: CloudFileState.TRANSFERRED,
 }
 
+export const AI_OVERLORDS_COMPLETE: CloudFileType = {
+  ...AI_OVERLORDS_TRANSFER,
+  metadata: [
+    {
+      delicate: false,
+      explorable: false,
+      id: 249_544,
+      nsfw: false,
+      secured: false,
+      type: 'original_local_path_to_file',
+      value: 'test/fixtures/samples/image/ai overlords.jpg',
+    },
+  ],
+  state: CloudFileState.COMPLETED,
+  url: 'https://eivu-test.s3.wasabisys.com/image/7E/D9/71/31/3D/1A/EA/1B/6E/2B/F8/AF/24/BE/D6/4A/ai_overlords.jpg',
+}
+
 export const FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO = [
   {'acoustid:duration': 45.24},
   {
