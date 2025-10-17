@@ -196,23 +196,24 @@ export type OverrideOptions = {
 export const extractAudioInfo = async (pathToFile: string): Promise<Array<MetadataPair>> => {
   const metadata = await parseFile(pathToFile)
   const id3InfoArray: Array<MetadataPair> = []
-  const v2TagsIds = metadata.format.tagTypes.filter((value) => ['ID3v2.2', 'ID3v2.3', 'ID3v2.4'].includes(value))
-  const v2TagsId = v2TagsIds[0]
+  const v2TagsId = metadata.format.tagTypes.find((value) => ['ID3v2.2', 'ID3v2.3', 'ID3v2.4'].includes(value))
   const id3InfoObject: MetadataPair = {}
 
   // construct an object i id3 info
-  for (const tag of metadata.native[v2TagsId]) {
-    if (Object.keys(V2_FRAMES).includes(tag.id)) {
-      const finalValue =
-        typeof tag.value === 'object' && tag.value !== null && !Array.isArray(tag.value) && 'text' in tag.value
-          ? (tag.value.text as string)
-          : (tag.value as string)
+  if (v2TagsId) {
+    for (const tag of metadata.native[v2TagsId]) {
+      if (Object.keys(V2_FRAMES).includes(tag.id)) {
+        const finalValue =
+          typeof tag.value === 'object' && tag.value !== null && !Array.isArray(tag.value) && 'text' in tag.value
+            ? (tag.value.text as string)
+            : (tag.value as string)
 
-      // skip empty values
-      if (!finalValue) continue
+        // skip empty values
+        if (!finalValue) continue
 
-      const finalKey = `id3:${V2_FRAMES[tag.id as keyof typeof V2_FRAMES]}`
-      id3InfoObject[finalKey] = finalValue
+        const finalKey = `id3:${V2_FRAMES[tag.id as keyof typeof V2_FRAMES]}`
+        id3InfoObject[finalKey] = finalValue
+      }
     }
   }
 
