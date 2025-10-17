@@ -1,10 +1,10 @@
+import {COVERART_PREFIX, pruneMetadata} from '@src/metadata-extraction'
 import axios from 'axios'
 import mime from 'mime-types'
 import * as crypto from 'node:crypto'
 import * as fs from 'node:fs'
 import path from 'node:path'
 
-import {pruneMetadata} from './metadata-extraction'
 /**
  * Generate the MD5 hash of a file's contents asynchronously using streams.
  * @param pathToFile - The path to the file to hash
@@ -101,7 +101,9 @@ const mimeLookup = (pathToFile: string): false | string => {
  * @returns The cleansed asset name
  */
 export function cleansedAssetName(name: string): string {
-  console.log('NEED TO IMPLEMENT: func(coverart logic)')
+  const extension = path.extname(name).toLowerCase()
+  if (name.startsWith(COVERART_PREFIX)) return `cover-art${extension}`
+
   return sanitize(name)
 }
 

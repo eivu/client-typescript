@@ -80,6 +80,35 @@ export const AI_OVERLORDS_COMPLETE: CloudFileType = {
   url: 'https://eivu-test.s3.wasabisys.com/image/7E/D9/71/31/3D/1A/EA/1B/6E/2B/F8/AF/24/BE/D6/4A/ai_overlords.jpg',
 }
 
+export const DREDD_DATA_PROFILE = {
+  artists: [],
+  duration: null,
+  metadata_list: [
+    {performer: 'karl urban'},
+    {performer: 'lena headey'},
+    {studio: 'dna films'},
+    {tag: 'comic book movie'},
+    {tag: 'script'},
+    {
+      original_local_path_to_file:
+        'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
+    },
+  ],
+  name: null,
+  path_to_file:
+    'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
+  rating: 4.75,
+  release: {
+    artwork_md5: null,
+    bundle_pos: null,
+    name: null,
+    position: null,
+    primary_artist_name: null,
+    year: 2012,
+  },
+  year: 2012,
+}
+
 export const FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO = [
   {'acoustid:duration': 45.24},
   {
@@ -130,6 +159,52 @@ export const FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE = {
   year: 1811,
 }
 
+export const FROG_PRINCE_PARAGRAPH_1_RESERVATION: CloudFileType = {
+  artists: [],
+  artwork_url: null,
+  asset: null,
+  bucket_name: 'eivu-test',
+  bucket_uuid: '889c685a-de30-4ead-9a96-b3784233e1e8',
+  content_type: null,
+  created_at: '2025-09-29T23:32:35.951Z',
+  data_source_id: null,
+  date_aquired_at: null,
+  deletable: false,
+  delicate: false,
+  description: null,
+  duration: 0,
+  ext_id: null,
+  filesize: 0,
+  folder_uuid: null,
+  info_url: null,
+  last_viewed_at: null,
+  md5: 'BC55A3994827BF6389BAC9EE6B62FC64',
+  metadata: [],
+  name: 'BC55A3994827BF6389BAC9EE6B62FC64 (reserved)',
+  nsfw: false,
+  num_plays: 0,
+  peepy: false,
+  rating: null,
+  release_pos: null,
+  releases: {},
+  secured: false,
+  shared: true,
+  state: CloudFileState.RESERVED,
+  updated_at: '2025-09-29T23:32:35.951Z',
+  url: 'https://eivu-test.s3.wasabisys.com/image/7E/D9/71/31/3D/1A/EA/1B/6E/2B/F8/AF/24/BE/D6/4A/',
+  user_uuid: '0f703c04-b448-455c-8a26-4edc22bf76dd',
+  uuid: '',
+  year: null,
+}
+
+export const FROG_PRINCE_PARAGRAPH_1_TRANSFER: CloudFileType = {
+  ...FROG_PRINCE_PARAGRAPH_1_RESERVATION,
+  asset: 'paragraph1.mp3',
+  content_type: 'audio/mpeg',
+  filesize: 781_052,
+  state: CloudFileState.TRANSFERRED,
+}
+
 export const MOV_BBB_RESERVATION: CloudFileType = {
   ...AI_OVERLORDS_RESERVATION,
   md5: '198918F40ECC7CAB0FC4231ADAF67C96',
@@ -142,34 +217,6 @@ export const MOV_BBB_TRANSFER: CloudFileType = {
   asset: 'mov_bbb.mp4',
   content_type: 'video/mp4',
   filesize: 19_952_000,
+  name: 'mov_bbb.mp4',
   state: CloudFileState.TRANSFERRED,
-}
-
-export const DREDD_DATA_PROFILE = {
-  artists: [],
-  duration: null,
-  metadata_list: [
-    {performer: 'karl urban'},
-    {performer: 'lena headey'},
-    {studio: 'dna films'},
-    {tag: 'comic book movie'},
-    {tag: 'script'},
-    {
-      original_local_path_to_file:
-        'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
-    },
-  ],
-  name: null,
-  path_to_file:
-    'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
-  rating: 4.75,
-  release: {
-    artwork_md5: null,
-    bundle_pos: null,
-    name: null,
-    position: null,
-    primary_artist_name: null,
-    year: 2012,
-  },
-  year: 2012,
 }

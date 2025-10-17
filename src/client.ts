@@ -1,9 +1,9 @@
 import {CloudFile} from '@src/cloud-file'
+import logger from '@src/logger'
 import {generateDataProfile} from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {cleansedAssetName, isOnline} from '@src/utils'
-// import {type IAudioMetadata} from 'music-metadata'
-import {promises as fs} from 'node:fs'
+import * as fs from 'node:fs/promises'
 
 /**
  * Client for managing file uploads to the cloud storage service
@@ -15,20 +15,10 @@ export class Client {
     success: {},
   }
 
-  // static async uploadMetadataArtwork(metadata: IAudioMetadata): Promise<CloudFile | null> {
-  //   if (!metadata.common.picture || metadata.common.picture.length === 0) {
-  //     return null
-  //   }
-
-  //   const bufferData = Buffer.from(metadata.common.picture[0].data)
-  //   fs.writeFile('newBinaryFile.bin', bufferData, (err) => {
-  //     if (err) {
-  //       console.error(err)
-  //       return
-  //     }
-  //     console.log('Binary file written successfully')
-  //   })
-  // }
+  static async uploadFile(pathToFile: string): Promise<CloudFile> {
+    const client = new Client()
+    return client.upload(pathToFile)
+  }
 
   /**
    * Uploads a file to cloud storage
@@ -43,8 +33,10 @@ export class Client {
     }
 
     const asset = cleansedAssetName(pathToFile)
-    console.warn('USE PINO: https://www.npmjs.com/package/pino')
-    console.log(`Fetching/Reserving: ${asset}`)
+    console.log('marker 1')
+    logger.info('marker 2')
+    console.log('marker 3')
+    logger.info(`Fetching/Reserving: ${asset}`)
     let cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
     cloudFile.remoteAttr.asset = asset
     await this.processTransfer({asset, cloudFile})
@@ -52,10 +44,10 @@ export class Client {
     const dataProfile = await generateDataProfile({pathToFile})
 
     if (cloudFile.transfered()) {
-      console.log('Completing')
+      logger.info('Completing')
       cloudFile = await cloudFile.complete(dataProfile)
     } else {
-      console.log('Updating/Skipping')
+      logger.info('Updating/Skipping')
       cloudFile = await cloudFile.updateMetadata(dataProfile)
     }
 
@@ -88,7 +80,7 @@ export class Client {
    */
   private async processTransfer({asset, cloudFile}: {asset: string; cloudFile: CloudFile}): Promise<CloudFile> {
     if (!cloudFile.reserved()) {
-      console.log(`CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.remoteAttr.state}`)
+      logger.info(`CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.remoteAttr.state}`)
       return cloudFile
     }
 
@@ -96,14 +88,14 @@ export class Client {
       throw new Error("CloudFile#processTransfer requires CloudFile's localPathToFile to be set")
     }
 
-    console.log(`Processing Transfer: ${cloudFile.localPathToFile}`)
+    logger.info(`Processing Transfer: ${cloudFile.localPathToFile}`)
 
     cloudFile.identifyContentType()
-    console.log(`Determined resourceType: ${cloudFile.resourceType}`)
+    logger.info(`Determined resourceType: ${cloudFile.resourceType}`)
     const stats = await fs.stat(cloudFile.localPathToFile as string)
     const filesize = stats.size
 
-    console.log(`filesize: ${filesize}`)
+    logger.info(`filesize: ${filesize}`)
     const s3Config: S3UploaderConfig = {
       accessKeyId: process.env.EIVU_ACCESS_KEY_ID as string,
       bucketName: process.env.EIVU_BUCKET_NAME as string,
