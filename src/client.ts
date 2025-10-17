@@ -5,6 +5,7 @@ import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {cleansedAssetName, isOnline} from '@src/utils'
 import {type IAudioMetadata} from 'music-metadata'
 import {promises as fs} from 'node:fs'
+import tmp from 'tmp'
 
 /**
  * Client for managing file uploads to the cloud storage service
@@ -17,19 +18,29 @@ export class Client {
   }
 
   static async uploadMetadataArtwork(metadata: IAudioMetadata): Promise<CloudFile | null> {
+    // Short circuit if no artwork in metadata
     if (!metadata.common.picture || metadata.common.picture.length === 0) {
       return null
     }
 
     const bufferData = Buffer.from(metadata.common.picture[0].data)
-    console.log('bufferData', bufferData)
-    // fs.writeFile('newBinaryFile.bin', bufferData, (err) => {
-    //   if (err) {
-    //     console.error(err)
-    //     return null
-    //   }
+
+    // eslint-disable-next-line perfectionist/sort-objects
+    tmp.file({mode: 0o644, prefix: 'prefix-', postfix: '.txt'}, async (err, path) => {
+      if (err) throw err
+
+      await fs.appendFile(path, bufferData)
+    })
+
+    // const bufferData = Buffer.from(metadata.common.picture[0].data)
+    // console.log('bufferData', bufferData)
+    // try {
+    //   await fs.writeFile('newBinaryFile.bin', bufferData)
     //   logger.info('Binary file written successfully')
-    // })
+    // } catch (error) {
+    //   console.error(err)
+    //   return null
+    // }
 
     return null
   }
