@@ -101,8 +101,8 @@ const mimeLookup = (pathToFile: string): false | string => {
  * @returns The cleansed asset name
  */
 export function cleansedAssetName(name: string): string {
-  const extension = path.extname(name).toLowerCase()
-  if (name.startsWith(COVERART_PREFIX)) return `cover-art${extension}`
+  const [basename, extension] = path.basename(name).split('.')
+  if (basename.startsWith(COVERART_PREFIX)) return `cover-art.${extension}`
 
   return sanitize(name)
 }
