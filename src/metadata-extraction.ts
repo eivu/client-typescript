@@ -230,6 +230,8 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Metada
   }
 
   const artworkCloudFile = await uploadMetadataArtwork(metadata)
+  console.log('ARTWORK CLOUDFILE:')
+  console.dir(artworkCloudFile)
   if (artworkCloudFile) {
     id3InfoArray.push({'eivu:artwork_md5': artworkCloudFile.remoteAttr.md5})
   }
@@ -468,18 +470,13 @@ const uploadMetadataArtwork = async (metadata: IAudioMetadata): Promise<CloudFil
     return null
   }
 
-  let cloudFile: CloudFile | null = null
   const contentType = metadata.common.picture[0].format
-  const [_, subtype] = contentType ? contentType.split('/') : ['application', 'octet-stream']
+  const [, subtype] = contentType ? contentType.split('/') : ['application', 'octet-stream']
 
   const bufferData = Buffer.from(metadata.common.picture[0].data)
 
-  // eslint-disable-next-line perfectionist/sort-objects
-  tmp.file({mode: 0o644, prefix: `${COVERART_PREFIX}-`, postfix: `.${subtype}`}, async (err, path) => {
-    if (err) throw err
+  const tmpFile = tmp.fileSync({mode: 0o644, postfix: `.${subtype}`, prefix: `${COVERART_PREFIX}-`})
 
-    await fs.appendFile(path, bufferData)
-    cloudFile = await Client.uploadFile(path)
-  })
-  return cloudFile
+  await fs.appendFile(tmpFile.name, bufferData)
+  return Client.uploadFile(tmpFile.name)
 }

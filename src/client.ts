@@ -33,9 +33,6 @@ export class Client {
     }
 
     const asset = cleansedAssetName(pathToFile)
-    console.log('marker 1')
-    logger.info('marker 2')
-    console.log('marker 3')
     logger.info(`Fetching/Reserving: ${asset}`)
     let cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
     cloudFile.remoteAttr.asset = asset
