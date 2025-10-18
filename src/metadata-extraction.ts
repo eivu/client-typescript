@@ -1,9 +1,13 @@
+import {Client} from '@src/client'
+import {CloudFile} from '@src/cloud-file'
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
 import {detectMime} from '@src/utils'
-import {parseFile} from 'music-metadata'
+import {type IAudioMetadata, parseFile} from 'music-metadata'
 import {exec} from 'node:child_process'
+import {promises as fs} from 'node:fs'
 import path from 'node:path'
+import tmp from 'tmp'
 
 // Regex constants
 const TAG_REGEX = /\(\((?![psy] )([^)]+)\)\)/g
@@ -223,6 +227,11 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Metada
   // create an array of metadata pairs from the object
   for (const [key, value] of Object.entries(id3InfoObject)) {
     id3InfoArray.push({[key]: value})
+  }
+
+  const artworkCloudFile = await uploadMetadataArtwork(metadata)
+  if (artworkCloudFile) {
+    id3InfoArray.push({'eivu:artwork_md5': artworkCloudFile.remoteAttr.md5})
   }
 
   const {duration, fingerprint} = await generateAcoustidFingerprint(pathToFile)
@@ -451,4 +460,26 @@ const pruneString = (metadataList: Array<MetadataPair>, key: string): null | str
 const pruneNumber = (metadataList: Array<MetadataPair>, key: string): null | number => {
   const value = pruneFromMetadataList(metadataList, key)
   return value === null ? null : Number(value)
+}
+
+const uploadMetadataArtwork = async (metadata: IAudioMetadata): Promise<CloudFile | null> => {
+  // Short circuit if no artwork in metadata
+  if (!metadata.common.picture || metadata.common.picture.length === 0) {
+    return null
+  }
+
+  let cloudFile: CloudFile | null = null
+  const contentType = metadata.common.picture[0].format
+  const [_, subtype] = contentType ? contentType.split('/') : ['application', 'octet-stream']
+
+  const bufferData = Buffer.from(metadata.common.picture[0].data)
+
+  // eslint-disable-next-line perfectionist/sort-objects
+  tmp.file({mode: 0o644, prefix: `${COVERART_PREFIX}-`, postfix: `.${subtype}`}, async (err, path) => {
+    if (err) throw err
+
+    await fs.appendFile(path, bufferData)
+    cloudFile = await Client.uploadFile(path)
+  })
+  return cloudFile
 }
