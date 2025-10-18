@@ -40,7 +40,7 @@ export type CloudFileType = {
   rating?: null | number
   release_id?: null | number
   release_pos?: null | number
-  releases?: Record<string, unknown>
+  releases?: Record<string, unknown>[]
   secured?: boolean
   shared?: boolean
   state: CloudFileState

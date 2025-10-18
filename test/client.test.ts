@@ -72,26 +72,28 @@ describe('Client', () => {
             'Content-Length': String(aiFilesize),
           })
 
+        /* eslint-disable camelcase */
         const completeReq = nock(SERVER_HOST)
           .post(`${URL_BUCKET_PREFIX}/cloud_files/7ED971313D1AEA1B6E2BF8AF24BED64A/complete`, {
             artists: [],
             duration: null,
-            metadata_list: [{original_local_path_to_file: pathToFile}], // eslint-disable-line camelcase
+            metadata_list: [{original_local_path_to_file: pathToFile}],
             name: null,
-            path_to_file: pathToFile, // eslint-disable-line camelcase
+            path_to_file: pathToFile,
             rating: null,
             release: {
-              artwork_md5: null, // eslint-disable-line camelcase
-              bundle_pos: null, // eslint-disable-line camelcase
+              artwork_md5: null,
+              bundle_pos: null,
               name: null,
               position: null,
-              primary_artist_name: null, // eslint-disable-line camelcase
+              primary_artist_name: null,
               year: null,
             },
             year: null,
           })
           .query({keyFormat: 'camel_lower'})
           .reply(200, AI_OVERLORDS_COMPLETE)
+        /* eslint-enable camelcase */
 
         const cloudFile = await client.upload(pathToFile)
 
