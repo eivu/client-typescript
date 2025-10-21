@@ -82,6 +82,7 @@ export const AI_OVERLORDS_COMPLETE: CloudFileType = {
 
 export const DREDD_DATA_PROFILE = {
   artists: [],
+  artwork_md5: null,
   duration: null,
   metadata_list: [
     {performer: 'karl urban'},

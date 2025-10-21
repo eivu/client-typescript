@@ -76,6 +76,7 @@ describe('Client', () => {
         const completeReq = nock(SERVER_HOST)
           .post(`${URL_BUCKET_PREFIX}/cloud_files/7ED971313D1AEA1B6E2BF8AF24BED64A/complete`, {
             artists: [],
+            artwork_md5: null,
             duration: null,
             metadata_list: [{original_local_path_to_file: pathToFile}],
             name: null,
