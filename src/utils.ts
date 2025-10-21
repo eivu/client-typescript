@@ -1,4 +1,5 @@
-import {COVERART_PREFIX, pruneMetadata} from '@src/metadata-extraction'
+import {COVERART_PREFIX} from '@src/constants'
+import {pruneMetadata} from '@src/metadata-extraction'
 import axios from 'axios'
 import mime from 'mime-types'
 import * as crypto from 'node:crypto'
@@ -102,7 +103,7 @@ const mimeLookup = (pathToFile: string): false | string => {
  */
 export function cleansedAssetName(name: string): string {
   const [basename, extension] = path.basename(name).split('.')
-  if (basename.startsWith(COVERART_PREFIX)) return `cover-art.${extension}`
+  if (basename.startsWith(COVERART_PREFIX)) return `${COVERART_PREFIX}.${extension}`
 
   return sanitize(name)
 }

@@ -149,7 +149,7 @@ export const FROG_PRINCE_COVER_ART_RESERVATION: CloudFileType = {
 
 export const FROG_PRINCE_COVER_ART_TRANSFER: CloudFileType = {
   ...FROG_PRINCE_COVER_ART_RESERVATION,
-  asset: 'cover-art.jpeg',
+  asset: 'coverart-extractedByEivu.jpeg',
   content_type: 'image/jpeg',
   filesize: 125_446,
   state: CloudFileState.TRANSFERRED,

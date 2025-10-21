@@ -4,14 +4,14 @@ import {cleansedAssetName, md5AsFolders} from '../src/utils'
 
 describe('Utils', () => {
   describe('cleansedAssetName', () => {
-    it('returns "cover-art.jpg" for cover art files', () => {
-      const pathToFile = '/some/path/eivu-coverart.jpg'
-      expect(cleansedAssetName(pathToFile)).toBe('cover-art.jpg')
+    it('returns "coverart-extractedByEivu.jpg" for cover art files', () => {
+      const pathToFile = '/some/path/coverart-extractedByEivu.jpg'
+      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu.jpg')
     })
 
-    it('returns "cover-art.png" for cover art files', () => {
-      const pathToFile = '/some/path/eivu-coverart.png'
-      expect(cleansedAssetName(pathToFile)).toBe('cover-art.png')
+    it('returns "coverart-extractedByEivu.png" for cover art files', () => {
+      const pathToFile = '/some/path/coverart-extractedByEivu.png'
+      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu.png')
     })
 
     it('sanitizes regular filenames', () => {
