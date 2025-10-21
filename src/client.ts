@@ -1,6 +1,6 @@
 import {CloudFile} from '@src/cloud-file'
 import logger from '@src/logger'
-import {generateDataProfile} from '@src/metadata-extraction'
+import {generateDataProfile, MetadataPair} from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {cleansedAssetName, isOnline} from '@src/utils'
 import * as fs from 'node:fs/promises'
@@ -15,9 +15,15 @@ export class Client {
     success: {},
   }
 
-  static async uploadFile(pathToFile: string): Promise<CloudFile> {
+  static async uploadFile({
+    metadataList,
+    pathToFile,
+  }: {
+    pathToFile: string
+    metadataList?: Array<MetadataPair>
+  }): Promise<CloudFile> {
     const client = new Client()
-    return client.upload(pathToFile)
+    return client.upload({metadataList, pathToFile})
   }
 
   /**
@@ -27,7 +33,13 @@ export class Client {
    * @returns The CloudFile instance representing the uploaded file
    * @throws Error if the file is empty or upload fails
    */
-  async upload(pathToFile: string): Promise<CloudFile> {
+  async upload({
+    metadataList,
+    pathToFile,
+  }: {
+    metadataList?: Array<MetadataPair>
+    pathToFile: string
+  }): Promise<CloudFile> {
     if (await this.isEmptyFile(pathToFile)) {
       throw new Error(`Can not upload empty file: ${pathToFile}`)
     }
@@ -38,7 +50,7 @@ export class Client {
     cloudFile.remoteAttr.asset = asset
     await this.processTransfer({asset, cloudFile})
 
-    const dataProfile = await generateDataProfile({pathToFile})
+    const dataProfile = await generateDataProfile({metadataList, pathToFile})
 
     if (cloudFile.transfered()) {
       logger.info('Completing')

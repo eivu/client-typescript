@@ -14,7 +14,7 @@ import {
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
 import {detectMime} from '@src/utils'
-// import {pickBy, identity} from 'lodash'
+import * as lodash from 'lodash'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
 import {exec} from 'node:child_process'
 import {promises as fs} from 'node:fs'
@@ -99,7 +99,7 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Metada
   if (id3InfoObject['id3:band']) audioInfo.push({'eivu:album_artist': id3InfoObject['id3:band']})
   if (id3InfoObject['id3:disc_nr']) audioInfo.push({'eivu:bundle_pos': id3InfoObject['id3:disc_nr']})
 
-  const artworkCloudFile = await uploadMetadataArtwork({metadata, metadataObject: id3InfoObject})
+  const artworkCloudFile = await uploadMetadataArtwork({iAudioMetadata: metadata, metadataList: audioInfo})
 
   if (artworkCloudFile) {
     id3InfoArray.push({'eivu:artwork_md5': artworkCloudFile.remoteAttr.md5})
@@ -216,7 +216,7 @@ export const generateDataProfile = async ({
   // Extract additional metadata from the filename and merge with provided metadata list
   const fileInfo = await extractInfo(pathToFile)
   let name: null | string
-  metadataList = [...metadataList, ...fileInfo]
+  metadataList = lodash.uniq([...metadataList, ...fileInfo])
 
   // Optionally include original local path
   if (!pathToFile.startsWith(TEMP_FOLDER_ROOT)) {
@@ -233,7 +233,7 @@ export const generateDataProfile = async ({
   const release_name = pruneString(metadataList, 'eivu:release_name')
   const album_artist = pruneString(metadataList, 'eivu:album_artist')
   // const matched_recording = null
-
+  const x = COVERART_PREFIX
   // alter metadata for cover art files
   if (pathToFile.includes(COVERART_PREFIX)) {
     name = 'Cover Art'
@@ -245,6 +245,8 @@ export const generateDataProfile = async ({
     pruneFromMetadataList(metadataList, 'id3:track_nr')
     pruneFromMetadataList(metadataList, 'id3:disc_nr')
     pruneFromMetadataList(metadataList, 'id3:genre')
+    pruneFromMetadataList(metadataList, 'id3:comments')
+    pruneFromMetadataList(metadataList, 'id3:lyrics')
     metadataList.push({'id3:track_nr': 0}, {'id3:disc_nr': 0})
   } else {
     name = pruneString(metadataList, 'eivu:name')
@@ -331,26 +333,25 @@ const pruneNumber = (metadataList: Array<MetadataPair>, key: string): null | num
 }
 
 const uploadMetadataArtwork = async ({
-  metadata,
-  metadataObject = {},
+  iAudioMetadata,
+  metadataList,
 }: {
-  metadata: IAudioMetadata
-  metadataObject?: any
+  iAudioMetadata: IAudioMetadata
+  metadataList: Array<MetadataPair>
 }): Promise<CloudFile | null> => {
   // Short circuit if no artwork in metadata
-  if (!metadata.common.picture || metadata.common.picture.length === 0) {
+  if (!iAudioMetadata.common.picture || iAudioMetadata.common.picture.length === 0) {
     return null
   }
 
-  console.log(metadataObject)
-  const contentType = metadata.common.picture[0].format
+  const contentType = iAudioMetadata.common.picture[0].format
   const [, subtype] = contentType ? contentType.split('/') : ['application', 'octet-stream']
 
-  const bufferData = Buffer.from(metadata.common.picture[0].data)
+  const bufferData = Buffer.from(iAudioMetadata.common.picture[0].data)
 
   const tmpFile = tmp.fileSync({mode: 0o644, postfix: `.${subtype}`, prefix: `${COVERART_PREFIX}-`})
 
   await fs.appendFile(tmpFile.name, bufferData)
 
-  return Client.uploadFile(tmpFile.name)
+  return Client.uploadFile({metadataList, pathToFile: tmpFile.name})
 }
