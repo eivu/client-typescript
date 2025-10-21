@@ -1,164 +1,26 @@
 import {Client} from '@src/client'
 import {CloudFile} from '@src/cloud-file'
+import {
+  COVERART_PREFIX,
+  PERFORMER_REGEX,
+  RATING_425_REGEX,
+  RATING_500_475_REGEX,
+  STUDIO_REGEX,
+  TAG_REGEX,
+  TEMP_FOLDER_ROOT,
+  V2_FRAMES,
+  YEAR_REGEX,
+} from '@src/constants'
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
 import {detectMime} from '@src/utils'
+// import {pickBy, identity} from 'lodash'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
 import {exec} from 'node:child_process'
 import {promises as fs} from 'node:fs'
+import {release} from 'node:os'
 import path from 'node:path'
 import tmp from 'tmp'
-
-// Regex constants
-const TAG_REGEX = /\(\((?![psy] )([^)]+)\)\)/g
-const PERFORMER_REGEX = /\(\(p ([^)]+)\)\)/g
-const STUDIO_REGEX = /\(\(s ([^)]+)\)\)/g
-const YEAR_REGEX = /\(\(y ([^)]+)\)\)/g
-const RATING_500_475_REGEX = /^_+/g
-const RATING_425_REGEX = /^`/g
-
-/* eslint-disable perfectionist/sort-enums, @typescript-eslint/no-duplicate-enum-values */
-// ID3v2 frame identifiers
-export enum V2_FRAMES {
-  TALB = 'album',
-  TAL = 'album',
-  TP1 = 'artist',
-  TPE1 = 'artist',
-  WAR = 'artist url',
-  WOAR = 'artist url',
-  TP2 = 'band',
-  TPE2 = 'band',
-  TBP = 'beats per minute',
-  TBPM = 'beats per minute',
-  COM = 'comments',
-  COMM = 'comments',
-  WCM = 'commercial url',
-  WCOM = 'commercial url',
-  TCP = 'compilation',
-  TCMP = 'compilation',
-  TCM = 'composer',
-  TCOM = 'composer',
-  TP3 = 'conductor',
-  TPE3 = 'conductor',
-  TCR = 'copyright',
-  TCOP = 'copyright',
-  WCP = 'copyright url',
-  WCOP = 'copyright url',
-  TDA = 'date',
-  TDAT = 'date',
-  TPOS = 'disc_nr',
-  TPA = 'disc_nr',
-  TCO = 'genre',
-  TCON = 'genre',
-  TEN = 'encoded by',
-  TENC = 'encoded by',
-  // TSS = 'encoder settings',
-  // TSSE = 'encoder settings',
-  // TDEN = 'encoding time',
-  TOWN = 'file owner',
-  TFT = 'file type',
-  TFLT = 'file type',
-  WAF = 'file url',
-  WOAF = 'file url',
-  TT1 = 'grouping',
-  GRP1 = 'grouping',
-  TIT1 = 'grouping',
-  // APIC = 'image',
-  // PIC = 'image',
-  TRC = 'isrc',
-  TSRC = 'isrc',
-  TKE = 'initial key',
-  TKEY = 'initial key',
-  TRSN = 'internet radio station name',
-  TRSO = 'internet radio station owner',
-  WORS = 'internet radio station url',
-  TP4 = 'interpreted by',
-  TPE4 = 'interpreted by',
-  IPL = 'involved people',
-  IPLS = 'involved people',
-  TIPL = 'involved people',
-  TLA = 'language',
-  TLAN = 'language',
-  TLE = 'length',
-  TLEN = 'length',
-  TXT = 'lyricist',
-  TEXT = 'lyricist',
-  ULT = 'lyrics',
-  USLT = 'lyrics',
-  TMT = 'media',
-  TMED = 'media',
-  TMOO = 'mood',
-  MVNM = 'movement name',
-  MVIN = 'movement number',
-  MCDI = 'music cd identifier',
-  TMCL = 'musician credits',
-  XOLY = 'olympus dss',
-  TOT = 'original album',
-  TOAL = 'original album',
-  TOA = 'original artist',
-  TOPE = 'original artist',
-  TOF = 'original file name',
-  TOFN = 'original file name',
-  TOL = 'original lyricist',
-  TOLY = 'original lyricist',
-  XDOR = 'original release time',
-  TDOR = 'original release time',
-  TOR = 'original release year',
-  TORY = 'original release year',
-  OWNE = 'ownership',
-  WPAY = 'payment url',
-  PCS = 'podcast?',
-  PCST = 'podcast?',
-  TCAT = 'podcast category',
-  TDES = 'podcast description',
-  TGID = 'podcast id',
-  TKWD = 'podcast keywords',
-  WFED = 'podcast url',
-  POP = 'popularimeter',
-  POPM = 'popularimeter',
-  // PRIV = 'private',
-  TPRO = 'produced notice',
-  TPB = 'publisher',
-  TPUB = 'publisher',
-  WPB = 'publisher url',
-  WPUB = 'publisher url',
-  TRD = 'recording dates',
-  TRDA = 'recording dates',
-  // TDRC = 'recording time',
-  RVA = 'relative volume adjustment',
-  RVA2 = 'relative volume adjustment',
-  TDRL = 'release time',
-  TSST = 'set subtitle',
-  TSI = 'size',
-  TSIZ = 'size',
-  WAS = 'source url',
-  WOAS = 'source url',
-  TT3 = 'subtitle',
-  TIT3 = 'subtitle',
-  SLT = 'syn lyrics',
-  SYLT = 'syn lyrics',
-  TDTG = 'tagging time',
-  USER = 'terms of use',
-  TIM = 'time',
-  TIME = 'time',
-  TT2 = 'title',
-  TIT2 = 'title',
-  TRK = 'track_nr',
-  TRCK = 'track_nr',
-  TXX = 'user defined text',
-  TXXX = 'user defined text',
-  WXX = 'user defined url',
-  WXXX = 'user defined url',
-  // TDRC = 'year',
-  TYE = 'year',
-  TYER = 'year',
-  ITU = 'iTunesU?',
-  ITNU = 'iTunesU?',
-}
-/* eslint-enable */
-
-/** Prefix used for cover art identification */
-export const COVERART_PREFIX = 'eivu-coverart'
 
 /**
  * Acoustid fingerprint containing the fingerprint and duration
@@ -175,6 +37,7 @@ export type MetadataPair = Record<string, number | string>
  */
 export type MetadataProfile = {
   artists: Artist[]
+  artwork_md5?: null | string
   duration?: null | number
   metadata_list: Array<MetadataPair>
   name?: null | string
@@ -182,14 +45,6 @@ export type MetadataProfile = {
   rating: null | number
   release: Release
   year?: null | number
-}
-
-/**
- * Options for overriding metadata extraction behavior
- */
-export type OverrideOptions = {
-  name?: null | string
-  skipOriginalLocalPathToFile?: boolean | null
 }
 
 /**
@@ -229,13 +84,6 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Metada
     id3InfoArray.push({[key]: value})
   }
 
-  const artworkCloudFile = await uploadMetadataArtwork(metadata)
-  console.log('ARTWORK CLOUDFILE:')
-  console.dir(artworkCloudFile)
-  if (artworkCloudFile) {
-    id3InfoArray.push({'eivu:artwork_md5': artworkCloudFile.remoteAttr.md5})
-  }
-
   const {duration, fingerprint} = await generateAcoustidFingerprint(pathToFile)
   const audioInfo: Array<MetadataPair> = [
     {'acoustid:duration': duration},
@@ -250,6 +98,12 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Metada
   if (id3InfoObject['id3:artist']) audioInfo.push({'eivu:artist_name': id3InfoObject['id3:artist']})
   if (id3InfoObject['id3:band']) audioInfo.push({'eivu:album_artist': id3InfoObject['id3:band']})
   if (id3InfoObject['id3:disc_nr']) audioInfo.push({'eivu:bundle_pos': id3InfoObject['id3:disc_nr']})
+
+  const artworkCloudFile = await uploadMetadataArtwork({metadata, metadataObject: id3InfoObject})
+
+  if (artworkCloudFile) {
+    id3InfoArray.push({'eivu:artwork_md5': artworkCloudFile.remoteAttr.md5})
+  }
 
   return audioInfo
 }
@@ -349,32 +203,28 @@ export const generateAcoustidFingerprint = (pathToFile: string): Promise<Acousti
  * Generates a complete metadata profile for a file by extracting and combining metadata from the filename and provided metadata list
  * @param params - Configuration object
  * @param params.metadataList - Additional metadata to include in the profile
- * @param params.override - Options to override default extraction behavior
  * @param params.pathToFile - Path to the file being processed
  * @returns A complete metadata profile including artists, release info, and extracted tags
  */
 export const generateDataProfile = async ({
   metadataList = [],
-  override = {},
   pathToFile,
 }: {
   metadataList?: Array<MetadataPair>
-  override?: OverrideOptions
   pathToFile: string
 }): Promise<MetadataProfile> => {
   // Extract additional metadata from the filename and merge with provided metadata list
   const fileInfo = await extractInfo(pathToFile)
+  let name: null | string
   metadataList = [...metadataList, ...fileInfo]
 
   // Optionally include original local path
-  if (!override?.skipOriginalLocalPathToFile) {
-    // eslint-disable-next-line camelcase
-    metadataList.push({original_local_path_to_file: pathToFile})
+  if (!pathToFile.startsWith(TEMP_FOLDER_ROOT)) {
+    metadataList.push({original_local_path_to_file: pathToFile}) // eslint-disable-line camelcase
   }
 
   /* eslint-disable camelcase */
   const year = extractYear(pathToFile) ?? pruneNumber(metadataList, 'eivu:year')
-  const name = override?.name ?? pruneString(metadataList, 'eivu:name')
   const artwork_md5 = pruneString(metadataList, 'eivu:artwork_md5')
   const position = pruneNumber(metadataList, 'eivu:release_pos')
   const bundle_pos = pruneNumber(metadataList, 'eivu:bundle_pos')
@@ -383,14 +233,30 @@ export const generateDataProfile = async ({
   const release_name = pruneString(metadataList, 'eivu:release_name')
   const album_artist = pruneString(metadataList, 'eivu:album_artist')
   // const matched_recording = null
-  const param_path_to_file = override?.skipOriginalLocalPathToFile ? null : pathToFile
+
+  // alter metadata for cover art files
+  if (pathToFile.includes(COVERART_PREFIX)) {
+    name = 'Cover Art'
+    const label = [artist_name, release_name].filter(Boolean).join(' - ')
+    if (label) {
+      name += ` for ${label}`
+    }
+
+    pruneFromMetadataList(metadataList, 'id3:track_nr')
+    pruneFromMetadataList(metadataList, 'id3:disc_nr')
+    pruneFromMetadataList(metadataList, 'id3:genre')
+    metadataList.push({'id3:track_nr': 0}, {'id3:disc_nr': 0})
+  } else {
+    name = pruneString(metadataList, 'eivu:name')
+  }
 
   const dataProfile: MetadataProfile = {
     artists: name ? [{name: artist_name} as Artist] : [],
+    artwork_md5,
     duration,
     metadata_list: metadataList,
     name,
-    path_to_file: param_path_to_file,
+    path_to_file: pathToFile,
     rating: extractRating(pathToFile),
     release: {
       artwork_md5,
@@ -464,12 +330,19 @@ const pruneNumber = (metadataList: Array<MetadataPair>, key: string): null | num
   return value === null ? null : Number(value)
 }
 
-const uploadMetadataArtwork = async (metadata: IAudioMetadata): Promise<CloudFile | null> => {
+const uploadMetadataArtwork = async ({
+  metadata,
+  metadataObject = {},
+}: {
+  metadata: IAudioMetadata
+  metadataObject?: any
+}): Promise<CloudFile | null> => {
   // Short circuit if no artwork in metadata
   if (!metadata.common.picture || metadata.common.picture.length === 0) {
     return null
   }
 
+  console.log(metadataObject)
   const contentType = metadata.common.picture[0].format
   const [, subtype] = contentType ? contentType.split('/') : ['application', 'octet-stream']
 
@@ -478,5 +351,6 @@ const uploadMetadataArtwork = async (metadata: IAudioMetadata): Promise<CloudFil
   const tmpFile = tmp.fileSync({mode: 0o644, postfix: `.${subtype}`, prefix: `${COVERART_PREFIX}-`})
 
   await fs.appendFile(tmpFile.name, bufferData)
+
   return Client.uploadFile(tmpFile.name)
 }
