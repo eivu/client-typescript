@@ -223,6 +223,17 @@ export const generateDataProfile = async ({
     metadataList.push({original_local_path_to_file: pathToFile}) // eslint-disable-line camelcase
   }
 
+  // if working on cover art, prune unneeded metadata
+  if (pathToFile.includes(COVERART_PREFIX)) {
+    metadataList = lodash.filter(metadataList, (item) => {
+      const key = Object.keys(item)[0]
+      return ['eivu:artist_name', 'eivu:release_name', 'eivu:year', 'id3:album', 'id3:artist', 'id3:genre'].includes(
+        key,
+      )
+    })
+    metadataList.push({'id3:track_nr': 0}, {'id3:disc_nr': 0})
+  }
+
   /* eslint-disable camelcase */
   const year = extractYear(pathToFile) ?? pruneNumber(metadataList, 'eivu:year')
   const artwork_md5 = pruneString(metadataList, 'eivu:artwork_md5')
@@ -233,21 +244,13 @@ export const generateDataProfile = async ({
   const release_name = pruneString(metadataList, 'eivu:release_name')
   const album_artist = pruneString(metadataList, 'eivu:album_artist')
   // const matched_recording = null
-  const x = COVERART_PREFIX
-  // alter metadata for cover art files
+
+  // alter name for cover art files
   if (pathToFile.includes(COVERART_PREFIX)) {
     name = 'Cover Art'
     const label = [artist_name, release_name].filter(Boolean).join(' - ')
-    if (label) {
-      name += ` for ${label}`
-    }
-
-    pruneFromMetadataList(metadataList, 'id3:track_nr')
-    pruneFromMetadataList(metadataList, 'id3:disc_nr')
-    pruneFromMetadataList(metadataList, 'id3:genre')
-    pruneFromMetadataList(metadataList, 'id3:comments')
-    pruneFromMetadataList(metadataList, 'id3:lyrics')
-    metadataList.push({'id3:track_nr': 0}, {'id3:disc_nr': 0})
+    const name_xtra = label ? ` for ${label}` : ''
+    name += name_xtra
   } else {
     name = pruneString(metadataList, 'eivu:name')
   }

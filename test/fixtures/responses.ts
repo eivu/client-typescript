@@ -163,6 +163,46 @@ export const FROG_PRINCE_COVER_ART_COMPLETE: CloudFileType = {
   state: CloudFileState.COMPLETED,
 }
 
+export const FROG_PRINCE_COVER_ART_DATA_PROFILE = {
+  artists: [
+    {
+      name: 'The Brothers Grimm',
+    },
+  ],
+  artwork_md5: null,
+  duration: null,
+  metadata_list: [
+    {
+      'id3:artist': 'The Brothers Grimm',
+    },
+    {
+      'id3:album': 'The Frog Prince',
+    },
+    {
+      'id3:genre': 'Audiobook Sample',
+    },
+    {
+      'id3:track_nr': 0,
+    },
+    {
+      'id3:disc_nr': 0,
+    },
+  ],
+  name: 'Cover Art for The Brothers Grimm - The Frog Prince',
+  path_to_file:
+    '/private/var/folders/hv/_ybbgb_s3kbd2vwkrkgvl04w0000gn/T/coverart-extractedByEivu--50540-I308Z07whFu4-.jpeg',
+  rating: null,
+  release: {
+    artwork_md5: null,
+    bundle_pos: null,
+    name: 'The Frog Prince',
+    position: null,
+    primary_artist_name: null,
+    year: 1811,
+  },
+  year: 1811,
+}
+
 export const FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO = [
   {'acoustid:duration': 45.24},
   {

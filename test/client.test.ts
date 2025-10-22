@@ -96,7 +96,7 @@ describe('Client', () => {
           .reply(200, AI_OVERLORDS_COMPLETE)
         /* eslint-enable camelcase */
 
-        const cloudFile = await client.upload(pathToFile)
+        const cloudFile = await client.upload({pathToFile})
 
         expect(cloudFile).toBeInstanceOf(CloudFile)
         expect(cloudFile.localPathToFile).toBe(pathToFile)
