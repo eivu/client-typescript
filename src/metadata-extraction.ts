@@ -39,7 +39,7 @@ export type MetadataProfile = {
   artists: Artist[]
   artwork_md5?: null | string
   duration?: null | number
-  metadata_list: Array<MetadataPair>
+  metadata_list: MetadataPair[]
   name?: null | string
   path_to_file: null | string
   rating: null | number
@@ -52,9 +52,9 @@ export type MetadataProfile = {
  * @param pathToFile - The file path to extract metadata from
  * @returns An array of metadata objects with type-value pairs
  */
-export const extractAudioInfo = async (pathToFile: string): Promise<Array<MetadataPair>> => {
+export const extractAudioInfo = async (pathToFile: string): Promise<MetadataPair[]> => {
   const metadata = await parseFile(pathToFile)
-  const id3InfoArray: Array<MetadataPair> = []
+  const id3InfoArray: MetadataPair[] = []
   const v2TagsId = metadata.format.tagTypes.find((value) => ['ID3v2.2', 'ID3v2.3', 'ID3v2.4'].includes(value))
   const id3InfoObject: MetadataPair = {}
 
@@ -85,7 +85,7 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Metada
   }
 
   const {duration, fingerprint} = await generateAcoustidFingerprint(pathToFile)
-  const audioInfo: Array<MetadataPair> = [
+  const audioInfo: MetadataPair[] = [
     {'acoustid:duration': duration},
     {'acoustid:fingerprint': fingerprint},
     {'eivu:duration': duration},
@@ -113,7 +113,7 @@ export const extractAudioInfo = async (pathToFile: string): Promise<Array<Metada
  * @param pathToFile - The file path to extract metadata from
  * @returns The extracted metadata
  */
-export const extractInfo = async (pathToFile: string): Promise<Array<MetadataPair>> => {
+export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> => {
   const {mediatype} = detectMime(pathToFile)
   if (mediatype === 'audio') return extractAudioInfo(pathToFile)
 
@@ -125,7 +125,7 @@ export const extractInfo = async (pathToFile: string): Promise<Array<MetadataPai
  * @param input - The file path or filename to extract metadata from
  * @returns An array of metadata objects with type-value pairs
  */
-export const extractMetadataList = (input: string): Array<MetadataPair> => {
+export const extractMetadataList = (input: string): MetadataPair[] => {
   let base = path.basename(input)
 
   // remove year
@@ -137,7 +137,7 @@ export const extractMetadataList = (input: string): Array<MetadataPair> => {
     tag: TAG_REGEX,
   }
 
-  const results: Array<MetadataPair> = []
+  const results: MetadataPair[] = []
 
   for (const [type, regex] of Object.entries(regexMap)) {
     const matches = [...base.matchAll(regex)].map((m) => m[1]).filter(Boolean)
@@ -210,7 +210,7 @@ export const generateDataProfile = async ({
   metadataList = [],
   pathToFile,
 }: {
-  metadataList?: Array<MetadataPair>
+  metadataList?: MetadataPair[]
   pathToFile: string
 }): Promise<MetadataProfile> => {
   // Extract additional metadata from the filename and merge with provided metadata list
@@ -303,7 +303,7 @@ export const pruneMetadata = (string: string): string => {
  * @param key - The key to search for
  * @returns The value associated with the key, or null if not found
  */
-export const pruneFromMetadataList = (metadataList: Array<MetadataPair>, key: string): null | number | string => {
+export const pruneFromMetadataList = (metadataList: MetadataPair[], key: string): null | number | string => {
   const index = metadataList.findIndex((item) => Object.hasOwn(item, key))
   if (index !== -1) {
     const [item] = metadataList.splice(index, 1)
@@ -319,7 +319,7 @@ export const pruneFromMetadataList = (metadataList: Array<MetadataPair>, key: st
  * @param key - The key to search for
  * @returns The string value, or null if not found
  */
-const pruneString = (metadataList: Array<MetadataPair>, key: string): null | string => {
+const pruneString = (metadataList: MetadataPair[], key: string): null | string => {
   const value = pruneFromMetadataList(metadataList, key)
   return value === null ? null : String(value)
 }
@@ -330,7 +330,7 @@ const pruneString = (metadataList: Array<MetadataPair>, key: string): null | str
  * @param key - The key to search for
  * @returns The number value, or null if not found
  */
-const pruneNumber = (metadataList: Array<MetadataPair>, key: string): null | number => {
+const pruneNumber = (metadataList: MetadataPair[], key: string): null | number => {
   const value = pruneFromMetadataList(metadataList, key)
   return value === null ? null : Number(value)
 }
@@ -340,7 +340,7 @@ const uploadMetadataArtwork = async ({
   metadataList,
 }: {
   iAudioMetadata: IAudioMetadata
-  metadataList: Array<MetadataPair>
+  metadataList: MetadataPair[]
 }): Promise<CloudFile | null> => {
   // Short circuit if no artwork in metadata
   if (!iAudioMetadata.common.picture || iAudioMetadata.common.picture.length === 0) {
