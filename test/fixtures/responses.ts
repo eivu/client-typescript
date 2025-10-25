@@ -1,6 +1,7 @@
 /* eslint-disable camelcase */
 import {type PutObjectCommandOutput} from '@aws-sdk/client-s3'
 
+import {type MetadataPair} from '../../src/metadata-extraction'
 import {CloudFileState, CloudFileType} from '../../src/types/cloud-file-type'
 
 export const AI_OVERLORDS_RESERVATION: CloudFileType = {
@@ -67,15 +68,14 @@ export const AI_OVERLORDS_COMPLETE: CloudFileType = {
   ...AI_OVERLORDS_TRANSFER,
   metadata: [
     {
-      delicate: false,
-      explorable: false,
       id: 249_544,
-      nsfw: false,
-      secured: false,
       type: 'original_local_path_to_file',
       value: 'test/fixtures/samples/image/ai overlords.jpg',
     },
   ],
+  name: 'ai_overlords.jpg',
+  nsfw: false,
+  secured: false,
   state: CloudFileState.COMPLETED,
   url: 'https://eivu-test.s3.wasabisys.com/image/7E/D9/71/31/3D/1A/EA/1B/6E/2B/F8/AF/24/BE/D6/4A/ai_overlords.jpg',
 }
@@ -157,11 +157,23 @@ export const FROG_PRINCE_COVER_ART_TRANSFER: CloudFileType = {
   updated_at: '2025-10-18T03:23:26.993Z',
 }
 
-export const FROG_PRINCE_COVER_ART_COMPLETE: CloudFileType = {
-  ...FROG_PRINCE_COVER_ART_TRANSFER,
-  name: 'cover art',
-  state: CloudFileState.COMPLETED,
-}
+export const FROG_PRINCE_COVER_ART_METADATA: MetadataPair[] = [
+  {
+    'id3:artist': 'The Brothers Grimm',
+  },
+  {
+    'id3:album': 'The Frog Prince',
+  },
+  {
+    'id3:genre': 'Audiobook Sample',
+  },
+  {
+    'id3:track_nr': 0,
+  },
+  {
+    'id3:disc_nr': 0,
+  },
+]
 
 export const FROG_PRINCE_COVER_ART_DATA_PROFILE = {
   artists: [
@@ -171,23 +183,7 @@ export const FROG_PRINCE_COVER_ART_DATA_PROFILE = {
   ],
   artwork_md5: null,
   duration: null,
-  metadata_list: [
-    {
-      'id3:artist': 'The Brothers Grimm',
-    },
-    {
-      'id3:album': 'The Frog Prince',
-    },
-    {
-      'id3:genre': 'Audiobook Sample',
-    },
-    {
-      'id3:track_nr': 0,
-    },
-    {
-      'id3:disc_nr': 0,
-    },
-  ],
+  metadata_list: FROG_PRINCE_COVER_ART_METADATA,
   name: 'Cover Art for The Brothers Grimm - The Frog Prince',
   path_to_file:
     '/private/var/folders/hv/_ybbgb_s3kbd2vwkrkgvl04w0000gn/T/coverart-extractedByEivu--50540-I308Z07whFu4-.jpeg',
@@ -203,7 +199,14 @@ export const FROG_PRINCE_COVER_ART_DATA_PROFILE = {
   year: 1811,
 }
 
-export const FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO = [
+export const FROG_PRINCE_COVER_ART_COMPLETE: CloudFileType = {
+  ...FROG_PRINCE_COVER_ART_TRANSFER,
+  metadata: FROG_PRINCE_COVER_ART_DATA_PROFILE.metadata_list,
+  name: 'Cover Art for The Brothers Grimm - The Frog Prince',
+  state: CloudFileState.COMPLETED,
+}
+
+export const FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO: MetadataPair[] = [
   {'acoustid:duration': 45.24},
   {
     'acoustid:fingerprint':
@@ -244,7 +247,7 @@ export const FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE = {
   path_to_file: 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3',
   rating: null,
   release: {
-    artwork_md5: null,
+    artwork_md5: 'F5B5DD551BD75A524BE57C0A5F1675A8',
     bundle_pos: null,
     name: 'The Frog Prince',
     position: 1,
@@ -298,6 +301,15 @@ export const FROG_PRINCE_PARAGRAPH_1_TRANSFER: CloudFileType = {
   content_type: 'audio/mpeg',
   filesize: 781_052,
   state: CloudFileState.TRANSFERRED,
+}
+
+export const FROG_PRINCE_PARAGRAPH_1_COMPLETE: CloudFileType = {
+  ...FROG_PRINCE_PARAGRAPH_1_TRANSFER,
+  artwork_md5: FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE.artwork_md5,
+  metadata: FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO,
+  name: FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE.name,
+  rating: null,
+  state: CloudFileState.COMPLETED,
 }
 
 export const MOV_BBB_RESERVATION: CloudFileType = {

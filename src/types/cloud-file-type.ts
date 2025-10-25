@@ -1,3 +1,5 @@
+import {MetadataPair} from '@src/metadata-extraction'
+
 /**
  * Represents the state of a cloud file in the upload lifecycle
  */
@@ -32,7 +34,7 @@ export type CloudFileType = {
   info_url?: null | string
   last_viewed_at?: null | string
   md5: string
-  metadata?: Record<string, unknown>[]
+  metadata?: MetadataPair[]
   name?: null | string
   nsfw?: boolean
   num_plays?: null | number

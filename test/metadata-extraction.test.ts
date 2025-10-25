@@ -15,6 +15,8 @@ import {
 } from '../src/metadata-extraction'
 import {
   DREDD_DATA_PROFILE,
+  FROG_PRINCE_COVER_ART_COMPLETE,
+  FROG_PRINCE_COVER_ART_DATA_PROFILE,
   FROG_PRINCE_COVER_ART_RESERVATION,
   FROG_PRINCE_COVER_ART_TRANSFER,
   FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO,
@@ -212,6 +214,32 @@ describe('Metadata Extraction', () => {
         .query({keyFormat: 'camel_lower'})
         .reply(200, FROG_PRINCE_COVER_ART_TRANSFER)
 
+      const coverArtCompleteReq = nock(SERVER_HOST)
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/F5B5DD551BD75A524BE57C0A5F1675A8/complete`, (body) => {
+          // Validate the body structure matches FROG_PRINCE_COVER_ART_DATA_PROFILE
+          // except for path_to_file which is dynamic (temp file)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const expectedBody = {...FROG_PRINCE_COVER_ART_DATA_PROFILE} as any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const actualBody = {...body} as any
+
+          // Validate that path_to_file matches the temp file pattern
+          const pathToFile = actualBody.path_to_file as string
+          const isValidTempPath =
+            pathToFile && pathToFile.includes('/T/coverart-extractedByEivu--') && pathToFile.endsWith('.jpeg')
+
+          if (!isValidTempPath) return false
+
+          // Remove path_to_file from comparison since it's dynamic
+          delete expectedBody.path_to_file
+          delete actualBody.path_to_file
+
+          // Compare the rest of the body
+          return JSON.stringify(actualBody) === JSON.stringify(expectedBody)
+        })
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, FROG_PRINCE_COVER_ART_COMPLETE)
+
       const generatedProfile = await generateDataProfile({pathToFile})
       const sourceProfile = FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE
       // refactor with lodash
@@ -224,6 +252,7 @@ describe('Metadata Extraction', () => {
       expect(coverArtReserveReq.isDone()).toBeTrue()
       expect(coverArtOnlineReq.isDone()).toBeTrue()
       expect(coverArtTransferReq.isDone()).toBeTrue()
+      expect(coverArtCompleteReq.isDone()).toBeTrue()
     })
   })
 
@@ -261,7 +290,7 @@ describe('Metadata Extraction', () => {
   })
 
   describe('pruneFromMetadataList', () => {
-    let metadataList: Array<MetadataPair>
+    let metadataList: MetadataPair[]
 
     beforeEach(() => {
       metadataList = [{title: 'Cowboy Bebop'}, {studio: 'Sunrise'}, {tag: 'anime'}]

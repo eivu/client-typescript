@@ -18,7 +18,6 @@ import * as lodash from 'lodash'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
 import {exec} from 'node:child_process'
 import {promises as fs} from 'node:fs'
-import {release} from 'node:os'
 import path from 'node:path'
 import tmp from 'tmp'
 
@@ -102,7 +101,7 @@ export const extractAudioInfo = async (pathToFile: string): Promise<MetadataPair
   const artworkCloudFile = await uploadMetadataArtwork({iAudioMetadata: metadata, metadataList: audioInfo})
 
   if (artworkCloudFile) {
-    id3InfoArray.push({'eivu:artwork_md5': artworkCloudFile.remoteAttr.md5})
+    audioInfo.push({'eivu:artwork_md5': artworkCloudFile.remoteAttr.md5})
   }
 
   return audioInfo
