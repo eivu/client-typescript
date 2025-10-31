@@ -108,6 +108,8 @@ describe('Client', () => {
         expect(completeReq.isDone()).toBe(true)
         expect(mockSend).toHaveBeenCalledTimes(1)
       })
+
+      it('uploads an audio file with cover art, when it does not exist on the server', async () => {})
     })
 
     it('can be instantiated', () => {
