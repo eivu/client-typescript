@@ -19,11 +19,15 @@ import {
   FROG_PRINCE_COVER_ART_DATA_PROFILE,
   FROG_PRINCE_COVER_ART_RESERVATION,
   FROG_PRINCE_COVER_ART_TRANSFER,
-  FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO,
+  FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO_WITH_COVER_ART,
   FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE,
   FROG_PRINCE_PARAGRAPH_1_FINGERPRINT,
 } from './fixtures/responses'
 import {pruneDynamicAttributes} from './helpers'
+
+const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
+const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
+const URL_BUCKET_PREFIX = `/api/upload/v1/buckets/${BUCKET_UUID}`
 
 // Create a mock S3 response for the cover art upload
 const FROG_PRINCE_COVER_ART_S3_RESPONSE = {
@@ -55,8 +59,50 @@ describe('Metadata Extraction', () => {
   describe('extractAudioInfo', () => {
     it('extracts audio info from paragraph1.mp3', async () => {
       const pathToFile = 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'
+
+      const coverArtFilesize = 125_446
+
+      // Mock S3 upload
+      mockSend.mockResolvedValue(FROG_PRINCE_COVER_ART_S3_RESPONSE)
+
+      const coverArtReserveReq = nock(SERVER_HOST)
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/F5B5DD551BD75A524BE57C0A5F1675A8/reserve`, {
+          nsfw: false,
+          secured: false,
+        })
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, FROG_PRINCE_COVER_ART_RESERVATION)
+
+      // Mock the HEAD request to check if file is online
+      const coverArtOnlineReq = nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
+        .head('/image/F5/B5/DD/55/1B/D7/5A/52/4B/E5/7C/0A/5F/16/75/A8/coverart-extractedByEivu.jpeg')
+        .reply(200, 'body', {
+          'Content-Length': String(coverArtFilesize),
+        })
+
+      const coverArtTransferReq = nock(SERVER_HOST)
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/F5B5DD551BD75A524BE57C0A5F1675A8/transfer`, {
+          asset: 'coverart-extractedByEivu.jpeg',
+          content_type: 'image/jpeg', // eslint-disable-line camelcase
+          filesize: coverArtFilesize,
+        })
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, FROG_PRINCE_COVER_ART_TRANSFER)
+
+      const coverArtCompleteReq = nock(SERVER_HOST)
+        .post(
+          `${URL_BUCKET_PREFIX}/cloud_files/F5B5DD551BD75A524BE57C0A5F1675A8/complete`,
+          pruneDynamicAttributes(FROG_PRINCE_COVER_ART_DATA_PROFILE),
+        )
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, FROG_PRINCE_COVER_ART_COMPLETE)
+
       const result = await extractAudioInfo(pathToFile)
-      expect(result).toIncludeSameMembers(FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO)
+      expect(result).toIncludeSameMembers(FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO_WITH_COVER_ART)
+      expect(coverArtReserveReq.isDone()).toBeTrue()
+      expect(coverArtOnlineReq.isDone()).toBeTrue()
+      expect(coverArtTransferReq.isDone()).toBeTrue()
+      expect(coverArtCompleteReq.isDone()).toBeTrue()
     })
 
     it('extracts audio info from piano_brokencrash', async () => {
@@ -174,10 +220,6 @@ describe('Metadata Extraction', () => {
   })
 
   describe('generateDataProfile', () => {
-    const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
-    const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
-    const URL_BUCKET_PREFIX = `/api/upload/v1/buckets/${BUCKET_UUID}`
-
     it('generates a data profile for _Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt', async () => {
       const pathToFile =
         'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt'
