@@ -1,0 +1,51 @@
+import {TEMP_FOLDER_ROOT} from '../src/constants'
+
+/**
+ * Creates a body matcher function for nock that compares request bodies
+ * while excluding dynamic fields (like temporary file paths).
+ *
+ * This is useful for testing API requests where some fields contain dynamic
+ * values (e.g., timestamps, temporary file paths) that should be ignored
+ * during comparison.
+ *
+ * @param expectedProfile - The expected data profile to match against
+ * @param excludeFields - Array of field names to exclude from comparison (default: ['path_to_file'])
+ * @returns A function that can be used as a nock body matcher
+ *
+ * @example
+ * ```typescript
+ * const req = nock(SERVER_HOST)
+ *   .post('/endpoint', pruneDynamicAttributes(EXPECTED_DATA))
+ *   .reply(200, RESPONSE_DATA)
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // With custom exclude fields
+ * const req = nock(SERVER_HOST)
+ *   .post('/endpoint', pruneDynamicAttributes(EXPECTED_DATA, ['path_to_file', 'timestamp']))
+ *   .reply(200, RESPONSE_DATA)
+ * ```
+ */
+export function pruneDynamicAttributes(
+  expectedProfile: Record<string, unknown>,
+  excludeFields: string[] = ['path_to_file'],
+): (body: unknown) => boolean {
+  return (body: unknown): boolean => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const expectedBody = {...expectedProfile} as any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const actualBody = {...(body as Record<string, unknown>)} as any
+
+    // Remove dynamic fields from comparison
+    for (const field of excludeFields) {
+      if (expectedBody?.[field]?.startsWith?.(TEMP_FOLDER_ROOT)) {
+        delete expectedBody[field]
+        delete actualBody[field]
+      }
+    }
+
+    return JSON.stringify(actualBody) === JSON.stringify(expectedBody)
+  }
+}
+

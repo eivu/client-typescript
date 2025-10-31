@@ -9,7 +9,7 @@ import {
   extractYear,
   generateAcoustidFingerprint,
   generateDataProfile,
-  MetadataPair,
+  type MetadataPair,
   pruneFromMetadataList,
   pruneMetadata,
 } from '../src/metadata-extraction'
@@ -23,6 +23,7 @@ import {
   FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE,
   FROG_PRINCE_PARAGRAPH_1_FINGERPRINT,
 } from './fixtures/responses'
+import {pruneDynamicAttributes} from './helpers'
 
 // Create a mock S3 response for the cover art upload
 const FROG_PRINCE_COVER_ART_S3_RESPONSE = {
@@ -215,28 +216,10 @@ describe('Metadata Extraction', () => {
         .reply(200, FROG_PRINCE_COVER_ART_TRANSFER)
 
       const coverArtCompleteReq = nock(SERVER_HOST)
-        .post(`${URL_BUCKET_PREFIX}/cloud_files/F5B5DD551BD75A524BE57C0A5F1675A8/complete`, (body) => {
-          // Validate the body structure matches FROG_PRINCE_COVER_ART_DATA_PROFILE
-          // except for path_to_file which is dynamic (temp file)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const expectedBody = {...FROG_PRINCE_COVER_ART_DATA_PROFILE} as any
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const actualBody = {...body} as any
-
-          // Validate that path_to_file matches the temp file pattern
-          const pathToFile = actualBody.path_to_file as string
-          const isValidTempPath =
-            pathToFile && pathToFile.includes('/T/coverart-extractedByEivu--') && pathToFile.endsWith('.jpeg')
-
-          if (!isValidTempPath) return false
-
-          // Remove path_to_file from comparison since it's dynamic
-          delete expectedBody.path_to_file
-          delete actualBody.path_to_file
-
-          // Compare the rest of the body
-          return JSON.stringify(actualBody) === JSON.stringify(expectedBody)
-        })
+        .post(
+          `${URL_BUCKET_PREFIX}/cloud_files/F5B5DD551BD75A524BE57C0A5F1675A8/complete`,
+          pruneDynamicAttributes(FROG_PRINCE_COVER_ART_DATA_PROFILE),
+        )
         .query({keyFormat: 'camel_lower'})
         .reply(200, FROG_PRINCE_COVER_ART_COMPLETE)
 
