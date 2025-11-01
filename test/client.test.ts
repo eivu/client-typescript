@@ -13,7 +13,7 @@ import {
   FROG_PRINCE_COVER_ART_RESERVATION,
   FROG_PRINCE_COVER_ART_TRANSFER,
   FROG_PRINCE_PARAGRAPH_1_COMPLETE,
-  FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE,
+  FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE_FOR_UPLOAD,
   FROG_PRINCE_PARAGRAPH_1_RESERVATION,
   FROG_PRINCE_PARAGRAPH_1_TRANSFER,
 } from './fixtures/responses'
@@ -230,7 +230,7 @@ describe('Client', () => {
         const completeReq = nock(SERVER_HOST)
           .post(
             `${URL_BUCKET_PREFIX}/cloud_files/BC55A3994827BF6389BAC9EE6B62FC64/complete`,
-            FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE,
+            pruneDynamicAttributes(FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE_FOR_UPLOAD, ['path_to_file', 'id3:lyrics']),
           )
           .query({keyFormat: 'camel_lower'})
           .reply(200, FROG_PRINCE_PARAGRAPH_1_COMPLETE)

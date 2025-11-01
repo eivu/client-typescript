@@ -39,7 +39,28 @@ export function pruneDynamicAttributes(
 
     // Remove dynamic fields from comparison
     for (const field of excludeFields) {
-      if (expectedBody?.[field]?.startsWith?.(TEMP_FOLDER_ROOT)) {
+      if (field.includes(':')) {
+        // Field is a metadata key - filter it from metadata_list
+        // eslint-disable-next-line dot-notation
+        if (actualBody['metadata_list'] && Array.isArray(actualBody['metadata_list'])) {
+          // eslint-disable-next-line dot-notation
+          actualBody['metadata_list'] = actualBody['metadata_list'].filter((item: unknown) => {
+            const key = Object.keys(item as Record<string, unknown>)[0]
+
+            return key !== field && key !== 'original_local_path_to_file'
+          })
+        }
+
+        // eslint-disable-next-line dot-notation
+        if (expectedBody['metadata_list'] && Array.isArray(expectedBody['metadata_list'])) {
+          // eslint-disable-next-line dot-notation
+          expectedBody['metadata_list'] = expectedBody['metadata_list'].filter((item: unknown) => {
+            const key = Object.keys(item as Record<string, unknown>)[0]
+
+            return key !== field && key !== 'original_local_path_to_file'
+          })
+        }
+      } else if (expectedBody?.[field]?.startsWith?.(TEMP_FOLDER_ROOT)) {
         delete expectedBody[field]
         delete actualBody[field]
       }
