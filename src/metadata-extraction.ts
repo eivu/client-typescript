@@ -14,7 +14,7 @@ import {
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
 import {detectMime} from '@src/utils'
-import * as lodash from 'lodash'
+import * as lodash from 'lodash-es'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
 import {exec} from 'node:child_process'
 import {promises as fs} from 'node:fs'
