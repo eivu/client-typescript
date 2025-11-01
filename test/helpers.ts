@@ -9,13 +9,13 @@ import {TEMP_FOLDER_ROOT} from '../src/constants'
  * during comparison.
  *
  * @param expectedProfile - The expected data profile to match against
- * @param excludeFields - Array of field names to exclude from comparison (default: ['path_to_file'])
+ * @param excludeFields - Array of field names to exclude from comparison
  * @returns A function that can be used as a nock body matcher
  *
  * @example
  * ```typescript
  * const req = nock(SERVER_HOST)
- *   .post('/endpoint', pruneDynamicAttributes(EXPECTED_DATA))
+ *   .post('/endpoint', removeAttrubuteFromBodyTest(EXPECTED_DATA, ['path_to_file']))
  *   .reply(200, RESPONSE_DATA)
  * ```
  *
@@ -23,13 +23,13 @@ import {TEMP_FOLDER_ROOT} from '../src/constants'
  * ```typescript
  * // With custom exclude fields
  * const req = nock(SERVER_HOST)
- *   .post('/endpoint', pruneDynamicAttributes(EXPECTED_DATA, ['path_to_file', 'timestamp']))
+ *   .post('/endpoint', removeAttrubuteFromBodyTest(EXPECTED_DATA, ['path_to_file', 'timestamp']))
  *   .reply(200, RESPONSE_DATA)
  * ```
  */
-export function pruneDynamicAttributes(
+export function removeAttrubuteFromBodyTest(
   expectedProfile: Record<string, unknown>,
-  excludeFields: string[] = ['path_to_file'],
+  excludeFields: string[],
 ): (body: unknown) => boolean {
   return (body: unknown): boolean => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

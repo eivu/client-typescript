@@ -23,7 +23,7 @@ import {
   FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE,
   FROG_PRINCE_PARAGRAPH_1_FINGERPRINT,
 } from './fixtures/responses'
-import {pruneDynamicAttributes} from './helpers'
+import {removeAttrubuteFromBodyTest} from './helpers'
 
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
@@ -92,7 +92,7 @@ describe('Metadata Extraction', () => {
       const coverArtCompleteReq = nock(SERVER_HOST)
         .post(
           `${URL_BUCKET_PREFIX}/cloud_files/F5B5DD551BD75A524BE57C0A5F1675A8/complete`,
-          pruneDynamicAttributes(FROG_PRINCE_COVER_ART_DATA_PROFILE),
+          removeAttrubuteFromBodyTest(FROG_PRINCE_COVER_ART_DATA_PROFILE, ['path_to_file']),
         )
         .query({keyFormat: 'camel_lower'})
         .reply(200, FROG_PRINCE_COVER_ART_COMPLETE)
@@ -260,7 +260,7 @@ describe('Metadata Extraction', () => {
       const coverArtCompleteReq = nock(SERVER_HOST)
         .post(
           `${URL_BUCKET_PREFIX}/cloud_files/F5B5DD551BD75A524BE57C0A5F1675A8/complete`,
-          pruneDynamicAttributes(FROG_PRINCE_COVER_ART_DATA_PROFILE),
+          removeAttrubuteFromBodyTest(FROG_PRINCE_COVER_ART_DATA_PROFILE, ['path_to_file']),
         )
         .query({keyFormat: 'camel_lower'})
         .reply(200, FROG_PRINCE_COVER_ART_COMPLETE)
