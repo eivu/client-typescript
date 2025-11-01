@@ -15,6 +15,14 @@ export class Client {
     success: {},
   }
 
+  /**
+   * Static helper method to upload a file without instantiating a client
+   * Creates a new client instance and delegates to the instance method
+   * @param params - Upload parameters
+   * @param params.metadataList - Optional array of metadata key-value pairs to attach to the file
+   * @param params.pathToFile - Path to the local file to upload
+   * @returns The CloudFile instance representing the uploaded file
+   */
   static async uploadFile({
     metadataList,
     pathToFile,
@@ -29,7 +37,9 @@ export class Client {
   /**
    * Uploads a file to cloud storage
    * Validates the file, reserves a slot, and transfers the file to S3
-   * @param pathToFile - Path to the local file to upload
+   * @param params - Upload parameters
+   * @param params.metadataList - Optional array of metadata key-value pairs to attach to the file
+   * @param params.pathToFile - Path to the local file to upload
    * @returns The CloudFile instance representing the uploaded file
    * @throws Error if the file is empty or upload fails
    */

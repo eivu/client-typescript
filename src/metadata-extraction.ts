@@ -335,6 +335,13 @@ const pruneNumber = (metadataList: MetadataPair[], key: string): null | number =
   return value === null ? null : Number(value)
 }
 
+/**
+ * Uploads embedded artwork from audio file metadata as a separate cloud file
+ * @param params - Configuration object
+ * @param params.iAudioMetadata - The parsed audio metadata containing picture data
+ * @param params.metadataList - Metadata list to attach to the artwork file
+ * @returns The uploaded CloudFile instance for the artwork, or null if no artwork exists
+ */
 const uploadMetadataArtwork = async ({
   iAudioMetadata,
   metadataList,

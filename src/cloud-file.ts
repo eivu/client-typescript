@@ -108,6 +108,11 @@ export class CloudFile {
     return new CloudFile({localPathToFile: pathToFile, remoteAttr: data})
   }
 
+  /**
+   * Marks the cloud file as complete with metadata and finalizes the upload process
+   * @param dataProfile - The metadata profile containing extracted information
+   * @returns The updated CloudFile instance
+   */
   async complete(dataProfile: MetadataProfile): Promise<CloudFile> {
     return this.updateData({action: 'complete', dataProfile})
   }
@@ -142,6 +147,10 @@ export class CloudFile {
     return this.remoteAttr.state === CloudFileState.RESERVED
   }
 
+  /**
+   * Resets the cloud file back to the reserved state
+   * @returns The reset CloudFile instance
+   */
   async reset(): Promise<CloudFile> {
     const {data} = await api.post(`/cloud_files/${this.remoteAttr.md5}/reset`)
     this.remoteAttr = data
@@ -178,10 +187,20 @@ export class CloudFile {
     return this.remoteAttr.state === CloudFileState.TRANSFERRED
   }
 
+  /**
+   * Updates the metadata for an already uploaded cloud file
+   * @param dataProfile - The metadata profile containing updated information
+   * @returns The updated CloudFile instance
+   */
   async updateMetadata(dataProfile: MetadataProfile): Promise<CloudFile> {
     return this.updateData({action: 'update_metadata', dataProfile})
   }
 
+  /**
+   * Generates the public URL for accessing the cloud file
+   * @returns The full URL to the file in cloud storage
+   * @throws Error if resourceType, md5, or asset are not set
+   */
   url(): string {
     if (!this.resourceType) throw new Error('CloudFile#url requires this.resourceType to be set')
     if (!this.remoteAttr.md5) throw new Error('CloudFile#url requires this.remoteAttr.md5 to be set')
@@ -219,6 +238,14 @@ export class CloudFile {
     }
   }
 
+  /**
+   * Internal method to update cloud file data with the specified action
+   * @param params - Update parameters
+   * @param params.action - The action to perform ('complete' or 'update_metadata')
+   * @param params.dataProfile - The metadata profile to send
+   * @returns The updated CloudFile instance
+   * @private
+   */
   private async updateData({
     action,
     dataProfile,
