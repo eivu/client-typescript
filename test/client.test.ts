@@ -13,6 +13,7 @@ import {
   FROG_PRINCE_COVER_ART_RESERVATION,
   FROG_PRINCE_COVER_ART_TRANSFER,
   FROG_PRINCE_PARAGRAPH_1_COMPLETE,
+  FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE,
   FROG_PRINCE_PARAGRAPH_1_RESERVATION,
   FROG_PRINCE_PARAGRAPH_1_TRANSFER,
 } from './fixtures/responses'
@@ -199,35 +200,38 @@ describe('Client', () => {
             'Content-Length': String(audioFilesize),
           })
 
-        const matchAudioComplete = (body: Record<string, unknown>): boolean =>
-          Array.isArray(body.artists) &&
-          body.artists.length === 1 &&
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (body.artists as any)[0].name === 'The Brothers Grimm' &&
-          body.artwork_md5 === 'F5B5DD551BD75A524BE57C0A5F1675A8' &&
-          body.duration === 45.24 &&
-          Array.isArray(body.metadata_list) &&
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (body.metadata_list as any).length > 0 &&
-          body.name === 'Paragraph #1' &&
-          body.path_to_file === pathToFile &&
-          body.rating === null &&
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (body.release as any).artwork_md5 === 'F5B5DD551BD75A524BE57C0A5F1675A8' &&
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (body.release as any).bundle_pos === null &&
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (body.release as any).name === 'The Frog Prince' &&
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (body.release as any).position === 1 &&
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (body.release as any).primary_artist_name === 'brothers grimm' &&
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (body.release as any).year === 1811 &&
-          body.year === 1811
+        // const matchAudioComplete = (body: Record<string, unknown>): boolean =>
+        //   Array.isArray(body.artists) &&
+        //   body.artists.length === 1 &&
+        //   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        //   (body.artists as any)[0].name === 'The Brothers Grimm' &&
+        //   body.artwork_md5 === 'F5B5DD551BD75A524BE57C0A5F1675A8' &&
+        //   body.duration === 45.24 &&
+        //   Array.isArray(body.metadata_list) &&
+        //   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        //   (body.metadata_list as any).length > 0 &&
+        //   body.name === 'Paragraph #1' &&
+        //   body.path_to_file === pathToFile &&
+        //   body.rating === null &&
+        //   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        //   (body.release as any).artwork_md5 === 'F5B5DD551BD75A524BE57C0A5F1675A8' &&
+        //   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        //   (body.release as any).bundle_pos === null &&
+        //   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        //   (body.release as any).name === 'The Frog Prince' &&
+        //   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        //   (body.release as any).position === 1 &&
+        //   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        //   (body.release as any).primary_artist_name === 'brothers grimm' &&
+        //   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        //   (body.release as any).year === 1811 &&
+        //   body.year === 1811
 
         const completeReq = nock(SERVER_HOST)
-          .post(`${URL_BUCKET_PREFIX}/cloud_files/BC55A3994827BF6389BAC9EE6B62FC64/complete`, matchAudioComplete)
+          .post(
+            `${URL_BUCKET_PREFIX}/cloud_files/BC55A3994827BF6389BAC9EE6B62FC64/complete`,
+            FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE,
+          )
           .query({keyFormat: 'camel_lower'})
           .reply(200, FROG_PRINCE_PARAGRAPH_1_COMPLETE)
 
