@@ -12,7 +12,7 @@ const pathToFile = 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/p
 //   console.warn(`Server was grumpy: ${(error as Error).message}`)
 // }
 
-const x: CloudFile = await client.upload({pathToFile})
+const x: CloudFile = await client.uploadFile({pathToFile})
 console.log('====================')
 console.log('Upload Result:')
 console.dir(x)

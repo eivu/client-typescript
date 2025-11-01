@@ -123,7 +123,7 @@ describe('Client', () => {
           .reply(200, AI_OVERLORDS_COMPLETE)
         /* eslint-enable camelcase */
 
-        const cloudFile = await client.upload({pathToFile})
+        const cloudFile = await client.uploadFile({pathToFile})
 
         expect(cloudFile).toBeInstanceOf(CloudFile)
         expect(cloudFile.localPathToFile).toBe(pathToFile)
@@ -235,7 +235,7 @@ describe('Client', () => {
           .query({keyFormat: 'camel_lower'})
           .reply(200, FROG_PRINCE_PARAGRAPH_1_COMPLETE)
 
-        const cloudFile = await client.upload({pathToFile})
+        const cloudFile = await client.uploadFile({pathToFile})
 
         expect(cloudFile).toBeInstanceOf(CloudFile)
         expect(cloudFile.localPathToFile).toBe(pathToFile)

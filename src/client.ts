@@ -23,7 +23,7 @@ export class Client {
     pathToFile: string
   }): Promise<CloudFile> {
     const client = new Client()
-    return client.upload({metadataList, pathToFile})
+    return client.uploadFile({metadataList, pathToFile})
   }
 
   /**
@@ -33,7 +33,7 @@ export class Client {
    * @returns The CloudFile instance representing the uploaded file
    * @throws Error if the file is empty or upload fails
    */
-  async upload({metadataList, pathToFile}: {metadataList?: MetadataPair[]; pathToFile: string}): Promise<CloudFile> {
+  async uploadFile({metadataList, pathToFile}: {metadataList?: MetadataPair[]; pathToFile: string}): Promise<CloudFile> {
     if (await this.isEmptyFile(pathToFile)) {
       throw new Error(`Can not upload empty file: ${pathToFile}`)
     }
