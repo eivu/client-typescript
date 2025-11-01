@@ -1,14 +1,18 @@
 import {Client} from '@src/client'
 import {CloudFile} from '@src/cloud-file'
-// import {extractAudioInfo, generateDataProfile} from '@src/metadata-extraction'
-// import {parseFile} from 'music-metadata'
 
 const client = new Client()
-const pathToFileAi = 'test/fixtures/samples/image/ai overlords.jpg'
-// const ai = await CloudFile.fetchOrReserveBy({pathToFile: pathToFileAi})
-// ai.reset()
+// const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
+const pathToFile = 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'
 
-const x: CloudFile = await client.upload(pathToFileAi)
+// try {
+//   const ai = await CloudFile.fetchOrReserveBy({pathToFile})
+//   ai.reset()
+// } catch (error) {
+//   console.warn(`Server was grumpy: ${(error as Error).message}`)
+// }
+
+const x: CloudFile = await client.upload({pathToFile})
 console.log('====================')
 console.log('Upload Result:')
 console.dir(x)

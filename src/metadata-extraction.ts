@@ -14,7 +14,8 @@ import {
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
 import {detectMime} from '@src/utils'
-import * as lodash from 'lodash-es'
+import filter from 'lodash/filter'
+import uniq from 'lodash/uniq'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
 import {exec} from 'node:child_process'
 import {promises as fs} from 'node:fs'
@@ -215,7 +216,7 @@ export const generateDataProfile = async ({
   // Extract additional metadata from the filename and merge with provided metadata list
   const fileInfo = await extractInfo(pathToFile)
   let name: null | string
-  metadataList = lodash.uniq([...metadataList, ...fileInfo])
+  metadataList = uniq([...metadataList, ...fileInfo])
 
   // Optionally include original local path
   if (!pathToFile.startsWith(TEMP_FOLDER_ROOT)) {
@@ -224,7 +225,7 @@ export const generateDataProfile = async ({
 
   // if working on cover art, prune unneeded metadata
   if (pathToFile.includes(COVERART_PREFIX)) {
-    metadataList = lodash.filter(metadataList, (item) => {
+    metadataList = filter(metadataList, (item) => {
       const key = Object.keys(item)[0]
       return ['eivu:artist_name', 'eivu:release_name', 'eivu:year', 'id3:album', 'id3:artist', 'id3:genre'].includes(
         key,
