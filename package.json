@@ -15,6 +15,7 @@
     "@oclif/plugin-plugins": "^5",
     "axios": "^1.12.2",
     "dotenv": "^17.2.3",
+    "glob": "^11.0.3",
     "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",
     "mime-types": "^3.0.1",
