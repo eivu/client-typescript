@@ -1,9 +1,9 @@
 import {PutObjectCommand, type PutObjectCommandOutput, S3Client, S3ServiceException} from '@aws-sdk/client-s3'
 import {Credentials} from '@aws-sdk/types'
 import {CloudFile} from '@src/cloud-file'
+import {type Logger} from '@src/logger'
 import {md5AsFolders} from '@src/utils'
 import {readFile} from 'node:fs/promises'
-
 /**
  * Error messages for S3 transfer failures
  */
@@ -26,6 +26,7 @@ export type S3UploaderConfig = {
  * Parameters for constructing an S3Uploader instance
  */
 type S3UploaderConstructorParams = {
+  assetLogger: Logger
   cloudFile: CloudFile
   s3Config: S3UploaderConfig
 }
@@ -35,6 +36,7 @@ type S3UploaderConstructorParams = {
  * Manages path generation, file upload, and MD5 validation
  */
 export class S3Uploader {
+  assetLogger: Logger
   cloudFile: CloudFile
   s3Config: S3UploaderConfig
 
@@ -44,7 +46,8 @@ export class S3Uploader {
    * @param params.cloudFile - The CloudFile instance to upload
    * @param params.s3Config - S3 configuration settings
    */
-  constructor({cloudFile, s3Config}: S3UploaderConstructorParams) {
+  constructor({assetLogger, cloudFile, s3Config}: S3UploaderConstructorParams) {
+    this.assetLogger = assetLogger
     this.cloudFile = cloudFile
     this.s3Config = s3Config
   }
@@ -83,7 +86,7 @@ export class S3Uploader {
     const s3Client = new S3Client(s3Config)
     const remotePathToFile = this.generateRemotePath()
 
-    console.log(
+    this.assetLogger.info(
       `Uploading to S3: ${this.cloudFile.localPathToFile} -> https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
     )
     const putObjectCommand = new PutObjectCommand({
@@ -95,15 +98,15 @@ export class S3Uploader {
 
     try {
       const response: PutObjectCommandOutput = await s3Client.send(putObjectCommand)
-      console.log(
+      this.assetLogger.info(
         `Completed upload: ${this.cloudFile.localPathToFile} -> https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
       )
       return this.validateRemoteMd5(response)
     } catch (error) {
       if (error instanceof S3ServiceException && error.name === 'EntityTooLarge') {
-        console.error(TransferErrorMessages.ENTITY_TOO_LARGE)
+        this.assetLogger.error(TransferErrorMessages.ENTITY_TOO_LARGE)
       } else if (error instanceof S3ServiceException) {
-        console.error(
+        this.assetLogger.error(
           `Error from S3 while uploading object to ${this.s3Config.bucketName}.  ${error.name}: ${error.message}`,
         )
       } else {

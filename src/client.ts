@@ -1,18 +1,25 @@
 import {CloudFile} from '@src/cloud-file'
-import logger from '@src/logger'
+import logger, {type Logger} from '@src/logger'
 import {generateDataProfile, MetadataPair} from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {cleansedAssetName, isOnline} from '@src/utils'
+import {Glob} from 'glob'
 import * as fs from 'node:fs/promises'
+import pLimit from 'p-limit'
 
 /**
  * Client for managing file uploads to the cloud storage service
  * Handles file validation, reservation, transfer, and status tracking
  */
 export class Client {
+  logger: Logger
   status = {
     failure: {},
     success: {},
+  }
+
+  constructor() {
+    this.logger = logger
   }
 
   /**
@@ -43,28 +50,49 @@ export class Client {
    * @returns The CloudFile instance representing the uploaded file
    * @throws Error if the file is empty or upload fails
    */
-  async uploadFile({metadataList, pathToFile}: {metadataList?: MetadataPair[]; pathToFile: string}): Promise<CloudFile> {
+  async uploadFile({
+    metadataList,
+    pathToFile,
+  }: {
+    metadataList?: MetadataPair[]
+    pathToFile: string
+  }): Promise<CloudFile> {
     if (await this.isEmptyFile(pathToFile)) {
       throw new Error(`Can not upload empty file: ${pathToFile}`)
     }
 
+    const assetLogger = this.logger.child({asset: cleansedAssetName(pathToFile)})
     const asset = cleansedAssetName(pathToFile)
-    logger.info(`Fetching/Reserving: ${asset}`)
+    assetLogger.info(`Fetching/Reserving: ${asset}`)
     let cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
     cloudFile.remoteAttr.asset = asset
-    await this.processTransfer({asset, cloudFile})
+    await this.processTransfer({asset, assetLogger, cloudFile})
 
     const dataProfile = await generateDataProfile({metadataList, pathToFile})
+    if (asset === 'paragraph1.mp3') {
+      console.log(`=========dataProfile for ${asset}=========`)
+      console.dir(dataProfile)
+    }
 
     if (cloudFile.transfered()) {
-      logger.info('Completing')
+      assetLogger.info('Completing')
       cloudFile = await cloudFile.complete(dataProfile)
     } else {
-      logger.info('Updating/Skipping')
+      assetLogger.info('Updating/Skipping')
       cloudFile = await cloudFile.updateMetadata(dataProfile)
     }
 
     return cloudFile
+  }
+
+  async uploadFolder({concurrency = 3, pathToFolder}: {concurrency?: number; pathToFolder: string}): Promise<void> {
+    const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
+    const limit = pLimit(concurrency)
+    for await (const pathToFile of directoryGlob) {
+      console.log('found a foo file:', pathToFile)
+      // create a new client for each file to avoid state issues
+      limit(() => this.uploadFile({pathToFile}))
+    }
   }
 
   /**
@@ -91,9 +119,19 @@ export class Client {
    * @throws Error if the CloudFile is not in reserved state or localPathToFile is not set
    * @private
    */
-  private async processTransfer({asset, cloudFile}: {asset: string; cloudFile: CloudFile}): Promise<CloudFile> {
+  private async processTransfer({
+    asset,
+    assetLogger,
+    cloudFile,
+  }: {
+    asset: string
+    assetLogger: Logger
+    cloudFile: CloudFile
+  }): Promise<CloudFile> {
     if (!cloudFile.reserved()) {
-      logger.info(`CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.remoteAttr.state}`)
+      assetLogger.info(
+        `CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.remoteAttr.state}`,
+      )
       return cloudFile
     }
 
@@ -101,14 +139,14 @@ export class Client {
       throw new Error("CloudFile#processTransfer requires CloudFile's localPathToFile to be set")
     }
 
-    logger.info(`Processing Transfer: ${cloudFile.localPathToFile}`)
+    assetLogger.info(`Processing Transfer: ${cloudFile.localPathToFile}`)
 
     cloudFile.identifyContentType()
-    logger.info(`Determined resourceType: ${cloudFile.resourceType}`)
+    assetLogger.info(`Determined resourceType: ${cloudFile.resourceType}`)
     const stats = await fs.stat(cloudFile.localPathToFile as string)
     const filesize = stats.size
 
-    logger.info(`filesize: ${filesize}`)
+    assetLogger.info(`filesize: ${filesize}`)
     const s3Config: S3UploaderConfig = {
       accessKeyId: process.env.EIVU_ACCESS_KEY_ID as string,
       bucketName: process.env.EIVU_BUCKET_NAME as string,
@@ -117,7 +155,7 @@ export class Client {
       secretAccessKey: process.env.EIVU_SECRET_ACCESS_KEY as string,
     }
 
-    const s3Uploader = new S3Uploader({cloudFile, s3Config})
+    const s3Uploader = new S3Uploader({assetLogger, cloudFile, s3Config})
     if (!(await s3Uploader.putLocalFile())) {
       throw new Error(`Failed to upload file to S3: ${cloudFile.localPathToFile}`)
     }
