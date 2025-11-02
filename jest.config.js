@@ -34,7 +34,7 @@ export default {
     }]
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(music-metadata|strtok3|token-types|file-type|@tokenizer|uint8array-extras|@borewit))'
+    'node_modules/(?!(music-metadata|strtok3|token-types|file-type|@tokenizer|uint8array-extras|@borewit|p-limit|yocto-queue))'
   ]
 }
 

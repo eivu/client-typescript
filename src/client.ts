@@ -2,7 +2,7 @@ import {CloudFile} from '@src/cloud-file'
 import logger, {type Logger} from '@src/logger'
 import {generateDataProfile, MetadataPair} from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
-import {cleansedAssetName, isOnline} from '@src/utils'
+import {cleansedAssetName, generateMd5, isOnline} from '@src/utils'
 import {Glob} from 'glob'
 import * as fs from 'node:fs/promises'
 import pLimit from 'p-limit'
@@ -61,8 +61,10 @@ export class Client {
       throw new Error(`Can not upload empty file: ${pathToFile}`)
     }
 
-    const assetLogger = this.logger.child({asset: cleansedAssetName(pathToFile)})
     const asset = cleansedAssetName(pathToFile)
+    const md5 = await generateMd5(pathToFile)
+    const assetLogger = this.logger.child({asset, md5})
+
     assetLogger.info(`Fetching/Reserving: ${asset}`)
     let cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
     cloudFile.remoteAttr.asset = asset
@@ -114,6 +116,7 @@ export class Client {
    * Processes the transfer of a file to S3 cloud storage
    * @param params - Transfer parameters
    * @param params.asset - The cleansed asset name
+   * @param params.assetLogger - Logger instance for logging asset-specific messages
    * @param params.cloudFile - The CloudFile instance to transfer
    * @returns The updated CloudFile instance after transfer
    * @throws Error if the CloudFile is not in reserved state or localPathToFile is not set

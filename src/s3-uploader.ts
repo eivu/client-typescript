@@ -43,6 +43,7 @@ export class S3Uploader {
   /**
    * Creates a new S3Uploader instance
    * @param params - Constructor parameters
+   * @param params.assetLogger - Logger instance for logging asset-specific upload messages
    * @param params.cloudFile - The CloudFile instance to upload
    * @param params.s3Config - S3 configuration settings
    */
@@ -70,6 +71,7 @@ export class S3Uploader {
 
   /**
    * Uploads a local file to S3 cloud storage
+   * Logs upload progress and completion/error messages using the assetLogger
    * @returns True if upload successful and MD5 validation passes, false otherwise
    */
   async putLocalFile(): Promise<boolean> {
