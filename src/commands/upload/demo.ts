@@ -16,3 +16,12 @@ const x: CloudFile = await client.uploadFile({pathToFile})
 console.log('====================')
 console.log('Upload Result:')
 console.dir(x)
+console.log('====================')
+
+const y: CloudFile[] = await client.uploadFolder({
+  metadataList: [{testing: 'eivu'}],
+  pathToFolder: 'test/fixtures/samples/text/alphabet',
+})
+console.log('====================')
+console.log('Upload Result:')
+console.dir(y)

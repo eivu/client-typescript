@@ -7,6 +7,21 @@ import {Glob} from 'glob'
 import * as fs from 'node:fs/promises'
 import pLimit from 'p-limit'
 
+type BaseParams = {
+  metadataList?: MetadataPair[]
+  nsfw?: boolean
+  secured?: boolean
+}
+
+type UploadFileParams = BaseParams & {
+  pathToFile: string
+}
+
+type UploadFolderParams = BaseParams & {
+  concurrency?: number
+  pathToFolder: string
+}
+
 /**
  * Client for managing file uploads to the cloud storage service
  * Handles file validation, reservation, transfer, and status tracking
@@ -31,14 +46,24 @@ export class Client {
    * @returns The CloudFile instance representing the uploaded file
    */
   static async uploadFile({
-    metadataList,
+    metadataList = [],
+    nsfw = false,
     pathToFile,
-  }: {
-    metadataList?: MetadataPair[]
-    pathToFile: string
-  }): Promise<CloudFile> {
+    secured = false,
+  }: UploadFileParams): Promise<CloudFile> {
     const client = new Client()
-    return client.uploadFile({metadataList, pathToFile})
+    return client.uploadFile({metadataList, nsfw, pathToFile, secured})
+  }
+
+  static async uploadFolder({
+    concurrency = 3,
+    metadataList = [],
+    nsfw = false,
+    pathToFolder,
+    secured = false,
+  }: UploadFolderParams): Promise<CloudFile[]> {
+    const client = new Client()
+    return client.uploadFolder({concurrency, metadataList, nsfw, pathToFolder, secured})
   }
 
   /**
@@ -51,12 +76,11 @@ export class Client {
    * @throws Error if the file is empty or upload fails
    */
   async uploadFile({
-    metadataList,
+    metadataList = [],
+    nsfw = false,
     pathToFile,
-  }: {
-    metadataList?: MetadataPair[]
-    pathToFile: string
-  }): Promise<CloudFile> {
+    secured = false,
+  }: UploadFileParams): Promise<CloudFile> {
     if (await this.isEmptyFile(pathToFile)) {
       throw new Error(`Can not upload empty file: ${pathToFile}`)
     }
@@ -66,7 +90,7 @@ export class Client {
     const assetLogger = this.logger.child({asset, md5})
 
     assetLogger.info(`Fetching/Reserving: ${asset}`)
-    let cloudFile = await CloudFile.fetchOrReserveBy({pathToFile})
+    let cloudFile = await CloudFile.fetchOrReserveBy({nsfw, pathToFile, secured})
     cloudFile.remoteAttr.asset = asset
     await this.processTransfer({asset, assetLogger, cloudFile})
 
@@ -87,14 +111,26 @@ export class Client {
     return cloudFile
   }
 
-  async uploadFolder({concurrency = 3, pathToFolder}: {concurrency?: number; pathToFolder: string}): Promise<void> {
+  async uploadFolder({
+    concurrency = 3,
+    metadataList = [],
+    nsfw = false,
+    pathToFolder,
+    secured = false,
+  }: UploadFolderParams): Promise<CloudFile[]> {
     const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
     const limit = pLimit(concurrency)
+    const uploadPromises: Promise<CloudFile>[] = []
+
     for await (const pathToFile of directoryGlob) {
-      console.log('found a foo file:', pathToFile)
+      this.logger.info(`queueing: ${pathToFile}`)
       // create a new client for each file to avoid state issues
-      limit(() => this.uploadFile({pathToFile}))
+      // limit(() => this.uploadFile({pathToFile}))
+      const uploadPromise = limit(() => this.uploadFile({metadataList, nsfw, pathToFile, secured}))
+      uploadPromises.push(uploadPromise)
     }
+
+    return Promise.all(uploadPromises)
   }
 
   /**
