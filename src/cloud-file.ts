@@ -125,6 +125,16 @@ export class CloudFile {
     return this.remoteAttr.state === CloudFileState.COMPLETED
   }
 
+  grouping(): string {
+    if (this.remoteAttr.peepy || this.remoteAttr.secured) {
+      return 'secured'
+    }
+
+    if (this.resourceType && ['audio', 'image', 'video'].includes(this.resourceType)) return this.resourceType
+
+    return 'archive'
+  }
+
   /**
    * Identifies and sets the content type and resource type for the cloud file
    * @throws Error if localPathToFile is not set
