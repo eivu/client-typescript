@@ -3,8 +3,7 @@ import {CloudFile} from '@src/cloud-file'
 
 const client = new Client()
 // const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
-const pathToFile = 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'
-
+let pathToFile
 // try {
 //   const ai = await CloudFile.fetchOrReserveBy({pathToFile})
 //   ai.reset()
@@ -12,16 +11,31 @@ const pathToFile = 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/p
 //   console.warn(`Server was grumpy: ${(error as Error).message}`)
 // }
 
-const x: CloudFile = await client.uploadFile({pathToFile})
+// pathToFile = 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'
+// const a: CloudFile = await client.uploadFile({metadataList: [{tag: 'eivu-testing'}], pathToFile})
+// console.log('====================')
+// console.log('Upload Result:')
+// console.dir(a)
+// console.log('====================')
+
+pathToFile = 'test/fixtures/samples/secured/gesel-792764.jpg'
+// const obj = await CloudFile.fetchOrReserveBy({pathToFile})
+// obj.reset()
+const b: CloudFile = await client.uploadFile({
+  metadataList: [{tag: 'eivu-testing'}],
+  nsfw: true,
+  pathToFile,
+  secured: true,
+})
 console.log('====================')
 console.log('Upload Result:')
-console.dir(x)
+console.dir(b)
 console.log('====================')
 
-const y: CloudFile[] = await client.uploadFolder({
-  metadataList: [{testing: 'eivu'}],
+const e: CloudFile[] = await client.uploadFolder({
+  metadataList: [{tag: 'eivu-testing'}],
   pathToFolder: 'test/fixtures/samples/text/alphabet',
 })
 console.log('====================')
 console.log('Upload Result:')
-console.dir(y)
+console.dir(e)

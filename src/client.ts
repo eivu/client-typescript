@@ -95,10 +95,6 @@ export class Client {
     await this.processTransfer({asset, assetLogger, cloudFile})
 
     const dataProfile = await generateDataProfile({metadataList, pathToFile})
-    if (asset === 'paragraph1.mp3') {
-      console.log(`=========dataProfile for ${asset}=========`)
-      console.dir(dataProfile)
-    }
 
     if (cloudFile.transfered()) {
       assetLogger.info('Completing')
@@ -169,7 +165,7 @@ export class Client {
   }): Promise<CloudFile> {
     if (!cloudFile.reserved()) {
       assetLogger.info(
-        `CloudFile#processTransfer requires CloudFile to be in reserved state: ${cloudFile.remoteAttr.state}`,
+        `CloudFile#processTransfer requires CloudFile to be in reserved state: found ${cloudFile.remoteAttr.state}`,
       )
       return cloudFile
     }
