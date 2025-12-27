@@ -80,6 +80,103 @@ export const AI_OVERLORDS_COMPLETE: CloudFileType = {
   url: 'https://eivu-test.s3.wasabisys.com/image/7E/D9/71/31/3D/1A/EA/1B/6E/2B/F8/AF/24/BE/D6/4A/ai_overlords.jpg',
 }
 
+export const DREDD_RESERVATION: CloudFileType = {
+  artists: [],
+  artwork_url: null,
+  asset: null,
+  bucket_name: 'eivu-test',
+  bucket_uuid: '889c685a-de30-4ead-9a96-b3784233e1e8',
+  content_type: 'text/plain',
+  created_at: '2024-09-07T21:11:48.722Z',
+  data_source_id: null,
+  date_aquired_at: null,
+  deletable: false,
+  delicate: false,
+  description: null,
+  duration: null,
+  ext_id: null,
+  filesize: 0,
+  folder_uuid: null,
+  info_url: null,
+  last_viewed_at: null,
+  md5: 'D3497D5E97E43933407237FF2CA46DCA',
+  metadata: [],
+  name: 'D3497D5E97E43933407237FF2CA46DCA (reserved)',
+  nsfw: false,
+  num_plays: 0,
+  peepy: false,
+  rating: null,
+  release_pos: null,
+  releases: [],
+  secured: false,
+  shared: true,
+  state: CloudFileState.RESERVED,
+  updated_at: '2024-09-11T04:02:02.833Z',
+  url: 'https://eivu-test.s3.wasabisys.com/archive/D3/49/7D/5E/97/E4/39/33/40/72/37/FF/2C/A4/6D/CA/Dredd.txt',
+  user_uuid: '0f703c04-b448-455c-8a26-4edc22bf76dd',
+  uuid: '',
+  year: null,
+}
+
+export const DREDD_S3_RESPONSE: PutObjectCommandOutput = {
+  $metadata: {
+    attempts: 1,
+    cfId: undefined,
+    extendedRequestId: 'AGUDJAmNF0dvmxE+gyRYef0Vunb8vN/IVxdSdsNyXA9ZQTaB3YHx6JY64pf5FiNaur0Us8dYnOsF',
+    httpStatusCode: 200,
+    requestId: '410C550F8648D56A:A',
+    totalRetryDelay: 0,
+  },
+  ChecksumCRC32: 'e0Y0jQ==',
+  ChecksumType: 'FULL_OBJECT',
+  ETag: '"d3497d5e97e43933407237ff2ca46dca"',
+}
+
+export const DREDD_TRANSFER: CloudFileType = {
+  ...DREDD_RESERVATION,
+  asset: 'Dredd.txt',
+  content_type: 'text/plain',
+  filesize: 13,
+  state: CloudFileState.TRANSFERRED,
+}
+
+export const DREDD_COMPLETE: CloudFileType = {
+  ...DREDD_TRANSFER,
+  metadata: [
+    {
+      id: 1896,
+      type: 'original_local_path_to_file',
+      value:
+        '/Users/jinx/projects/eivu/client-ruby/spec/fixtures/samples/other/`Cowboy Bebop - Asteroid Blues ((anime)) ((script)) ((all time best)).txt',
+    },
+    {
+      id: 1620,
+      type: 'original_local_path_to_file',
+      value:
+        '/Users/jinx/projects/brashear_eivu/client-ruby/spec/fixtures/samples/other/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
+    },
+    {
+      id: 1895,
+      type: 'original_local_path_to_file',
+      value:
+        '/Users/jinx/projects/eivu/client-ruby/spec/fixtures/samples/other/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
+    },
+    {
+      id: 1615,
+      type: 'original_local_path_to_file',
+      value:
+        '/Users/jinx/projects/brashear_eivu/client-ruby/spec/fixtures/samples/other/`Cowboy Bebop - Asteroid Blues ((anime)) ((script)) ((all time best)).txt',
+    },
+    {id: 1617, type: 'performer', value: 'lena headey'},
+    {id: 1616, type: 'performer', value: 'karl urban'},
+    {id: 1618, type: 'studio', value: 'dna films'},
+    {id: 1619, type: 'tag', value: 'comic book movie'},
+    {id: 1611, type: 'tag', value: 'anime'},
+    {id: 1614, type: 'tag', value: 'all time best'},
+    {id: 1613, type: 'tag', value: 'script'},
+  ],
+}
+
 export const DREDD_DATA_PROFILE = {
   artists: [],
   artwork_md5: null,
