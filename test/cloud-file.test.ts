@@ -3,7 +3,7 @@ import nock from 'nock'
 
 import {CloudFile} from '../src/cloud-file'
 import {CloudFileState} from '../src/types/cloud-file-type'
-import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_TRANSFER, MOV_BBB_TRANSFER} from './fixtures/responses'
+import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_TRANSFER, DREDD_TRANSFER, MOV_BBB_TRANSFER} from './fixtures/responses'
 
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
@@ -217,6 +217,13 @@ describe('CloudFile', () => {
       const cloudFile = new CloudFile({remoteAttr: MOV_BBB_TRANSFER})
       expect(cloudFile.url()).toEqual(
         'https://eivu-test.s3.wasabisys.com/video/19/89/18/F4/0E/CC/7C/AB/0F/C4/23/1A/DA/F6/7C/96/mov_bbb.mp4',
+      )
+    })
+
+    it('returns a valid URL for dredd.txt', () => {
+      const cloudFile = new CloudFile({remoteAttr: DREDD_TRANSFER})
+      expect(cloudFile.url()).toEqual(
+        'https://eivu-test.s3.wasabisys.com/archive/D3/49/7D/5E/97/E4/39/33/40/72/37/FF/2C/A4/6D/CA/Dredd.txt',
       )
     })
   })
