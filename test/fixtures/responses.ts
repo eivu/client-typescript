@@ -459,3 +459,82 @@ export const FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE_FOR_UPLOAD = {
   },
   year: 1811,
 }
+
+export const PEXELS_RESERVATION: CloudFileType = {
+  artists: [],
+  artwork_url: null,
+  asset: null,
+  bucket_name: 'eivu-test',
+  bucket_uuid: '889c685a-de30-4ead-9a96-b3784233e1e8',
+  content_type: null,
+  created_at: '2024-09-26T00:47:41.017Z',
+  data_source_id: null,
+  date_aquired_at: null,
+  deletable: false,
+  delicate: true,
+  description: null,
+  duration: null,
+  ext_id: null,
+  filesize: 0,
+  folder_uuid: null,
+  info_url: null,
+  last_viewed_at: null,
+  md5: 'F00F4D45AE63D74F4F2E392AE82E23A2',
+  metadata: [],
+  name: 'F00F4D45AE63D74F4F2E392AE82E23A2 (reserved)',
+  nsfw: true,
+  num_plays: 0,
+  peepy: true,
+  rating: null,
+  release_pos: null,
+  releases: [],
+  secured: true,
+  shared: false,
+  state: CloudFileState.RESERVED,
+  updated_at: '2024-09-26T00:47:43.808Z',
+  url: 'https://eivu-test.s3.wasabisys.com/secured/F0/0F/4D/45/AE/63/D7/4F/4F/2E/39/2A/E8/2E/23/A2/pexels-gesel-792764.jpg',
+  user_uuid: '0f703c04-b448-455c-8a26-4edc22bf76dd',
+  uuid: '',
+  year: null,
+}
+
+export const PEXELS_TRANSFER: CloudFileType = {
+  ...PEXELS_RESERVATION,
+  asset: 'pexels-gesel-792764.jpg',
+  content_type: 'image/jpeg',
+  filesize: 2_465_118,
+  state: CloudFileState.TRANSFERRED,
+}
+
+export const PEXELS_COMPLETE: CloudFileType = {
+  ...PEXELS_TRANSFER,
+  metadata: [
+    {
+      id: 1934,
+      type: 'original_local_path_to_file',
+      value: 'spec/fixtures/secured/pexels-gesel-792764.jpg',
+    },
+    {
+      id: 2099,
+      type: 'original_local_path_to_file',
+      value: 'test/fixtures/samples/secured/gesel-792764.jpg',
+    },
+    {
+      id: 1939,
+      type: 'performer',
+      value: 'Clown(s)',
+    },
+    {
+      id: 1940,
+      type: 'tag',
+      value: 'Clown(s)',
+    },
+    {
+      id: 2098,
+      type: 'tag',
+      value: 'eivu-testing',
+    },
+  ],
+  name: 'pexels gesel 792764',
+  state: CloudFileState.COMPLETED,
+}
