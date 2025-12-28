@@ -216,7 +216,7 @@ export class CloudFile {
     if (!this.remoteAttr.md5) throw new Error('CloudFile#url requires this.remoteAttr.md5 to be set')
     if (!this.remoteAttr.asset) throw new Error('CloudFile#url requires this.remoteAttr.asset to be set')
 
-    return `https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com/${this.resourceType}/${md5AsFolders(
+    return `https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com/${this.grouping()}/${md5AsFolders(
       this.remoteAttr.md5,
     )}/${this.remoteAttr.asset}`
   }
