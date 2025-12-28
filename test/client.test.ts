@@ -331,4 +331,43 @@ describe('Client', () => {
       expect(client).toBeInstanceOf(Client)
     })
   })
+
+  describe('verifyUpload', () => {
+    beforeEach(() => {
+      nock.cleanAll()
+      jest.clearAllMocks()
+      mockSend.mockClear()
+    })
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('returns true if the file is uploaded', async () => {
+      const client = new Client()
+      const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
+
+      const fetchReq = nock(SERVER_HOST)
+        .get(`${URL_BUCKET_PREFIX}/cloud_files/7ED971313D1AEA1B6E2BF8AF24BED64A`)
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, AI_OVERLORDS_COMPLETE)
+
+      const result = await client.verifyUpload(pathToFile)
+      expect(result).toBe(true)
+      expect(fetchReq.isDone()).toBe(true)
+    })
+
+    it('returns false if the file is not uploaded', async () => {
+      const client = new Client()
+      const pathToFile = 'README.md'
+
+      const fetchReq = nock(SERVER_HOST)
+        .get(`${URL_BUCKET_PREFIX}/cloud_files/4E7B7649734E6FFE9770A03C5A7FF631`)
+        .query({keyFormat: 'camel_lower'})
+        .reply(403, {error: 'Forbidden: Not your cloud file'})
+      const result = await client.verifyUpload(pathToFile)
+      expect(result).toBe(false)
+      expect(fetchReq.isDone()).toBe(true)
+    })
+  })
 })

@@ -27,6 +27,25 @@ type UploadFolderParams = BaseParams & {
  * Handles file validation, reservation, transfer, and status tracking
  */
 export class Client {
+  static SKIPPABLE_EXTENSIONS: string[] = [
+    'ds_store',
+    'gitignore',
+    'gitkeep',
+    'cue',
+    'eivu.yml',
+    'm4p',
+    'log',
+    'md5',
+    'sfv',
+    'info',
+    'nfo',
+    'm3u',
+    'm3u8',
+    'com',
+    'db.lo',
+    'db.lo.1',
+  ]
+  static SKIPPABLE_FOLDERS: string[] = ['.git', 'podcasts']
   logger: Logger
   status = {
     failure: {},
@@ -119,6 +138,9 @@ export class Client {
     const uploadPromises: Promise<CloudFile>[] = []
 
     for await (const pathToFile of directoryGlob) {
+      if (Client.SKIPPABLE_EXTENSIONS.some((ext) => pathToFile.toLowerCase().endsWith(`.${ext}`))) continue
+      if (Client.SKIPPABLE_FOLDERS.some((folder) => pathToFile.includes(`/${folder}/`))) continue
+
       this.logger.info(`queueing: ${pathToFile}`)
       // create a new client for each file to avoid state issues
       // limit(() => this.uploadFile({pathToFile}))
@@ -127,6 +149,16 @@ export class Client {
     }
 
     return Promise.all(uploadPromises)
+  }
+
+  async verifyUpload(pathToFile: string): Promise<boolean> {
+    const md5 = await generateMd5(pathToFile)
+    try {
+      const cloudFile = await CloudFile.fetch(md5)
+      return cloudFile.completed()
+    } catch {
+      return false
+    }
   }
 
   /**
