@@ -15,6 +15,7 @@
     "@oclif/plugin-plugins": "^5",
     "axios": "^1.12.2",
     "dotenv": "^17.2.3",
+    "fast-csv": "^5.0.5",
     "glob": "^11.0.3",
     "lodash": "^4.17.21",
     "lodash-es": "^4.17.21",
@@ -25,7 +26,8 @@
     "pino": "^10.0.0",
     "pino-pretty": "^13.1.2",
     "tmp": "^0.2.5",
-    "tsx": "^4.20.6"
+    "tsx": "^4.20.6",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@eslint/compat": "^1",
