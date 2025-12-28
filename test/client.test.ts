@@ -16,6 +16,10 @@ import {
   FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE_FOR_UPLOAD,
   FROG_PRINCE_PARAGRAPH_1_RESERVATION,
   FROG_PRINCE_PARAGRAPH_1_TRANSFER,
+  PEXELS_COMPLETE,
+  PEXELS_RESERVATION,
+  PEXELS_S3_RESPONSE,
+  PEXELS_TRANSFER,
 } from './fixtures/responses'
 import {removeAttrubuteFromBodyTest} from './helpers'
 
@@ -25,6 +29,7 @@ const URL_BUCKET_PREFIX = `/api/upload/v1/buckets/${BUCKET_UUID}`
 const aiFilesize = 66_034
 const coverArtFilesize = 125_446
 const audioFilesize = 781_052
+const pexelsFilesize = 2_465_118
 
 const FROG_PRINCE_COVER_ART_S3_RESPONSE = {
   $metadata: {
@@ -59,7 +64,7 @@ jest.mock('@aws-sdk/client-s3', () => ({
 }))
 
 describe('Client', () => {
-  describe('upload', () => {
+  describe('uploadFile', () => {
     beforeEach(() => {
       nock.cleanAll()
       jest.clearAllMocks()
@@ -230,7 +235,10 @@ describe('Client', () => {
         const completeReq = nock(SERVER_HOST)
           .post(
             `${URL_BUCKET_PREFIX}/cloud_files/BC55A3994827BF6389BAC9EE6B62FC64/complete`,
-            removeAttrubuteFromBodyTest(FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE_FOR_UPLOAD, ['path_to_file', 'id3:lyrics']),
+            removeAttrubuteFromBodyTest(FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE_FOR_UPLOAD, [
+              'path_to_file',
+              'id3:lyrics',
+            ]),
           )
           .query({keyFormat: 'camel_lower'})
           .reply(200, FROG_PRINCE_PARAGRAPH_1_COMPLETE)
@@ -250,6 +258,71 @@ describe('Client', () => {
         expect(checkOnlineReq.isDone()).toBe(true)
         expect(completeReq.isDone()).toBe(true)
         expect(mockSend).toHaveBeenCalledTimes(2)
+      })
+
+      it('uploads a secure file (pexels-gesel-792764.jpg), when it does not exist on the server', async () => {
+        mockSend.mockResolvedValue(PEXELS_S3_RESPONSE)
+        const client = new Client()
+        const pathToFile = 'test/fixtures/samples/secured/pexels-gesel-792764.jpg'
+
+        const reserveReq = nock(SERVER_HOST)
+          .post(`${URL_BUCKET_PREFIX}/cloud_files/F00F4D45AE63D74F4F2E392AE82E23A2/reserve`, {
+            nsfw: false,
+            secured: false,
+          })
+          .query({keyFormat: 'camel_lower'})
+          .reply(200, PEXELS_RESERVATION)
+
+        const transferReq = nock(SERVER_HOST)
+          .post(`${URL_BUCKET_PREFIX}/cloud_files/F00F4D45AE63D74F4F2E392AE82E23A2/transfer`, {
+            asset: 'pexels-gesel-792764.jpg',
+            content_type: 'image/jpeg', // eslint-disable-line camelcase
+            filesize: pexelsFilesize,
+          })
+          .query({keyFormat: 'camel_lower'})
+          .reply(200, PEXELS_TRANSFER)
+
+        const checkOnlineReq = nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
+          .head('/secured/F0/0F/4D/45/AE/63/D7/4F/4F/2E/39/2A/E8/2E/23/A2/pexels-gesel-792764.jpg')
+          .reply(200, 'body', {
+            'Content-Length': String(pexelsFilesize),
+          })
+
+        /* eslint-disable camelcase */
+        const completeReq = nock(SERVER_HOST)
+          .post(`${URL_BUCKET_PREFIX}/cloud_files/F00F4D45AE63D74F4F2E392AE82E23A2/complete`, {
+            artists: [],
+            artwork_md5: null,
+            duration: null,
+            metadata_list: [{original_local_path_to_file: pathToFile}],
+            name: null,
+            path_to_file: pathToFile,
+            rating: null,
+            release: {
+              artwork_md5: null,
+              bundle_pos: null,
+              name: null,
+              position: null,
+              primary_artist_name: null,
+              year: null,
+            },
+            year: null,
+          })
+          .query({keyFormat: 'camel_lower'})
+          .reply(200, PEXELS_COMPLETE)
+        /* eslint-enable camelcase */
+
+        const cloudFile = await client.uploadFile({pathToFile})
+
+        expect(cloudFile).toBeInstanceOf(CloudFile)
+        expect(cloudFile.localPathToFile).toBe(pathToFile)
+        expect(cloudFile.remoteAttr).toBeDefined()
+        expect(cloudFile.resourceType).toBe('image')
+        expect(reserveReq.isDone()).toBe(true)
+        expect(transferReq.isDone()).toBe(true)
+        expect(checkOnlineReq.isDone()).toBe(true)
+        expect(completeReq.isDone()).toBe(true)
+        expect(mockSend).toHaveBeenCalledTimes(1)
       })
     })
 

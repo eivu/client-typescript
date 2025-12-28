@@ -145,7 +145,7 @@ export class CloudFile {
     }
 
     const {mediatype, type} = detectMime(this.localPathToFile)
-    this.resourceType = this.remoteAttr.peepy ? 'secured' : mediatype
+    this.resourceType = mediatype
     this.remoteAttr.content_type = type
   }
 

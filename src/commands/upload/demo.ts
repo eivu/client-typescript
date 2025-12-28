@@ -18,19 +18,19 @@ let pathToFile
 // console.dir(a)
 // console.log('====================')
 
-pathToFile = 'test/fixtures/samples/secured/gesel-792764.jpg'
-// const obj = await CloudFile.fetchOrReserveBy({pathToFile})
-// obj.reset()
-const b: CloudFile = await client.uploadFile({
-  metadataList: [{tag: 'eivu-testing'}],
-  nsfw: true,
-  pathToFile,
-  secured: true,
-})
-console.log('====================')
-console.log('Upload Result:')
-console.dir(b)
-console.log('====================')
+// pathToFile = 'test/fixtures/samples/secured/gesel-792764.jpg'
+// // const obj = await CloudFile.fetchOrReserveBy({pathToFile})
+// // obj.reset()
+// const b: CloudFile = await client.uploadFile({
+//   metadataList: [{tag: 'eivu-testing'}],
+//   nsfw: true,
+//   pathToFile,
+//   secured: true,
+// })
+// console.log('====================')
+// console.log('Upload Result:')
+// console.dir(b)
+// console.log('====================')
 
 const e: CloudFile[] = await client.uploadFolder({
   metadataList: [{tag: 'eivu-testing'}],
