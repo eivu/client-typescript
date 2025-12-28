@@ -3,7 +3,13 @@ import nock from 'nock'
 
 import {CloudFile} from '../src/cloud-file'
 import {CloudFileState} from '../src/types/cloud-file-type'
-import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_TRANSFER, DREDD_TRANSFER, MOV_BBB_TRANSFER} from './fixtures/responses'
+import {
+  AI_OVERLORDS_RESERVATION,
+  AI_OVERLORDS_TRANSFER,
+  DREDD_TRANSFER,
+  MOV_BBB_TRANSFER,
+  PEXELS_TRANSFER,
+} from './fixtures/responses'
 
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
@@ -224,6 +230,13 @@ describe('CloudFile', () => {
       const cloudFile = new CloudFile({remoteAttr: DREDD_TRANSFER})
       expect(cloudFile.url()).toEqual(
         'https://eivu-test.s3.wasabisys.com/archive/D3/49/7D/5E/97/E4/39/33/40/72/37/FF/2C/A4/6D/CA/Dredd.txt',
+      )
+    })
+
+    it('returns a valid URL for (secure) pexels-gesel-792764.jpg', () => {
+      const cloudFile = new CloudFile({remoteAttr: PEXELS_TRANSFER})
+      expect(cloudFile.url()).toEqual(
+        'https://eivu-test.s3.wasabisys.com/secured/F0/0F/4D/45/AE/63/D7/4F/4F/2E/39/2A/E8/2E/23/A2/pexels-gesel-792764.jpg',
       )
     })
   })

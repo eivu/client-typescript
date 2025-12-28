@@ -538,3 +538,17 @@ export const PEXELS_COMPLETE: CloudFileType = {
   name: 'pexels gesel 792764',
   state: CloudFileState.COMPLETED,
 }
+
+export const PEXELS_S3_RESPONSE: PutObjectCommandOutput = {
+  $metadata: {
+    attempts: 1,
+    cfId: undefined,
+    extendedRequestId: 'AGUDJAmNF0dvmxE+gyRYef0Vunb8vN/IVxdSdsNyXA9ZQTaB3YHx6JY64pf5FiNaur0Us8dYnOsF',
+    httpStatusCode: 200,
+    requestId: '410C550F8648D56A:A',
+    totalRetryDelay: 0,
+  },
+  ChecksumCRC32: 'e0Y0jQ==',
+  ChecksumType: 'FULL_OBJECT',
+  ETag: '"f00f4d45ae63d74f4f2e392ae82e23a2"',
+}
