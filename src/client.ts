@@ -3,8 +3,10 @@ import logger, {type Logger} from '@src/logger'
 import {generateDataProfile, MetadataPair} from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {cleansedAssetName, generateMd5, isOnline} from '@src/utils'
+import * as fastCsv from 'fast-csv'
 import {Glob} from 'glob'
-import * as fs from 'node:fs/promises'
+import fs from 'node:fs'
+import * as fsPromise from 'node:fs/promises'
 import pLimit from 'p-limit'
 
 type BaseParams = {
@@ -47,10 +49,6 @@ export class Client {
   ]
   static SKIPPABLE_FOLDERS: string[] = ['.git', 'podcasts']
   logger: Logger
-  status = {
-    failure: {},
-    success: {},
-  }
 
   constructor() {
     this.logger = logger
@@ -136,6 +134,7 @@ export class Client {
     const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
     const limit = pLimit(concurrency)
     const uploadPromises: Promise<CloudFile>[] = []
+    await fsPromise.mkdir('logs', {recursive: true}) // ensure logs directory exists
 
     for await (const pathToFile of directoryGlob) {
       if (Client.SKIPPABLE_EXTENSIONS.some((ext) => pathToFile.toLowerCase().endsWith(`.${ext}`))) continue
@@ -144,7 +143,7 @@ export class Client {
       this.logger.info(`queueing: ${pathToFile}`)
       // create a new client for each file to avoid state issues
       // limit(() => this.uploadFile({pathToFile}))
-      const uploadPromise = limit(() => this.uploadFile({metadataList, nsfw, pathToFile, secured}))
+      const uploadPromise = limit(() => this.processQueuedUpload({metadataList, nsfw, pathToFile, secured}))
       uploadPromises.push(uploadPromise)
     }
 
@@ -169,10 +168,49 @@ export class Client {
    */
   private async isEmptyFile(pathToFile: string): Promise<boolean> {
     try {
-      const stats = await fs.stat(pathToFile)
+      const stats = await fsPromise.stat(pathToFile)
       return stats.size === 0
     } catch {
       return false
+    }
+  }
+
+  private async logFailure(pathToFile: string, error: Error): Promise<void> {
+    const md5 = await generateMd5(pathToFile)
+    this.logMessage('logs/failure.csv', [new Date().toISOString(), pathToFile, md5, error.message])
+  }
+
+  private async logMessage(logPath: string, data: string[]): Promise<void> {
+    const stream = fs.createWriteStream(logPath, {flags: 'a'})
+    const csvStream = fastCsv.format({headers: false})
+
+    csvStream.pipe(stream)
+    csvStream.write(data)
+    csvStream.end()
+  }
+
+  private async logSuccess(pathToFile: string): Promise<void> {
+    const md5 = await generateMd5(pathToFile)
+    this.logMessage('logs/success.csv', [new Date().toISOString(), pathToFile, md5, 'Upload successful'])
+  }
+
+  private async processQueuedUpload({
+    metadataList = [],
+    nsfw = false,
+    pathToFile,
+    secured = false,
+  }: UploadFileParams): Promise<CloudFile> {
+    try {
+      const cloudFile = await this.uploadFile({metadataList, nsfw, pathToFile, secured})
+      if (await this.verifyUpload(pathToFile)) {
+        this.logSuccess(pathToFile)
+      } else {
+        this.logFailure(pathToFile, new Error('upload did not complete'))
+      }
+
+      return cloudFile
+    } catch (error) {
+      this.logFailure(pathToFile, error as Error)
     }
   }
 
@@ -210,7 +248,7 @@ export class Client {
 
     cloudFile.identifyContentType()
     assetLogger.info(`Determined resourceType: ${cloudFile.resourceType}`)
-    const stats = await fs.stat(cloudFile.localPathToFile as string)
+    const stats = await fsPromise.stat(cloudFile.localPathToFile as string)
     const filesize = stats.size
 
     assetLogger.info(`filesize: ${filesize}`)
