@@ -27,6 +27,9 @@ type UploadFolderParams = BaseParams & {
 /**
  * Client for managing file uploads to the cloud storage service
  * Handles file validation, reservation, transfer, and status tracking
+ *
+ * Provides both static convenience methods and instance methods for uploading
+ * individual files or entire folders with configurable concurrency and metadata
  */
 export class Client {
   static SKIPPABLE_EXTENSIONS: string[] = [
@@ -83,7 +86,7 @@ export class Client {
    * @param params.nsfw - Optional flag indicating if files contain NSFW content (default: false)
    * @param params.pathToFolder - Path to the local folder to upload
    * @param params.secured - Optional flag indicating if files should be secured (default: false)
-   * @returns Array of CloudFile instances representing the uploaded files
+   * @returns Promise resolving to an array of status messages for each upload attempt
    */
   static async uploadFolder({
     concurrency = 3,
@@ -91,7 +94,7 @@ export class Client {
     nsfw = false,
     pathToFolder,
     secured = false,
-  }: UploadFolderParams): Promise<CloudFile[]> {
+  }: UploadFolderParams): Promise<string[]> {
     const client = new Client()
     return client.uploadFolder({concurrency, metadataList, nsfw, pathToFolder, secured})
   }
@@ -149,7 +152,7 @@ export class Client {
    * @param params.nsfw - Optional flag indicating if files contain NSFW content (default: false)
    * @param params.pathToFolder - Path to the local folder to upload
    * @param params.secured - Optional flag indicating if files should be secured (default: false)
-   * @returns Array of CloudFile instances representing the successfully uploaded files
+   * @returns Promise resolving to an array of status messages for each upload attempt
    */
   async uploadFolder({
     concurrency = 3,
@@ -157,10 +160,10 @@ export class Client {
     nsfw = false,
     pathToFolder,
     secured = false,
-  }: UploadFolderParams): Promise<CloudFile[]> {
+  }: UploadFolderParams): Promise<string[]> {
     const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
     const limit = pLimit(concurrency)
-    const uploadPromises: Promise<CloudFile | undefined>[] = []
+    const uploadPromises: Promise<string>[] = []
     await fsPromise.mkdir('logs', {recursive: true}) // ensure logs directory exists
 
     for await (const pathToFile of directoryGlob) {
@@ -174,16 +177,17 @@ export class Client {
       uploadPromises.push(uploadPromise)
     }
 
-    const results = await Promise.all(uploadPromises)
+    return Promise.all(uploadPromises)
     // Filter out undefined values (failed uploads that couldn't be fetched)
-    return results.filter((cloudFile): cloudFile is CloudFile => cloudFile !== undefined)
+    // return results
   }
 
   /**
    * Verifies if a file has been successfully uploaded and completed
    * Checks the file's MD5 hash against the cloud storage service
    * @param pathToFile - Path to the local file to verify
-   * @returns True if the file exists in cloud storage and is completed, false otherwise
+   * @returns Promise resolving to true if the file exists in cloud storage and is completed, false otherwise
+   * @throws Will not throw, but returns false if the file cannot be fetched from the cloud storage
    */
   async verifyUpload(pathToFile: string): Promise<boolean> {
     const md5 = await generateMd5(pathToFile)
@@ -198,7 +202,7 @@ export class Client {
   /**
    * Checks if a file is empty (has zero size)
    * @param pathToFile - Path to the file to check
-   * @returns True if the file is empty or doesn't exist
+   * @returns True if the file exists and has zero size, false if the file doesn't exist or has content
    * @private
    */
   private async isEmptyFile(pathToFile: string): Promise<boolean> {
@@ -214,6 +218,7 @@ export class Client {
    * Logs a failed upload attempt to the failure log file
    * @param pathToFile - Path to the file that failed to upload
    * @param error - The error that occurred during upload
+   * @returns Promise that resolves when the log entry has been written
    * @private
    */
   private async logFailure(pathToFile: string, error: Error): Promise<void> {
@@ -223,8 +228,10 @@ export class Client {
 
   /**
    * Writes a log message to a CSV file
+   * Appends a new row to the specified CSV log file
    * @param logPath - Path to the log file
    * @param data - Array of string values to write as a CSV row
+   * @returns Promise that resolves when the log entry has been written, or rejects on error
    * @private
    */
   private async logMessage(logPath: string, data: string[]): Promise<void> {
@@ -247,6 +254,7 @@ export class Client {
   /**
    * Logs a successful upload to the success log file
    * @param pathToFile - Path to the file that was successfully uploaded
+   * @returns Promise that resolves when the log entry has been written
    * @private
    */
   private async logSuccess(pathToFile: string): Promise<void> {
@@ -262,7 +270,7 @@ export class Client {
    * @param params.nsfw - Optional flag indicating if the file contains NSFW content (default: false)
    * @param params.pathToFile - Path to the local file to upload
    * @param params.secured - Optional flag indicating if the file should be secured (default: false)
-   * @returns The CloudFile instance if upload succeeds, undefined if it fails
+   * @returns Promise resolving to a status message string indicating the upload result
    * @private
    */
   private async processRateLimitedUpload({
@@ -270,30 +278,36 @@ export class Client {
     nsfw = false,
     pathToFile,
     secured = false,
-  }: UploadFileParams): Promise<CloudFile | undefined> {
+  }: UploadFileParams): Promise<string> {
     try {
-      const cloudFile = await this.uploadFile({metadataList, nsfw, pathToFile, secured})
+      await this.uploadFile({metadataList, nsfw, pathToFile, secured})
+
       if (await this.verifyUpload(pathToFile)) {
         this.logSuccess(pathToFile)
-      } else {
-        this.logFailure(pathToFile, new Error('upload did not complete'))
+        return `${pathToFile}: uploaded successfully`
       }
 
-      return cloudFile
+      const failedError = 'upload verification failed'
+      this.logFailure(pathToFile, new Error(failedError))
+      return `${pathToFile}: ${failedError}`
     } catch (error) {
       this.logFailure(pathToFile, error as Error)
-      return undefined
+      return `${pathToFile}: ${(error as Error).message}`
     }
   }
 
   /**
    * Processes the transfer of a file to S3 cloud storage
+   * Uploads the file to S3, verifies it's online, and updates the CloudFile state
    * @param params - Transfer parameters
    * @param params.asset - The cleansed asset name
    * @param params.assetLogger - Logger instance for logging asset-specific messages
    * @param params.cloudFile - The CloudFile instance to transfer
-   * @returns The updated CloudFile instance after transfer
-   * @throws Error if the CloudFile is not in reserved state or localPathToFile is not set
+   * @returns Promise resolving to the updated CloudFile instance after transfer
+   * @throws {Error} If the CloudFile is not in reserved state (returns early without throwing)
+   * @throws {Error} If localPathToFile is not set on the CloudFile
+   * @throws {Error} If the S3 upload fails
+   * @throws {Error} If the uploaded file is offline or has a filesize mismatch
    * @private
    */
   private async processTransfer({
