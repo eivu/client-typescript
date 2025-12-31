@@ -228,12 +228,20 @@ export class Client {
    * @private
    */
   private async logMessage(logPath: string, data: string[]): Promise<void> {
-    const stream = fs.createWriteStream(logPath, {flags: 'a'})
-    const csvStream = fastCsv.format({headers: false})
+    return new Promise<void>((resolve, reject) => {
+      const stream = fs.createWriteStream(logPath, {flags: 'a'})
+      const csvStream = fastCsv.format({headers: false})
+      stream.write('\n')
+      csvStream.pipe(stream)
 
-    csvStream.pipe(stream)
-    csvStream.write(data)
-    csvStream.end()
+      stream.on('error', reject)
+      csvStream.on('error', reject)
+
+      stream.on('finish', resolve)
+
+      csvStream.write(data)
+      csvStream.end()
+    })
   }
 
   /**
