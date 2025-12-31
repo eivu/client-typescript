@@ -59,7 +59,9 @@ export class Client {
    * Creates a new client instance and delegates to the instance method
    * @param params - Upload parameters
    * @param params.metadataList - Optional array of metadata key-value pairs to attach to the file
+   * @param params.nsfw - Optional flag indicating if the file contains NSFW content (default: false)
    * @param params.pathToFile - Path to the local file to upload
+   * @param params.secured - Optional flag indicating if the file should be secured (default: false)
    * @returns The CloudFile instance representing the uploaded file
    */
   static async uploadFile({
@@ -72,6 +74,17 @@ export class Client {
     return client.uploadFile({metadataList, nsfw, pathToFile, secured})
   }
 
+  /**
+   * Static helper method to upload a folder without instantiating a client
+   * Creates a new client instance and delegates to the instance method
+   * @param params - Upload parameters
+   * @param params.concurrency - Optional number of concurrent uploads (default: 3)
+   * @param params.metadataList - Optional array of metadata key-value pairs to attach to files
+   * @param params.nsfw - Optional flag indicating if files contain NSFW content (default: false)
+   * @param params.pathToFolder - Path to the local folder to upload
+   * @param params.secured - Optional flag indicating if files should be secured (default: false)
+   * @returns Array of CloudFile instances representing the uploaded files
+   */
   static async uploadFolder({
     concurrency = 3,
     metadataList = [],
@@ -88,7 +101,9 @@ export class Client {
    * Validates the file, reserves a slot, and transfers the file to S3
    * @param params - Upload parameters
    * @param params.metadataList - Optional array of metadata key-value pairs to attach to the file
+   * @param params.nsfw - Optional flag indicating if the file contains NSFW content (default: false)
    * @param params.pathToFile - Path to the local file to upload
+   * @param params.secured - Optional flag indicating if the file should be secured (default: false)
    * @returns The CloudFile instance representing the uploaded file
    * @throws Error if the file is empty or upload fails
    */
@@ -124,6 +139,18 @@ export class Client {
     return cloudFile
   }
 
+  /**
+   * Uploads all files in a folder to cloud storage
+   * Recursively processes files in the folder with configurable concurrency
+   * Skips files with skippable extensions and files in skippable folders
+   * @param params - Upload parameters
+   * @param params.concurrency - Optional number of concurrent uploads (default: 3)
+   * @param params.metadataList - Optional array of metadata key-value pairs to attach to files
+   * @param params.nsfw - Optional flag indicating if files contain NSFW content (default: false)
+   * @param params.pathToFolder - Path to the local folder to upload
+   * @param params.secured - Optional flag indicating if files should be secured (default: false)
+   * @returns Array of CloudFile instances representing the successfully uploaded files
+   */
   async uploadFolder({
     concurrency = 3,
     metadataList = [],
@@ -133,7 +160,7 @@ export class Client {
   }: UploadFolderParams): Promise<CloudFile[]> {
     const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
     const limit = pLimit(concurrency)
-    const uploadPromises: Promise<CloudFile>[] = []
+    const uploadPromises: Promise<CloudFile | undefined>[] = []
     await fsPromise.mkdir('logs', {recursive: true}) // ensure logs directory exists
 
     for await (const pathToFile of directoryGlob) {
@@ -143,13 +170,21 @@ export class Client {
       this.logger.info(`queueing: ${pathToFile}`)
       // create a new client for each file to avoid state issues
       // limit(() => this.uploadFile({pathToFile}))
-      const uploadPromise = limit(() => this.processQueuedUpload({metadataList, nsfw, pathToFile, secured}))
+      const uploadPromise = limit(() => this.processRateLimitedUpload({metadataList, nsfw, pathToFile, secured}))
       uploadPromises.push(uploadPromise)
     }
 
-    return Promise.all(uploadPromises)
+    const results = await Promise.all(uploadPromises)
+    // Filter out undefined values (failed uploads that couldn't be fetched)
+    return results.filter((cloudFile): cloudFile is CloudFile => cloudFile !== undefined)
   }
 
+  /**
+   * Verifies if a file has been successfully uploaded and completed
+   * Checks the file's MD5 hash against the cloud storage service
+   * @param pathToFile - Path to the local file to verify
+   * @returns True if the file exists in cloud storage and is completed, false otherwise
+   */
   async verifyUpload(pathToFile: string): Promise<boolean> {
     const md5 = await generateMd5(pathToFile)
     try {
@@ -175,11 +210,23 @@ export class Client {
     }
   }
 
+  /**
+   * Logs a failed upload attempt to the failure log file
+   * @param pathToFile - Path to the file that failed to upload
+   * @param error - The error that occurred during upload
+   * @private
+   */
   private async logFailure(pathToFile: string, error: Error): Promise<void> {
     const md5 = await generateMd5(pathToFile)
     this.logMessage('logs/failure.csv', [new Date().toISOString(), pathToFile, md5, error.message])
   }
 
+  /**
+   * Writes a log message to a CSV file
+   * @param logPath - Path to the log file
+   * @param data - Array of string values to write as a CSV row
+   * @private
+   */
   private async logMessage(logPath: string, data: string[]): Promise<void> {
     const stream = fs.createWriteStream(logPath, {flags: 'a'})
     const csvStream = fastCsv.format({headers: false})
@@ -189,17 +236,33 @@ export class Client {
     csvStream.end()
   }
 
+  /**
+   * Logs a successful upload to the success log file
+   * @param pathToFile - Path to the file that was successfully uploaded
+   * @private
+   */
   private async logSuccess(pathToFile: string): Promise<void> {
     const md5 = await generateMd5(pathToFile)
     this.logMessage('logs/success.csv', [new Date().toISOString(), pathToFile, md5, 'Upload successful'])
   }
 
-  private async processQueuedUpload({
+  /**
+   * Processes an upload with rate limiting and error handling
+   * Attempts to upload a file, verifies the upload, and logs the result
+   * @param params - Upload parameters
+   * @param params.metadataList - Optional array of metadata key-value pairs to attach to the file
+   * @param params.nsfw - Optional flag indicating if the file contains NSFW content (default: false)
+   * @param params.pathToFile - Path to the local file to upload
+   * @param params.secured - Optional flag indicating if the file should be secured (default: false)
+   * @returns The CloudFile instance if upload succeeds, undefined if it fails
+   * @private
+   */
+  private async processRateLimitedUpload({
     metadataList = [],
     nsfw = false,
     pathToFile,
     secured = false,
-  }: UploadFileParams): Promise<CloudFile> {
+  }: UploadFileParams): Promise<CloudFile | undefined> {
     try {
       const cloudFile = await this.uploadFile({metadataList, nsfw, pathToFile, secured})
       if (await this.verifyUpload(pathToFile)) {
@@ -211,6 +274,7 @@ export class Client {
       return cloudFile
     } catch (error) {
       this.logFailure(pathToFile, error as Error)
+      return undefined
     }
   }
 
