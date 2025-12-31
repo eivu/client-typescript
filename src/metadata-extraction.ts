@@ -18,9 +18,10 @@ import filter from 'lodash/filter'
 import uniq from 'lodash/uniq'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
 import {exec} from 'node:child_process'
-import {promises as fs} from 'node:fs'
+import {promises as fsp} from 'node:fs'
 import path from 'node:path'
 import tmp from 'tmp'
+import {parse as yamlParse} from 'yaml'
 
 /**
  * Acoustid fingerprint containing the fingerprint and duration
@@ -118,6 +119,27 @@ export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> =
   if (mediatype === 'audio') return extractAudioInfo(pathToFile)
 
   return extractMetadataList(pathToFile)
+}
+
+export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataProfile> => {
+  const ymlPath = `${pathToFile}.eivu.yml`
+  try {
+    const file = await fsp.readFile(ymlPath, 'utf8')
+    return yamlParse(file) as MetadataProfile
+  } catch {
+    const empty: MetadataProfile = {
+      artists: [],
+      artwork_md5: null, // eslint-disable-line camelcase
+      duration: null,
+      metadata_list: [], // eslint-disable-line camelcase
+      name: null,
+      path_to_file: pathToFile, // eslint-disable-line camelcase
+      rating: null,
+      release: {},
+      year: null,
+    }
+    return empty
+  }
 }
 
 /**
@@ -361,7 +383,7 @@ const uploadMetadataArtwork = async ({
 
   const tmpFile = tmp.fileSync({mode: 0o644, postfix: `.${subtype}`, prefix: `${COVERART_PREFIX}-`})
 
-  await fs.appendFile(tmpFile.name, bufferData)
+  await fsp.appendFile(tmpFile.name, bufferData)
 
   return Client.uploadFile({metadataList, pathToFile: tmpFile.name})
 }

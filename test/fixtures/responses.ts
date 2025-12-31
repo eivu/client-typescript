@@ -434,9 +434,7 @@ export const MOV_BBB_TRANSFER: CloudFileType = {
 
 // Metadata for client upload test - filters out eivu: prefixed fields and adds original_local_path_to_file
 export const FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO_FOR_UPLOAD: MetadataPair[] = [
-  ...FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO.filter(
-    (pair) => !Object.keys(pair)[0].startsWith('eivu:'),
-  ),
+  ...FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO.filter((pair) => !Object.keys(pair)[0].startsWith('eivu:')),
   {original_local_path_to_file: 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3'},
 ]
 
@@ -552,3 +550,77 @@ export const PEXELS_S3_RESPONSE: PutObjectCommandOutput = {
   ChecksumType: 'FULL_OBJECT',
   ETag: '"f00f4d45ae63d74f4f2e392ae82e23a2"',
 }
+
+export const THE_PEACEMAKER_01_1967_DATA_PROFILE = {
+  description:
+    'The fleets of various foreign countries, that have been fishing near maritime borders of other countries, have recently become the target of sabotage and have began blaming each other for it. U.S. Diplomat Christopher Smith heads to a fishing trawler named the "Manson", where its Captain welcomes him and takes him to their oceanographer Mr. Boyle. Boyle tells Smith that the fishing fleets follow predictable paths, but they are being attacked by a mysterious force, while American fishermen also claim that the fish are being diverted to other waters by someone. The Captain tells Smith that the entity responsible isn\'t related to any country and the recent acts of sabotage have taken place on the Thousand Mile Reef.\n\nAs the Manson lowers its fishing nets after arriving at the reef, a frogman saboteur is ordered by his master to destroy the nets by using tiny explosives. He does so and attaches an explosive charge to the Manson\'s hull. Telling the crew of the trawler that he did it on orders of the Commodore, he warns them that they only have a minute to save themselves. Smith learns from the captain that this "Commodore" is the one behind acts of sabotage on ships and soon dons his Peacemaker uniform. Jumping into the water, he quickly disables the charge, but is attacked by a group of sharks on the frogman\'s orders. He successfully flees using his jetpack, which can also function in water, and leaves the activated charge among the sharks.\n\nAs the sharks get caught in the blast, the frogman flees and Smith pursues him; successfully guessing he\'s heading to a nuclear submarine. Peacemaker overhears the frogman ordering his comrades on radio to shut the entrance the moment he is inside, and knocks him out. As he investigates the submarine, its crewmen realize he is not their shipmate Claude, who had been sent outside, and inform the Commodore. The Commodore orders Peacemaker to be brought before him. Smith confirms his suspicions that he prevented him from sabotaging the Manson. When the Commodore mocks him for not saving the explosive charge for his crew, Smith states that he already has hidden explosives which they can never find and asks him to explain why he has been attacking the fleets.\n\nThe Commodore soon reveals himself to be insane, claiming that all the seas are his domain and other men are trying to invade it, but it his duty to protect all sea-life. Smith destroys the nuclear reactor engine of the sub before the Commodore can kill him and tells the crew to stand by the entrance hatch as he makes the sub surface above water. The crew successfully escapes before it explodes and are apprehended by the men of the Manson, while the Commodore starts cursing Smith. While rambling, he reveals that he was going to leave for Antarctica and link up with his partners who would help him conquer the world. Days later in Switzerland, Smith ponders who the Commodore was referring to while heading back to his private ch\u00E2teau.\n',
+  info_url: 'https://dc.fandom.com/wiki/Peacemaker_Vol_1_1',
+  metadata: [
+    {
+      character: 'Christopher Smith',
+    },
+    {
+      character: 'Peacemaker',
+    },
+    {
+      cover_artist: 'Pat Boyette',
+    },
+    {
+      inker: 'Pat Boyette',
+    },
+    {
+      letterer: 'Pat Boyette',
+    },
+    {
+      penciler: 'Pat Boyette',
+    },
+    {
+      publisher: 'Charlton Comics',
+    },
+    {
+      publisher: 'DC Comics',
+    },
+    {
+      tag: 'Peacemaker',
+    },
+    {
+      synopsis:
+        'The Commodore has been damaging fishing fleets, but the Peacemaker captures him and destroys his submarine',
+    },
+    {
+      writer: 'Joe Gill',
+    },
+  ],
+  name: 'The Peacemaker',
+  year: 1967,
+}
+
+// export const DREDD_DATA_PROFILE = {
+//   artists: [],
+//   artwork_md5: null,
+//   duration: null,
+//   metadata_list: [
+//     {performer: 'karl urban'},
+//     {performer: 'lena headey'},
+//     {studio: 'dna films'},
+//     {tag: 'comic book movie'},
+//     {tag: 'script'},
+//     {
+//       original_local_path_to_file:
+//         'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
+//     },
+//   ],
+//   name: null,
+//   path_to_file:
+//     'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
+//   rating: 4.75,
+//   release: {
+//     artwork_md5: null,
+//     bundle_pos: null,
+//     name: null,
+//     position: null,
+//     primary_artist_name: null,
+//     year: 2012,
+//   },
+//   year: 2012,
+// }

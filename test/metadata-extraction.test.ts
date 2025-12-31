@@ -4,12 +4,14 @@ import nock from 'nock'
 
 import {
   extractAudioInfo,
+  extractInfoFromYml,
   extractMetadataList,
   extractRating,
   extractYear,
   generateAcoustidFingerprint,
   generateDataProfile,
   type MetadataPair,
+  type MetadataProfile,
   pruneFromMetadataList,
   pruneMetadata,
 } from '../src/metadata-extraction'
@@ -22,6 +24,7 @@ import {
   FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO_WITH_COVER_ART,
   FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE,
   FROG_PRINCE_PARAGRAPH_1_FINGERPRINT,
+  THE_PEACEMAKER_01_1967_DATA_PROFILE,
 } from './fixtures/responses'
 import {removeAttrubuteFromBodyTest} from './helpers'
 
@@ -119,6 +122,14 @@ describe('Metadata Extraction', () => {
           'eivu:duration': 4.18,
         },
       ])
+    })
+  })
+
+  describe('extractInfoFromYml', () => {
+    it('extracts metadata for The_Peacemaker_01_1967.cbz', async () => {
+      const pathToYmlFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz'
+      const result: MetadataProfile = await extractInfoFromYml(pathToYmlFile)
+      expect(result).toEqual(THE_PEACEMAKER_01_1967_DATA_PROFILE)
     })
   })
 
