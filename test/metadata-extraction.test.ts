@@ -16,6 +16,7 @@ import {
   pruneMetadata,
 } from '../src/metadata-extraction'
 import {
+  BAD_STORY_DATA_PROFILE,
   DREDD_DATA_PROFILE,
   FROG_PRINCE_COVER_ART_COMPLETE,
   FROG_PRINCE_COVER_ART_DATA_PROFILE,
@@ -126,9 +127,15 @@ describe('Metadata Extraction', () => {
   })
 
   describe('extractInfoFromYml', () => {
+    it('extracts metadata for _bad_story ((y 1902)).txt', async () => {
+      const pathToFile = 'test/fixtures/samples/text/_bad_story ((y 1902)).txt'
+      const result: MetadataProfile = await generateDataProfile({pathToFile})
+      expect(result).toEqual(BAD_STORY_DATA_PROFILE)
+    })
+
     it('extracts metadata for The_Peacemaker_01_1967.cbz', async () => {
-      const pathToYmlFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz'
-      const result: MetadataProfile = await extractInfoFromYml(pathToYmlFile)
+      const pathToFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz'
+      const result: MetadataProfile = await generateDataProfile({pathToFile})
       expect(result).toEqual(THE_PEACEMAKER_01_1967_DATA_PROFILE)
     })
   })
@@ -231,6 +238,18 @@ describe('Metadata Extraction', () => {
   })
 
   describe('generateDataProfile', () => {
+    it('generates a data profile for _bad_story ((y 1902)).txt', async () => {
+      const pathToFile = 'test/fixtures/samples/text/_bad_story ((y 1902)).txt'
+      const result: MetadataProfile = await generateDataProfile({pathToFile})
+      expect(result).toEqual(BAD_STORY_DATA_PROFILE)
+    })
+
+    it('generates a data profile for The_Peacemaker_01_1967.cbz', async () => {
+      const pathToFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz'
+      const result: MetadataProfile = await generateDataProfile({pathToFile})
+      expect(result).toEqual(THE_PEACEMAKER_01_1967_DATA_PROFILE)
+    })
+
     it('generates a data profile for _Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt', async () => {
       const pathToFile =
         'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt'

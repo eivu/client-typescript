@@ -80,6 +80,11 @@ export const AI_OVERLORDS_COMPLETE: CloudFileType = {
   url: 'https://eivu-test.s3.wasabisys.com/image/7E/D9/71/31/3D/1A/EA/1B/6E/2B/F8/AF/24/BE/D6/4A/ai_overlords.jpg',
 }
 
+export const BAD_STORY_DATA_PROFILE = {
+  rating: 0.5,
+  year: 2025,
+}
+
 export const DREDD_RESERVATION: CloudFileType = {
   artists: [],
   artwork_url: null,
@@ -594,33 +599,3 @@ export const THE_PEACEMAKER_01_1967_DATA_PROFILE = {
   name: 'The Peacemaker',
   year: 1967,
 }
-
-// export const DREDD_DATA_PROFILE = {
-//   artists: [],
-//   artwork_md5: null,
-//   duration: null,
-//   metadata_list: [
-//     {performer: 'karl urban'},
-//     {performer: 'lena headey'},
-//     {studio: 'dna films'},
-//     {tag: 'comic book movie'},
-//     {tag: 'script'},
-//     {
-//       original_local_path_to_file:
-//         'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
-//     },
-//   ],
-//   name: null,
-//   path_to_file:
-//     'test/fixtures/samples/text/_Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt',
-//   rating: 4.75,
-//   release: {
-//     artwork_md5: null,
-//     bundle_pos: null,
-//     name: null,
-//     position: null,
-//     primary_artist_name: null,
-//     year: 2012,
-//   },
-//   year: 2012,
-// }
