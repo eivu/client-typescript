@@ -18,6 +18,7 @@ import {
 } from '../src/metadata-extraction'
 import {
   BAD_STORY_DATA_PROFILE,
+  BAD_STORY_PARSED_YML,
   DREDD_DATA_PROFILE,
   FROG_PRINCE_COVER_ART_COMPLETE,
   FROG_PRINCE_COVER_ART_DATA_PROFILE,
@@ -27,6 +28,7 @@ import {
   FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE,
   FROG_PRINCE_PARAGRAPH_1_FINGERPRINT,
   THE_PEACEMAKER_01_1967_DATA_PROFILE,
+  THE_PEACEMAKER_01_1967_PARSED_YML,
 } from './fixtures/responses'
 import {removeAttrubuteFromBodyTest} from './helpers'
 
@@ -131,13 +133,13 @@ describe('Metadata Extraction', () => {
     it('extracts metadata for _bad_story ((y 1902)).txt', async () => {
       const pathToFile = 'test/fixtures/samples/text/_bad_story ((y 1902)).txt'
       const result: MetadataProfile = await extractInfoFromYml(pathToFile)
-      expect(result).toEqual(BAD_STORY_DATA_PROFILE)
+      expect(result).toEqual(BAD_STORY_PARSED_YML)
     })
 
     it('extracts metadata for The_Peacemaker_01_1967.cbz', async () => {
       const pathToFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz'
       const result: MetadataProfile = await extractInfoFromYml(pathToFile)
-      expect(result).toEqual(THE_PEACEMAKER_01_1967_DATA_PROFILE)
+      expect(result).toEqual(THE_PEACEMAKER_01_1967_PARSED_YML)
     })
 
     it('returns an empty profile for mov_bbb.mp4', async () => {

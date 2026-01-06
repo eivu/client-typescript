@@ -80,7 +80,7 @@ export const AI_OVERLORDS_COMPLETE: CloudFileType = {
   url: 'https://eivu-test.s3.wasabisys.com/image/7E/D9/71/31/3D/1A/EA/1B/6E/2B/F8/AF/24/BE/D6/4A/ai_overlords.jpg',
 }
 
-export const BAD_STORY_DATA_PROFILE = {
+export const BAD_STORY_PARSED_YML = {
   artists: [],
   artwork_md5: null,
   description: null,
@@ -92,6 +92,14 @@ export const BAD_STORY_DATA_PROFILE = {
   rating: 0.5,
   release: EMPTY_RELEASE,
   year: 2025,
+}
+
+export const BAD_STORY_DATA_PROFILE = {
+  ...BAD_STORY_PARSED_YML,
+  metadata_list: [
+    ...BAD_STORY_PARSED_YML.metadata_list,
+    {original_local_path_to_file: 'test/fixtures/samples/text/_bad_story ((y 1902)).txt'},
+  ],
 }
 
 export const DREDD_RESERVATION: CloudFileType = {
@@ -194,7 +202,9 @@ export const DREDD_COMPLETE: CloudFileType = {
 export const DREDD_DATA_PROFILE = {
   artists: [],
   artwork_md5: null,
+  description: null,
   duration: null,
+  info_url: null,
   metadata_list: [
     {performer: 'karl urban'},
     {performer: 'lena headey'},
@@ -216,7 +226,7 @@ export const DREDD_DATA_PROFILE = {
     name: null,
     position: null,
     primary_artist_name: null,
-    year: 2012,
+    year: null,
   },
   year: 2012,
 }
@@ -293,7 +303,9 @@ export const FROG_PRINCE_COVER_ART_DATA_PROFILE = {
     },
   ],
   artwork_md5: null,
+  description: null,
   duration: null,
+  info_url: null,
   metadata_list: FROG_PRINCE_COVER_ART_METADATA,
   name: 'Cover Art for The Brothers Grimm - The Frog Prince',
   path_to_file:
@@ -359,7 +371,9 @@ export const FROG_PRINCE_PARAGRAPH_1_FINGERPRINT =
 export const FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE = {
   artists: [{name: 'The Brothers Grimm'}],
   artwork_md5: 'F5B5DD551BD75A524BE57C0A5F1675A8',
+  description: null,
   duration: 45.24,
+  info_url: null,
   metadata_list: FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO,
   name: 'Paragraph #1',
   path_to_file: 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3',
@@ -565,7 +579,7 @@ export const PEXELS_S3_RESPONSE: PutObjectCommandOutput = {
   ETag: '"f00f4d45ae63d74f4f2e392ae82e23a2"',
 }
 
-export const THE_PEACEMAKER_01_1967_DATA_PROFILE = {
+export const THE_PEACEMAKER_01_1967_PARSED_YML = {
   artists: [],
   artwork_md5: null,
   description:
@@ -613,4 +627,12 @@ export const THE_PEACEMAKER_01_1967_DATA_PROFILE = {
   rating: null,
   release: EMPTY_RELEASE,
   year: 1967,
+}
+
+export const THE_PEACEMAKER_01_1967_DATA_PROFILE = {
+  ...THE_PEACEMAKER_01_1967_PARSED_YML,
+  metadata_list: [
+    ...THE_PEACEMAKER_01_1967_PARSED_YML.metadata_list,
+    {original_local_path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz'},
+  ],
 }

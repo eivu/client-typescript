@@ -65,7 +65,7 @@ export const EMPTY_METADATA_PROFILE: MetadataProfile = {
   artwork_md5: null, // eslint-disable-line camelcase
   description: null,
   duration: null,
-  info_url: null,
+  info_url: null, // eslint-disable-line camelcase
   metadata_list: [], // eslint-disable-line camelcase
   name: null,
   path_to_file: null, // eslint-disable-line camelcase
@@ -282,6 +282,7 @@ export const generateDataProfile = async ({
   const artist_name = pruneString(metadataList, 'eivu:artist_name')
   const release_name = pruneString(metadataList, 'eivu:release_name')
   const album_artist = pruneString(metadataList, 'eivu:album_artist')
+  const {description, info_url} = ymlInfo
   // const matched_recording = null
 
   // alter name for cover art files
@@ -295,9 +296,11 @@ export const generateDataProfile = async ({
   }
 
   const dataProfile: MetadataProfile = {
-    artists: name ? [{name: artist_name} as Artist] : [],
+    artists: artist_name ? [{name: artist_name} as Artist] : [],
     artwork_md5,
+    description,
     duration,
+    info_url,
     metadata_list: metadataList,
     name,
     path_to_file: pathToFile,
@@ -309,7 +312,7 @@ export const generateDataProfile = async ({
       // matched_recording,
       position: position === null ? null : Number(position),
       primary_artist_name: album_artist,
-      year: year === null ? null : Number(year),
+      year: release_name && year ? Number(year) : null,
     },
     year,
   }
