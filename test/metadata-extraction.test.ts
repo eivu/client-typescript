@@ -3,6 +3,7 @@ import {describe, expect, it, jest} from '@jest/globals'
 import nock from 'nock'
 
 import {
+  EMPTY_METADATA_PROFILE,
   extractAudioInfo,
   extractInfoFromYml,
   extractMetadataList,
@@ -129,14 +130,20 @@ describe('Metadata Extraction', () => {
   describe('extractInfoFromYml', () => {
     it('extracts metadata for _bad_story ((y 1902)).txt', async () => {
       const pathToFile = 'test/fixtures/samples/text/_bad_story ((y 1902)).txt'
-      const result: MetadataProfile = await generateDataProfile({pathToFile})
+      const result: MetadataProfile = await extractInfoFromYml(pathToFile)
       expect(result).toEqual(BAD_STORY_DATA_PROFILE)
     })
 
     it('extracts metadata for The_Peacemaker_01_1967.cbz', async () => {
       const pathToFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz'
-      const result: MetadataProfile = await generateDataProfile({pathToFile})
+      const result: MetadataProfile = await extractInfoFromYml(pathToFile)
       expect(result).toEqual(THE_PEACEMAKER_01_1967_DATA_PROFILE)
+    })
+
+    it('returns an empty profile for mov_bbb.mp4', async () => {
+      const pathToFile = 'test/fixtures/samples/video/mov_bbb.mp4'
+      const result: MetadataProfile = await extractInfoFromYml(pathToFile)
+      expect(result).toEqual({...EMPTY_METADATA_PROFILE, path_to_file: pathToFile}) // eslint-disable-line camelcase
     })
   })
 

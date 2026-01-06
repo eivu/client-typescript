@@ -39,13 +39,39 @@ export type MetadataPair = Record<string, number | string>
 export type MetadataProfile = {
   artists: Artist[]
   artwork_md5?: null | string
+  description?: null | string
   duration?: null | number
+  info_url?: null | number
   metadata_list: MetadataPair[]
   name?: null | string
   path_to_file: null | string
   rating: null | number
   release: Release
   year?: null | number
+}
+
+export const EMPTY_RELEASE: Release = {
+  artwork_md5: null, // eslint-disable-line camelcase
+  bundle_pos: null, // eslint-disable-line camelcase
+  name: null,
+  // matched_recording: null,
+  position: null,
+  primary_artist_name: null, // eslint-disable-line camelcase
+  year: null,
+}
+
+export const EMPTY_METADATA_PROFILE: MetadataProfile = {
+  artists: [],
+  artwork_md5: null, // eslint-disable-line camelcase
+  description: null,
+  duration: null,
+  info_url: null,
+  metadata_list: [], // eslint-disable-line camelcase
+  name: null,
+  path_to_file: null, // eslint-disable-line camelcase
+  rating: null,
+  release: EMPTY_RELEASE,
+  year: null,
 }
 
 /**
@@ -125,20 +151,10 @@ export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataPr
   const ymlPath = `${pathToFile}.eivu.yml`
   try {
     const file = await fsp.readFile(ymlPath, 'utf8')
-    return yamlParse(file) as MetadataProfile
+    const info = yamlParse(file) as MetadataProfile
+    return {...EMPTY_METADATA_PROFILE, ...info, path_to_file: pathToFile} // eslint-disable-line camelcase
   } catch {
-    const empty: MetadataProfile = {
-      artists: [],
-      artwork_md5: null, // eslint-disable-line camelcase
-      duration: null,
-      metadata_list: [], // eslint-disable-line camelcase
-      name: null,
-      path_to_file: pathToFile, // eslint-disable-line camelcase
-      rating: null,
-      release: {},
-      year: null,
-    }
-    return empty
+    return {...EMPTY_METADATA_PROFILE, path_to_file: pathToFile} // eslint-disable-line camelcase
   }
 }
 
@@ -237,8 +253,9 @@ export const generateDataProfile = async ({
 }): Promise<MetadataProfile> => {
   // Extract additional metadata from the filename and merge with provided metadata list
   const fileInfo = await extractInfo(pathToFile)
+  const ymlInfo: MetadataProfile = await extractInfoFromYml(pathToFile)
   let name: null | string
-  metadataList = uniq([...metadataList, ...fileInfo])
+  metadataList = uniq([...metadataList, ...fileInfo, ...ymlInfo.metadata_list])
 
   // Optionally include original local path
   if (!pathToFile.startsWith(TEMP_FOLDER_ROOT)) {
@@ -257,11 +274,11 @@ export const generateDataProfile = async ({
   }
 
   /* eslint-disable camelcase */
-  const year = extractYear(pathToFile) ?? pruneNumber(metadataList, 'eivu:year')
+  const year = ymlInfo.year ?? extractYear(pathToFile) ?? pruneNumber(metadataList, 'eivu:year')
   const artwork_md5 = pruneString(metadataList, 'eivu:artwork_md5')
   const position = pruneNumber(metadataList, 'eivu:release_pos')
   const bundle_pos = pruneNumber(metadataList, 'eivu:bundle_pos')
-  const duration = pruneNumber(metadataList, 'eivu:duration')
+  const duration = ymlInfo.duration ?? pruneNumber(metadataList, 'eivu:duration')
   const artist_name = pruneString(metadataList, 'eivu:artist_name')
   const release_name = pruneString(metadataList, 'eivu:release_name')
   const album_artist = pruneString(metadataList, 'eivu:album_artist')
@@ -274,7 +291,7 @@ export const generateDataProfile = async ({
     const name_xtra = label ? ` for ${label}` : ''
     name += name_xtra
   } else {
-    name = pruneString(metadataList, 'eivu:name')
+    name = ymlInfo.name ?? pruneString(metadataList, 'eivu:name')
   }
 
   const dataProfile: MetadataProfile = {
@@ -284,7 +301,7 @@ export const generateDataProfile = async ({
     metadata_list: metadataList,
     name,
     path_to_file: pathToFile,
-    rating: extractRating(pathToFile),
+    rating: ymlInfo.rating ?? extractRating(pathToFile),
     release: {
       artwork_md5,
       bundle_pos: bundle_pos === null ? null : Number(bundle_pos),

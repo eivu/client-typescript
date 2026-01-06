@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import {type PutObjectCommandOutput} from '@aws-sdk/client-s3'
 
-import {type MetadataPair} from '../../src/metadata-extraction'
+import {EMPTY_RELEASE, type MetadataPair} from '../../src/metadata-extraction'
 import {CloudFileState, CloudFileType} from '../../src/types/cloud-file-type'
 
 export const AI_OVERLORDS_RESERVATION: CloudFileType = {
@@ -81,7 +81,16 @@ export const AI_OVERLORDS_COMPLETE: CloudFileType = {
 }
 
 export const BAD_STORY_DATA_PROFILE = {
+  artists: [],
+  artwork_md5: null,
+  description: null,
+  duration: null,
+  info_url: null,
+  metadata_list: [],
+  name: null,
+  path_to_file: 'test/fixtures/samples/text/_bad_story ((y 1902)).txt',
   rating: 0.5,
+  release: EMPTY_RELEASE,
   year: 2025,
 }
 
@@ -557,10 +566,13 @@ export const PEXELS_S3_RESPONSE: PutObjectCommandOutput = {
 }
 
 export const THE_PEACEMAKER_01_1967_DATA_PROFILE = {
+  artists: [],
+  artwork_md5: null,
   description:
     'The fleets of various foreign countries, that have been fishing near maritime borders of other countries, have recently become the target of sabotage and have began blaming each other for it. U.S. Diplomat Christopher Smith heads to a fishing trawler named the "Manson", where its Captain welcomes him and takes him to their oceanographer Mr. Boyle. Boyle tells Smith that the fishing fleets follow predictable paths, but they are being attacked by a mysterious force, while American fishermen also claim that the fish are being diverted to other waters by someone. The Captain tells Smith that the entity responsible isn\'t related to any country and the recent acts of sabotage have taken place on the Thousand Mile Reef.\n\nAs the Manson lowers its fishing nets after arriving at the reef, a frogman saboteur is ordered by his master to destroy the nets by using tiny explosives. He does so and attaches an explosive charge to the Manson\'s hull. Telling the crew of the trawler that he did it on orders of the Commodore, he warns them that they only have a minute to save themselves. Smith learns from the captain that this "Commodore" is the one behind acts of sabotage on ships and soon dons his Peacemaker uniform. Jumping into the water, he quickly disables the charge, but is attacked by a group of sharks on the frogman\'s orders. He successfully flees using his jetpack, which can also function in water, and leaves the activated charge among the sharks.\n\nAs the sharks get caught in the blast, the frogman flees and Smith pursues him; successfully guessing he\'s heading to a nuclear submarine. Peacemaker overhears the frogman ordering his comrades on radio to shut the entrance the moment he is inside, and knocks him out. As he investigates the submarine, its crewmen realize he is not their shipmate Claude, who had been sent outside, and inform the Commodore. The Commodore orders Peacemaker to be brought before him. Smith confirms his suspicions that he prevented him from sabotaging the Manson. When the Commodore mocks him for not saving the explosive charge for his crew, Smith states that he already has hidden explosives which they can never find and asks him to explain why he has been attacking the fleets.\n\nThe Commodore soon reveals himself to be insane, claiming that all the seas are his domain and other men are trying to invade it, but it his duty to protect all sea-life. Smith destroys the nuclear reactor engine of the sub before the Commodore can kill him and tells the crew to stand by the entrance hatch as he makes the sub surface above water. The crew successfully escapes before it explodes and are apprehended by the men of the Manson, while the Commodore starts cursing Smith. While rambling, he reveals that he was going to leave for Antarctica and link up with his partners who would help him conquer the world. Days later in Switzerland, Smith ponders who the Commodore was referring to while heading back to his private ch\u00E2teau.\n',
+  duration: null,
   info_url: 'https://dc.fandom.com/wiki/Peacemaker_Vol_1_1',
-  metadata: [
+  metadata_list: [
     {
       character: 'Christopher Smith',
     },
@@ -597,5 +609,8 @@ export const THE_PEACEMAKER_01_1967_DATA_PROFILE = {
     },
   ],
   name: 'The Peacemaker',
+  path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz',
+  rating: null,
+  release: EMPTY_RELEASE,
   year: 1967,
 }
