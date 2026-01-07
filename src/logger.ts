@@ -1,36 +1,37 @@
 import pino from 'pino'
-// import pretty from 'pino-pretty'
 
-// const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined
+const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined
 
 export type Logger = pino.Logger
-const config =
-  process.env.NODE_ENV === 'production'
-    ? {}
-    : {
+
+// In test environment, use synchronous destination for immediate output
+// In production, use default async destination
+// In development, use pretty printing with sync transport
+const createLogger = () => {
+  if (isTestEnvironment) {
+    // For tests, use synchronous destination to ensure output appears immediately and in order
+    // The sync: true option in pino.destination makes all writes synchronous
+    return pino(
+      {
         transport: {
           options: {sync: true}, // Forces synchronous pretty printing
           target: 'pino-pretty',
         },
-      }
+      },
+      pino.destination({sync: true}), // Synchronous destination ensures no buffering
+    )
+  }
 
-export default pino(config)
-// // In test environment, create a logger that uses console.log for synchronous output
-// // In production, use normal pino logger
-// const createLogger = () => {
-//   if (isTestEnvironment) {
-//     // Mock logger that uses console.log for immediate synchronous output
-//     return {
-//       debug: (msg: string) => console.debug(msg),
-//       error: (msg: string) => console.error(msg),
-//       fatal: (msg: string) => console.error(msg),
-//       info: (msg: string) => console.log(msg),
-//       trace: (msg: string) => console.log(msg),
-//       warn: (msg: string) => console.warn(msg),
-//     } as pino.Logger
-//   }
+  if (process.env.NODE_ENV === 'production') {
+    return pino({})
+  }
 
-//   return pino({})
-// }
+  return pino({
+    transport: {
+      // options: {sync: true}, // Forces synchronous pretty printing
+      target: 'pino-pretty',
+    },
+  })
+}
 
-// export default createLogger()
+export default createLogger()
