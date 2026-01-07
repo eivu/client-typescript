@@ -109,7 +109,9 @@ describe('Client', () => {
           .post(`${URL_BUCKET_PREFIX}/cloud_files/7ED971313D1AEA1B6E2BF8AF24BED64A/complete`, {
             artists: [],
             artwork_md5: null,
+            description: null,
             duration: null,
+            info_url: null,
             metadata_list: [{original_local_path_to_file: pathToFile}],
             name: null,
             path_to_file: pathToFile,
@@ -293,7 +295,9 @@ describe('Client', () => {
           .post(`${URL_BUCKET_PREFIX}/cloud_files/F00F4D45AE63D74F4F2E392AE82E23A2/complete`, {
             artists: [],
             artwork_md5: null,
+            description: null,
             duration: null,
+            info_url: null,
             metadata_list: [{original_local_path_to_file: pathToFile}],
             name: null,
             path_to_file: pathToFile,

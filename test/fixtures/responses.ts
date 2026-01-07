@@ -470,7 +470,9 @@ export const FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO_FOR_UPLOAD: MetadataPair[] = [
 export const FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE_FOR_UPLOAD = {
   artists: [{name: 'The Brothers Grimm'}],
   artwork_md5: 'F5B5DD551BD75A524BE57C0A5F1675A8',
+  description: null,
   duration: 45.24,
+  info_url: null,
   metadata_list: FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO_FOR_UPLOAD,
   name: 'Paragraph #1',
   path_to_file: 'test/fixtures/samples/audio/brothers_grimm/the_frog_prince/paragraph1.mp3',
