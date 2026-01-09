@@ -32,9 +32,10 @@ let pathToFile
 // console.dir(b)
 // console.log('====================')
 
-const e: CloudFile[] = await client.uploadFolder({
-  metadataList: [{tag: 'eivu-testing'}],
-  pathToFolder: 'test/fixtures/samples/text/alphabet',
+const e = await client.uploadFolder({
+  nsfw: true,
+  pathToFolder: 'test/fixtures/samples/secured/numbers/',
+  secured: true,
 })
 console.log('====================')
 console.log('Upload Result:')
