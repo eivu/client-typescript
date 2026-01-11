@@ -352,7 +352,7 @@ export class Client {
     }
 
     if (!(await isOnline(cloudFile.url(), filesize))) {
-      cloudFile.reset() // set state back to reserved
+      await cloudFile.reset() // set state back to reserved
       throw new Error(
         `File ${cloudFile.remoteAttr.md5}:${asset} is offline/filesize mismatch. expected size: ${filesize} got: ${cloudFile.remoteAttr.filesize}`,
       )
