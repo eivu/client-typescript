@@ -145,7 +145,7 @@ export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> =
   let coverArtMetadata: MetadataPair = {}
   if (mediatype === 'audio') return extractAudioInfo(pathToFile)
   if (pathToFile.endsWith('.cbr') || pathToFile.endsWith('.cbz')) {
-    coverArtMetadata = {'eivu:artwork_md5': null} // placeholder for cover art
+    coverArtMetadata = {'eivu:artwork_md5': 'aaaaa'} // placeholder for cover art
   }
 
   return [coverArtMetadata, ...extractMetadataList(pathToFile)]
@@ -240,16 +240,6 @@ export const generateAcoustidFingerprint = (pathToFile: string): Promise<Acousti
       }
     })
   })
-
-const uploadFirstZipEntry = async (pathToFile: string): Promise<string> => {
-  console.log('Uploading first zip entry for', pathToFile)
-  return 'aaaa'
-}
-
-const uploadFirstRarEntry = async (pathToFile: string): Promise<string> => {
-  console.log('Uploading first rar entry for', pathToFile)
-  return 'aaaa'
-}
 
 export const generateCoverArtMetadata = async (pathToFile: string): Promise<MetadataPair> => {
   let entry
@@ -470,4 +460,14 @@ const uploadMetadataArtwork = async ({
     // Clean up the temporary file after upload completes or fails
     tmpFile.removeCallback()
   }
+}
+
+const uploadFirstRarEntry = async (pathToFile: string): Promise<string> => {
+  console.log('Uploading first rar entry for', pathToFile)
+  return 'aaaa'
+}
+
+const uploadFirstZipEntry = async (pathToFile: string): Promise<string> => {
+  console.log('Uploading first zip entry for', pathToFile)
+  return 'aaaa'
 }
