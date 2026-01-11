@@ -222,7 +222,15 @@ export class Client {
    * @private
    */
   private async logFailure(pathToFile: string, error: Error): Promise<void> {
-    const md5 = await generateMd5(pathToFile)
+    let md5: string
+    try {
+      md5 = await generateMd5(pathToFile)
+    } catch {
+      // If the file doesn't exist (e.g., was deleted), use a placeholder
+      // This prevents logFailure from throwing and crashing the entire batch upload
+      md5 = 'FILE_NOT_FOUND'
+    }
+
     await this.logMessage('logs/failure.csv', [new Date().toISOString(), pathToFile, md5, error.message])
   }
 
