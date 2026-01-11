@@ -468,7 +468,7 @@ const uploadFirstRarEntry = async (pathToFile: string): Promise<string> => {
   return 'aaaa'
 }
 
-export const uploadFirstZipEntry = async (pathToFile: string): Promise<string> => {
+const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
   const zip = await yauzl.open(pathToFile)
 
   try {
@@ -511,4 +511,9 @@ export const uploadFirstZipEntry = async (pathToFile: string): Promise<string> =
   } finally {
     await zip.close()
   }
+}
+
+export const uploadFirstZipEntry = async (pathToFile: string): Promise<string> => {
+  let x
+  return extractFirstZipEntry(pathToFile)
 }
