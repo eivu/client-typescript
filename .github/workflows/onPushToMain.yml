@@ -11,6 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
+      - name: Install fpcalc
+        run: sudo apt-get update && sudo apt-get install -y libchromaprint-tools
       - name: Check if version already exists
         id: version-check
         run: |
