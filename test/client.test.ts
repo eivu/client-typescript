@@ -363,10 +363,10 @@ describe('Client', () => {
 
     it('returns false if the file is not uploaded', async () => {
       const client = new Client()
-      const pathToFile = 'README.md'
+      const pathToFile = 'test/fixtures/samples/text/missing.txt'
 
       const fetchReq = nock(SERVER_HOST)
-        .get(`${URL_BUCKET_PREFIX}/cloud_files/4E7B7649734E6FFE9770A03C5A7FF631`)
+        .get(`${URL_BUCKET_PREFIX}/cloud_files/460C472F23AA436C9BCBB8F074572747`)
         .query({keyFormat: 'camel_lower'})
         .reply(403, {error: 'Forbidden: Not your cloud file'})
       const result = await client.verifyUpload(pathToFile)
