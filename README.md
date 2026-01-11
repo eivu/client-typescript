@@ -20,7 +20,7 @@ $ npm install -g eivu-upload-client
 $ eivu-upload COMMAND
 running command...
 $ eivu-upload (--version)
-eivu-upload-client/0.0.0 linux-x64 node-v20.19.5
+eivu-upload-client/0.0.0 linux-x64 node-v20.19.6
 $ eivu-upload --help [COMMAND]
 USAGE
   $ eivu-upload COMMAND
