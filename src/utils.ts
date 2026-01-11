@@ -27,11 +27,11 @@ export async function generateMd5(pathToFile: string): Promise<string> {
 }
 
 /**
- * Checks if a file is available online by sending a HEAD request
- * Optionally verifies that the remote file size matches the local file size
- * @param uri - The URL of the remote file to check
- * @param localFilesize - Optional local file size to compare against remote content-length header
- * @returns True if the file is online and file sizes match (if provided), false otherwise
+ * Checks if a file is available online by sending a HEAD request.
+ * Optionally verifies that the remote file size matches the local file size.
+ * @param uri - The URL of the remote file to check. If null or undefined, the check is skipped and the function returns false.
+ * @param localFilesize - Optional local file size to compare against the remote Content-Length header.
+ * @returns True if a non-null URL is provided, the remote file is online, and file sizes match (if provided); false otherwise.
  */
 export const isOnline = async (uri: null | string | undefined, localFilesize?: number): Promise<boolean> => {
   if (!uri) return false
