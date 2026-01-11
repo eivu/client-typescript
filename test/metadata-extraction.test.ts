@@ -136,8 +136,8 @@ describe('Metadata Extraction', () => {
       expect(result).toEqual(BAD_STORY_PARSED_YML)
     })
 
-    it('extracts metadata for The_Peacemaker_01_1967.cbz', async () => {
-      const pathToFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz'
+    it('extracts metadata for The_Peacemaker_01_1967.eivu_compressed.cbz', async () => {
+      const pathToFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz'
       const result: MetadataProfile = await extractInfoFromYml(pathToFile)
       expect(result).toEqual(THE_PEACEMAKER_01_1967_PARSED_YML)
     })
@@ -253,8 +253,8 @@ describe('Metadata Extraction', () => {
       expect(result).toEqual(BAD_STORY_DATA_PROFILE)
     })
 
-    it('generates a data profile for The_Peacemaker_01_1967.cbz', async () => {
-      const pathToFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz'
+    it('generates a data profile for The_Peacemaker_01_1967.eivu_compressed.cbz', async () => {
+      const pathToFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz'
       const result: MetadataProfile = await generateDataProfile({pathToFile})
       expect(result).toEqual(THE_PEACEMAKER_01_1967_DATA_PROFILE)
     })

@@ -625,7 +625,7 @@ export const THE_PEACEMAKER_01_1967_PARSED_YML = {
     },
   ],
   name: 'The Peacemaker',
-  path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz',
+  path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz',
   rating: null,
   release: EMPTY_RELEASE,
   year: 1967,
@@ -635,6 +635,6 @@ export const THE_PEACEMAKER_01_1967_DATA_PROFILE = {
   ...THE_PEACEMAKER_01_1967_PARSED_YML,
   metadata_list: [
     ...THE_PEACEMAKER_01_1967_PARSED_YML.metadata_list,
-    {original_local_path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz'},
+    {original_local_path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz'},
   ],
 }
