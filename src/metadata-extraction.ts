@@ -403,7 +403,12 @@ const uploadMetadataArtwork = async ({
 
   const tmpFile = tmp.fileSync({mode: 0o644, postfix: `.${subtype}`, prefix: `${COVERART_PREFIX}-`})
 
-  await fsp.appendFile(tmpFile.name, bufferData)
+  try {
+    await fsp.appendFile(tmpFile.name, bufferData)
 
-  return Client.uploadFile({metadataList, pathToFile: tmpFile.name})
+    return await Client.uploadFile({metadataList, pathToFile: tmpFile.name})
+  } finally {
+    // Clean up the temporary file after upload completes or fails
+    tmpFile.removeCallback()
+  }
 }
