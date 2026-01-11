@@ -15,7 +15,7 @@ import {TEMP_FOLDER_ROOT} from '../src/constants'
  * @example
  * ```typescript
  * const req = nock(SERVER_HOST)
- *   .post('/endpoint', removeAttrubuteFromBodyTest(EXPECTED_DATA, ['path_to_file']))
+ *   .post('/endpoint', removeAttributeFromBodyTest(EXPECTED_DATA, ['path_to_file']))
  *   .reply(200, RESPONSE_DATA)
  * ```
  *
@@ -23,11 +23,11 @@ import {TEMP_FOLDER_ROOT} from '../src/constants'
  * ```typescript
  * // With custom exclude fields
  * const req = nock(SERVER_HOST)
- *   .post('/endpoint', removeAttrubuteFromBodyTest(EXPECTED_DATA, ['path_to_file', 'timestamp']))
+ *   .post('/endpoint', removeAttributeFromBodyTest(EXPECTED_DATA, ['path_to_file', 'timestamp']))
  *   .reply(200, RESPONSE_DATA)
  * ```
  */
-export function removeAttrubuteFromBodyTest(
+export function removeAttributeFromBodyTest(
   expectedProfile: Record<string, unknown>,
   excludeFields: string[],
 ): (body: unknown) => boolean {
