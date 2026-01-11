@@ -351,13 +351,15 @@ export class Client {
       throw new Error(`Failed to upload file to S3: ${cloudFile.localPathToFile}`)
     }
 
-    if (!(await isOnline(cloudFile.url(), filesize))) {
-      await cloudFile.reset() // set state back to reserved
-      throw new Error(
-        `File ${cloudFile.remoteAttr.md5}:${asset} is offline/filesize mismatch. expected size: ${filesize} got: ${cloudFile.remoteAttr.filesize}`,
-      )
+    const onlineCheck = await isOnline(cloudFile.url(), filesize)
+    if (onlineCheck.isOnline) {
+      return cloudFile.transfer({asset, filesize})
     }
 
-    return cloudFile.transfer({asset, filesize})
+    await cloudFile.reset() // set state back to reserved
+    const remoteFilesizeStr = onlineCheck.remoteFilesize === null ? 'unknown' : String(onlineCheck.remoteFilesize)
+    throw new Error(
+      `File ${cloudFile.remoteAttr.md5}:${asset} is offline/filesize mismatch. expected size: ${filesize} got: ${remoteFilesizeStr}`,
+    )
   }
 }

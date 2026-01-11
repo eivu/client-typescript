@@ -27,31 +27,41 @@ export async function generateMd5(pathToFile: string): Promise<string> {
 }
 
 /**
+ * Result of checking if a file is online
+ */
+export type IsOnlineResult = {
+  isOnline: boolean
+  remoteFilesize: null | number
+}
+
+/**
  * Checks if a file is available online by sending a HEAD request.
  * Optionally verifies that the remote file size matches the local file size.
- * @param uri - The URL of the remote file to check. If null or undefined, the check is skipped and the function returns false.
+ * @param uri - The URL of the remote file to check. If null or undefined, the check is skipped and the function returns {isOnline: false, remoteFilesize: null}.
  * @param localFilesize - Optional local file size to compare against the remote Content-Length header.
- * @returns True if a non-null URL is provided, the remote file is online, and file sizes match (if provided); false otherwise.
+ * @returns An object with isOnline boolean and the remote filesize (or null if unavailable). isOnline is true if a non-null URL is provided, the remote file is online, and file sizes match (if provided); false otherwise.
  */
-export const isOnline = async (uri: null | string | undefined, localFilesize?: number): Promise<boolean> => {
-  if (!uri) return false
+export const isOnline = async (uri: null | string | undefined, localFilesize?: number): Promise<IsOnlineResult> => {
+  if (!uri) return {isOnline: false, remoteFilesize: null}
 
   try {
     const response = await axios.head(uri)
     const headerOk = response.status === 200
+    const remoteFilesizeHeader = response.headers['content-length']
+    const remoteFilesize = remoteFilesizeHeader ? Number.parseInt(remoteFilesizeHeader, 10) : Number.NaN
+    const actualRemoteFilesize = Number.isNaN(remoteFilesize) ? null : remoteFilesize
+
     let filesizeOk = true
     if (localFilesize !== undefined) {
-      const remoteFilesizeHeader = response.headers['content-length']
-      const remoteFilesize = remoteFilesizeHeader ? Number.parseInt(remoteFilesizeHeader, 10) : Number.NaN
-      filesizeOk = !Number.isNaN(remoteFilesize) && remoteFilesize === localFilesize
+      filesizeOk = actualRemoteFilesize !== null && actualRemoteFilesize === localFilesize
     }
 
-    return headerOk && filesizeOk
+    return {isOnline: headerOk && filesizeOk, remoteFilesize: actualRemoteFilesize}
   } catch (error) {
     console.warn('USE PINO: https://www.npmjs.com/package/pino')
     console.warn(`isOnline check failed for ${uri}: ${(error as Error).message}`)
     // If the request fails, treat as not online
-    return false
+    return {isOnline: false, remoteFilesize: null}
   }
 }
 
