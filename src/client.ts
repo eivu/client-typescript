@@ -223,7 +223,7 @@ export class Client {
    */
   private async logFailure(pathToFile: string, error: Error): Promise<void> {
     const md5 = await generateMd5(pathToFile)
-    this.logMessage('logs/failure.csv', [new Date().toISOString(), pathToFile, md5, error.message])
+    await this.logMessage('logs/failure.csv', [new Date().toISOString(), pathToFile, md5, error.message])
   }
 
   /**
@@ -259,7 +259,7 @@ export class Client {
    */
   private async logSuccess(pathToFile: string): Promise<void> {
     const md5 = await generateMd5(pathToFile)
-    this.logMessage('logs/success.csv', [new Date().toISOString(), pathToFile, md5, 'Upload successful'])
+    await this.logMessage('logs/success.csv', [new Date().toISOString(), pathToFile, md5, 'Upload successful'])
   }
 
   /**
@@ -283,15 +283,15 @@ export class Client {
       await this.uploadFile({metadataList, nsfw, pathToFile, secured})
 
       if (await this.verifyUpload(pathToFile)) {
-        this.logSuccess(pathToFile)
+        await this.logSuccess(pathToFile)
         return `${pathToFile}: uploaded successfully`
       }
 
       const failedError = 'upload verification failed'
-      this.logFailure(pathToFile, new Error(failedError))
+      await this.logFailure(pathToFile, new Error(failedError))
       return `${pathToFile}: ${failedError}`
     } catch (error) {
-      this.logFailure(pathToFile, error as Error)
+      await this.logFailure(pathToFile, error as Error)
       return `${pathToFile}: ${(error as Error).message}`
     }
   }
