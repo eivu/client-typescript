@@ -424,7 +424,11 @@ const uploadMetadataArtwork = async ({
   }
 
   const contentType = iAudioMetadata.common.picture[0].format
-  const [, subtype] = contentType ? contentType.split('/') : ['application', 'octet-stream']
+  // Extract subtype from content type, handling malformed formats
+  // If contentType is falsy, default to 'octet-stream'
+  // If contentType doesn't contain '/', treat the whole value as the subtype (e.g., "jpeg" -> "jpeg")
+  // Otherwise, split and extract the subtype (e.g., "image/jpeg" -> "jpeg")
+  const subtype = contentType ? (contentType.includes('/') ? contentType.split('/')[1] : contentType) : 'octet-stream'
 
   const bufferData = Buffer.from(iAudioMetadata.common.picture[0].data)
 
