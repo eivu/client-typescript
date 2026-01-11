@@ -638,3 +638,80 @@ export const THE_PEACEMAKER_01_1967_DATA_PROFILE = {
     {original_local_path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz'},
   ],
 }
+
+export const THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION: CloudFileType = {
+  artists: [],
+  artwork_url: null,
+  asset: null,
+  bucket_name: 'eivu-test',
+  bucket_uuid: '889c685a-de30-4ead-9a96-b3784233e1e8',
+  content_type: null,
+  created_at: '2025-09-29T23:32:35.951Z',
+  data_source_id: null,
+  date_aquired_at: null,
+  deletable: false,
+  delicate: false,
+  description: null,
+  duration: null,
+  ext_id: null,
+  filesize: 0,
+  folder_uuid: null,
+  info_url: null,
+  last_viewed_at: null,
+  md5: 'FC95C8DB0CECB47D449DFFD694AD963C',
+  metadata: [],
+  name: 'FC95C8DB0CECB47D449DFFD694AD963C (reserved)',
+  nsfw: false,
+  num_plays: 0,
+  peepy: false,
+  rating: null,
+  release_pos: null,
+  releases: [],
+  secured: false,
+  shared: true,
+  state: CloudFileState.RESERVED,
+  updated_at: '2025-09-29T23:32:35.951Z',
+  url: 'https://eivu-test.s3.wasabisys.com/image/FC/95/C8/DB/0C/EC/B4/7D/44/9D/FF/D6/94/AD/96/3C/',
+  user_uuid: '0f703c04-b448-455c-8a26-4edc22bf76dd',
+  uuid: '',
+  year: null,
+}
+
+export const THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER: CloudFileType = {
+  ...THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION,
+  asset: 'The_Peacemaker_01_1967_COVERART.webp',
+  content_type: 'image/webp',
+  filesize: 775_296,
+  state: CloudFileState.TRANSFERRED,
+}
+
+export const THE_PEACEMAKER_01_1967_COVER_ART_DATA_PROFILE = {
+  artists: [],
+  artwork_md5: null,
+  description: null,
+  duration: null,
+  info_url: null,
+  metadata_list: [
+    {
+      original_local_path_to_file: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
+    },
+  ],
+  name: 'The_Peacemaker_01_1967_COVERART.webp',
+  path_to_file: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
+  rating: null,
+  release: EMPTY_RELEASE,
+  year: null,
+}
+
+export const THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE: CloudFileType = {
+  ...THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER,
+  metadata: [
+    {
+      id: 1,
+      type: 'original_local_path_to_file',
+      value: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
+    },
+  ],
+  name: 'The_Peacemaker_01_1967_COVERART.webp',
+  state: CloudFileState.COMPLETED,
+}
