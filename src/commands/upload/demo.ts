@@ -1,9 +1,9 @@
 import {Client} from '@src/client'
-import {CloudFile} from '@src/cloud-file'
+// import {CloudFile} from '@src/cloud-file'
 
 const client = new Client()
 // const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
-let pathToFile
+// let pathToFile
 // try {
 //   const ai = await CloudFile.fetchOrReserveBy({pathToFile})
 //   ai.reset()
