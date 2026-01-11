@@ -265,7 +265,12 @@ export class CloudFile {
   }): Promise<CloudFile> {
     const {data: parsedBody} = await api.post(`/cloud_files/${this.remoteAttr.md5}/${action}`, dataProfile)
     this.remoteAttr = parsedBody
-    this.stateHistory.push(CloudFileState.COMPLETED)
+    // Only update state history for 'complete' action, not for 'update_metadata'
+    // updateMetadata is just updating data without changing the file's lifecycle state
+    if (action === 'complete') {
+      this.stateHistory.push(CloudFileState.COMPLETED)
+    }
+
     return this
   }
 }
