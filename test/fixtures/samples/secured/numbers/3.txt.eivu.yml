@@ -1,0 +1,5 @@
+name: Secure 3 Numbers File
+description: This is a secured numbers file 3 for testing.
+metadata_list:
+  - tag: eivu-secure-testing
+  - tag: eivu-test-secure-numbers

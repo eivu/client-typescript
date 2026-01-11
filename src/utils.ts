@@ -1,3 +1,5 @@
+import {COVERART_PREFIX} from '@src/constants'
+import {pruneMetadata} from '@src/metadata-extraction'
 import axios from 'axios'
 import mime from 'mime-types'
 import * as crypto from 'node:crypto'
@@ -24,24 +26,50 @@ export async function generateMd5(pathToFile: string): Promise<string> {
   })
 }
 
-export const isOnline = async (uri: string, localFilesize?: number): Promise<boolean> => {
+/**
+ * Result of checking if a file is online
+ */
+export type IsOnlineResult = {
+  isOnline: boolean
+  remoteFilesize: null | number
+}
+
+/**
+ * Checks if a file is available online by sending a HEAD request.
+ * Optionally verifies that the remote file size matches the local file size.
+ * @param uri - The URL of the remote file to check. If null or undefined, the check is skipped and the function returns {isOnline: false, remoteFilesize: null}.
+ * @param localFilesize - Optional local file size to compare against the remote Content-Length header.
+ * @returns An object with isOnline boolean and the remote filesize (or null if unavailable). isOnline is true if a non-null URL is provided, the remote file is online, and file sizes match (if provided); false otherwise.
+ */
+export const isOnline = async (uri: null | string | undefined, localFilesize?: number): Promise<IsOnlineResult> => {
+  if (!uri) return {isOnline: false, remoteFilesize: null}
+
   try {
     const response = await axios.head(uri)
     const headerOk = response.status === 200
+    const remoteFilesizeHeader = response.headers['content-length']
+    const remoteFilesize = remoteFilesizeHeader ? Number.parseInt(remoteFilesizeHeader, 10) : Number.NaN
+    const actualRemoteFilesize = Number.isNaN(remoteFilesize) ? null : remoteFilesize
+
     let filesizeOk = true
     if (localFilesize !== undefined) {
-      const remoteFilesizeHeader = response.headers['content-length']
-      const remoteFilesize = remoteFilesizeHeader ? Number.parseInt(remoteFilesizeHeader, 10) : Number.NaN
-      filesizeOk = !Number.isNaN(remoteFilesize) && remoteFilesize === localFilesize
+      filesizeOk = actualRemoteFilesize !== null && actualRemoteFilesize === localFilesize
     }
 
-    return headerOk && filesizeOk
-  } catch {
+    return {isOnline: headerOk && filesizeOk, remoteFilesize: actualRemoteFilesize}
+  } catch (error) {
+    console.warn('USE PINO: https://www.npmjs.com/package/pino')
+    console.warn(`isOnline check failed for ${uri}: ${(error as Error).message}`)
     // If the request fails, treat as not online
-    return false
+    return {isOnline: false, remoteFilesize: null}
   }
 }
 
+/**
+ * Detects the MIME type of a file based on its extension
+ * @param pathToFile - The path to the file
+ * @returns An object containing the mediatype, subtype, and full type string
+ */
 export const detectMime = (pathToFile: string): {mediatype: string; subtype: string; type: string} => {
   const type = mimeLookup(pathToFile) || 'unknown/unknown'
   const [mediatype, subtype] = type.split('/')
@@ -49,6 +77,23 @@ export const detectMime = (pathToFile: string): {mediatype: string; subtype: str
   return {mediatype, subtype, type}
 }
 
+/**
+ * Converts an MD5 hash into a folder path structure
+ * Example: "ABC123" -> "AB/C1/23"
+ * @param md5 - The MD5 hash string
+ * @returns The MD5 hash formatted as a folder path
+ */
+export const md5AsFolders = (md5: string): string => {
+  const upper = md5.toUpperCase() // Convert to uppercase
+  const parts = upper.match(/.{2}|.+/g) // Match pairs of 2 characters, and if odd-length, the last leftover chunk
+  return parts ? parts.join('/') : '' // Join with "/"
+}
+
+/**
+ * Performs MIME type lookup with custom mappings for specific file extensions
+ * @param pathToFile - The path to the file
+ * @returns The MIME type string, or false if not found
+ */
 const mimeLookup = (pathToFile: string): false | string => {
   if (pathToFile.endsWith('.m4a')) return 'audio/mpeg'
   if (pathToFile.endsWith('.mp3')) return 'audio/mpeg'
@@ -60,16 +105,24 @@ const mimeLookup = (pathToFile: string): false | string => {
   return mime.lookup(pathToFile) || false
 }
 
+/**
+ * Returns a cleansed and sanitized asset name from a file path
+ * Removes metadata tags and sanitizes the filename for storage
+ * @param name - The original file name or path
+ * @returns The cleansed asset name
+ */
 export function cleansedAssetName(name: string): string {
-  console.log('NEED TO IMPLEMENT: func(coverart logic)')
+  const [basename, extension] = path.basename(name).split('.')
+  if (basename.startsWith(COVERART_PREFIX)) return `${COVERART_PREFIX}.${extension}`
+
   return sanitize(name)
 }
 
-function pruneMetadata(name: string): string {
-  console.log('NEED TO IMPLEMENT: pruneMetadata')
-  return name
-}
-
+/**
+ * Sanitizes a filename by removing metadata, special characters, and normalizing the result
+ * @param name - The filename to sanitize
+ * @returns The sanitized filename safe for storage
+ */
 function sanitize(name: string): string {
   name = pruneMetadata(name)
   name = name.replaceAll('\\', '/')

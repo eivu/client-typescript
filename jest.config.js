@@ -13,20 +13,29 @@ export default {
   moduleFileExtensions: ['ts', 'js', 'json'],
   moduleNameMapper: {
     '^@src/(.*)$': '<rootDir>/src/$1',
-    '^@test/(.*)$': '<rootDir>/test/$1'
+    '^@test/(.*)$': '<rootDir>/test/$1',
+    '^file-type$': '<rootDir>/node_modules/file-type/index.js',
+    '^music-metadata$': '<rootDir>/node_modules/music-metadata/lib/index.js'
   },
   setupFiles: ['<rootDir>/jest.setup.js'],
-  setupFilesAfterEnv: [],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup-matchers.js'],
   testEnvironment: 'node',
   testMatch: [
     '<rootDir>/test/**/*.test.ts',
     '<rootDir>/src/**/*.test.ts'
   ],
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
+    '^.+\\.(ts|js)$': ['ts-jest', {
+      tsconfig: {
+        moduleResolution: 'node',
+        types: ['jest', 'node', 'jest-extended']
+      },
       useESM: true
     }]
-  }
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(music-metadata|strtok3|token-types|file-type|@tokenizer|uint8array-extras|@borewit|p-limit|yocto-queue))'
+  ]
 }
 
 // module.exports = {

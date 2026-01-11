@@ -1,9 +1,17 @@
+import {MetadataPair} from '@src/metadata-extraction'
+
+/**
+ * Represents the state of a cloud file in the upload lifecycle
+ */
 export enum CloudFileState {
   COMPLETED = 'completed',
   RESERVED = 'reserved',
   TRANSFERRED = 'transfered',
 }
 
+/**
+ * Type definition for cloud file attributes returned from the API
+ */
 export type CloudFileType = {
   artists?: Record<string, unknown>[]
   artwork_md5?: null | string
@@ -26,7 +34,7 @@ export type CloudFileType = {
   info_url?: null | string
   last_viewed_at?: null | string
   md5: string
-  metadata?: Record<string, unknown>[]
+  metadata?: MetadataPair[]
   name?: null | string
   nsfw?: boolean
   num_plays?: null | number
@@ -34,7 +42,7 @@ export type CloudFileType = {
   rating?: null | number
   release_id?: null | number
   release_pos?: null | number
-  releases?: Record<string, unknown>
+  releases?: Record<string, unknown>[]
   secured?: boolean
   shared?: boolean
   state: CloudFileState

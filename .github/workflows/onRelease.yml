@@ -12,6 +12,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: latest
+      - name: Install fpcalc
+        run: sudo apt-get update && sudo apt-get install -y libchromaprint-tools
       - run: npm install
       - run: npm run build
       - run: npm run prepack
