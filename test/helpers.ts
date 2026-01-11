@@ -1,3 +1,5 @@
+import path from 'node:path'
+
 import {TEMP_FOLDER_ROOT} from '../src/constants'
 
 /**
@@ -60,9 +62,35 @@ export function removeAttributeFromBodyTest(
             return key !== field && key !== 'original_local_path_to_file'
           })
         }
-      } else if (expectedBody?.[field]?.startsWith?.(TEMP_FOLDER_ROOT)) {
-        delete expectedBody[field]
-        delete actualBody[field]
+      } else {
+        // Check if the field value starts with the temp directory path
+        // Normalize paths for cross-platform compatibility (handles / vs \ separators)
+        // Check both expected and actual body values to handle dynamic temp paths
+        const expectedValue = expectedBody?.[field]
+        const actualValue = actualBody?.[field]
+
+        if (typeof expectedValue === 'string' && typeof actualValue === 'string') {
+          const normalizedExpected = path.normalize(expectedValue)
+          const normalizedActual = path.normalize(actualValue)
+
+          // Remove the field if either value is in the temp directory
+          if (normalizedExpected.startsWith(TEMP_FOLDER_ROOT) || normalizedActual.startsWith(TEMP_FOLDER_ROOT)) {
+            delete expectedBody[field]
+            delete actualBody[field]
+          }
+        } else if (typeof expectedValue === 'string') {
+          const normalizedValue = path.normalize(expectedValue)
+          if (normalizedValue.startsWith(TEMP_FOLDER_ROOT)) {
+            delete expectedBody[field]
+            delete actualBody[field]
+          }
+        } else if (typeof actualValue === 'string') {
+          const normalizedValue = path.normalize(actualValue)
+          if (normalizedValue.startsWith(TEMP_FOLDER_ROOT)) {
+            delete expectedBody[field]
+            delete actualBody[field]
+          }
+        }
       }
     }
 

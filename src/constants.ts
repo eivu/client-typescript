@@ -1,3 +1,7 @@
+import * as fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
 /**
  * Flag to enable/disable active debugging mode
  */
@@ -153,4 +157,18 @@ export enum V2_FRAMES {
 
 /** Prefix used for cover art identification */
 export const COVERART_PREFIX = 'coverart-extractedByEivu'
-export const TEMP_FOLDER_ROOT = '/private/var/folders/'
+
+/**
+ * Root directory for temporary files, normalized for cross-platform compatibility
+ * Uses the OS-specific temp directory (e.g., /tmp on Linux, /var/folders on macOS, %TEMP% on Windows)
+ * Resolves symlinks to ensure compatibility with temp file paths returned by the tmp library
+ */
+export const TEMP_FOLDER_ROOT = (() => {
+  try {
+    // Resolve symlinks (e.g., /var/folders -> /private/var/folders on macOS)
+    return path.normalize(fs.realpathSync(os.tmpdir()) + path.sep)
+  } catch {
+    // Fallback to os.tmpdir() if realpathSync fails
+    return path.normalize(os.tmpdir() + path.sep)
+  }
+})()
