@@ -142,9 +142,13 @@ export const extractAudioInfo = async (pathToFile: string): Promise<MetadataPair
  */
 export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> => {
   const {mediatype} = detectMime(pathToFile)
+  let coverArtMetadata: MetadataPair = {}
   if (mediatype === 'audio') return extractAudioInfo(pathToFile)
+  if (pathToFile.endsWith('.cbr') || pathToFile.endsWith('.cbz')) {
+    coverArtMetadata = {'eivu:artwork_md5': null} // placeholder for cover art
+  }
 
-  return extractMetadataList(pathToFile)
+  return [coverArtMetadata, ...extractMetadataList(pathToFile)]
 }
 
 export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataProfile> => {
@@ -236,6 +240,30 @@ export const generateAcoustidFingerprint = (pathToFile: string): Promise<Acousti
       }
     })
   })
+
+const uploadFirstZipEntry = async (pathToFile: string): Promise<string> => {
+  console.log('Uploading first zip entry for', pathToFile)
+  return 'aaaa'
+}
+
+const uploadFirstRarEntry = async (pathToFile: string): Promise<string> => {
+  console.log('Uploading first rar entry for', pathToFile)
+  return 'aaaa'
+}
+
+export const generateCoverArtMetadata = async (pathToFile: string): Promise<MetadataPair> => {
+  let entry
+  if (pathToFile.endsWith('.cbz')) entry = await uploadFirstZipEntry(pathToFile)
+  if (pathToFile.endsWith('.cbr')) entry = await uploadFirstRarEntry(pathToFile)
+
+  if (!entry) {
+    throw new Error(`Failed to generate cover art metadata for ${pathToFile}`)
+  }
+
+  console.log('Generating cover art metadata for', pathToFile)
+  console.log('Uploaded cover art md5:', entry)
+  return {'eivu:artwork_md5': entry} // placeholder for cover art
+}
 
 /**
  * Compares two MetadataPair objects for equality based on their key-value pairs
