@@ -15,7 +15,7 @@ import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
 import {detectMime} from '@src/utils'
 import filter from 'lodash/filter'
-import uniq from 'lodash/uniq'
+import uniqWith from 'lodash/uniqWith'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
 import {exec} from 'node:child_process'
 import {promises as fsp} from 'node:fs'
@@ -238,6 +238,30 @@ export const generateAcoustidFingerprint = (pathToFile: string): Promise<Acousti
   })
 
 /**
+ * Compares two MetadataPair objects for equality based on their key-value pairs
+ * Since MetadataPair objects have exactly one key-value pair, we compare the single key and value
+ * @param a - First MetadataPair to compare
+ * @param b - Second MetadataPair to compare
+ * @returns True if both objects have the same key and value, false otherwise
+ */
+const metadataPairEquals = (a: MetadataPair, b: MetadataPair): boolean => {
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+
+  // Both must have exactly one key
+  if (aKeys.length !== 1 || bKeys.length !== 1) return false
+
+  const aKey = aKeys[0]
+  const bKey = bKeys[0]
+
+  // Keys must match
+  if (aKey !== bKey) return false
+
+  // Values must match
+  return a[aKey] === b[bKey]
+}
+
+/**
  * Generates a complete metadata profile for a file by extracting and combining metadata from the filename and provided metadata list
  * @param params - Configuration object
  * @param params.metadataList - Additional metadata to include in the profile
@@ -255,7 +279,10 @@ export const generateDataProfile = async ({
   const fileInfo = await extractInfo(pathToFile)
   const ymlInfo: MetadataProfile = await extractInfoFromYml(pathToFile)
   let name: null | string
-  metadataList = uniq([...metadataList, ...fileInfo, ...ymlInfo.metadata_list])
+  // Use uniqWith with a custom comparator to deduplicate metadata pairs by their key-value pairs
+  // This ensures that identical metadata entries from different sources (e.g., fileInfo and ymlInfo)
+  // are properly deduplicated even though they're different object references
+  metadataList = uniqWith([...metadataList, ...fileInfo, ...ymlInfo.metadata_list], metadataPairEquals)
 
   // Optionally include original local path
   if (!pathToFile.startsWith(TEMP_FOLDER_ROOT)) {
