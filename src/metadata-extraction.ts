@@ -17,7 +17,7 @@ import {detectMime} from '@src/utils'
 import filter from 'lodash/filter'
 import uniqWith from 'lodash/uniqWith'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
-import {exec} from 'node:child_process'
+import {execFile} from 'node:child_process'
 import {promises as fsp} from 'node:fs'
 import path from 'node:path'
 import tmp from 'tmp'
@@ -228,7 +228,7 @@ export const extractYear = (input: string): null | number => {
  */
 export const generateAcoustidFingerprint = (pathToFile: string): Promise<AcoustidFingerprint> =>
   new Promise((resolve, reject) => {
-    exec(`fpcalc -json "${pathToFile}"`, (error, stdout, stderr) => {
+    execFile('fpcalc', ['-json', pathToFile], (error, stdout, stderr) => {
       if (error) {
         reject(new Error(`Error executing fpcalc: ${stderr}`))
       } else {
