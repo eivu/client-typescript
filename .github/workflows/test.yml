@@ -8,22 +8,17 @@ jobs:
   unit-tests:
     strategy:
       matrix:
-        os: ["ubuntu-latest", "windows-latest"]
         node_version: [lts/-1, lts/*, latest]
       fail-fast: false
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node_version }}
           cache: npm
-      - name: Install fpcalc (Ubuntu)
-        if: runner.os == 'Linux'
+      - name: Install fpcalc
         run: sudo apt-get update && sudo apt-get install -y libchromaprint-tools
-      - name: Install fpcalc (Windows)
-        if: runner.os == 'Windows'
-        run: choco install chromaprint
       - run: npm install
       - run: npm run build
       - run: npm run test
