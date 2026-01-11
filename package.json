@@ -27,7 +27,8 @@
     "pino-pretty": "^13.1.2",
     "tmp": "^0.2.5",
     "tsx": "^4.20.6",
-    "yaml": "^2.8.2"
+    "yaml": "^2.8.2",
+    "yauzl-promise": "^4.0.0"
   },
   "devDependencies": {
     "@eslint/compat": "^1",
@@ -40,6 +41,7 @@
     "@types/mime-types": "^3.0.1",
     "@types/node": "^18",
     "@types/tmp": "^0.2.6",
+    "@types/yauzl-promise": "^4.0.1",
     "baseline-browser-mapping": "^2.9.14",
     "eslint": "^9",
     "eslint-config-oclif": "^6",

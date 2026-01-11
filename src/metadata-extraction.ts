@@ -13,7 +13,7 @@ import {
 } from '@src/constants'
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
-import {detectMime} from '@src/utils'
+import {detectMime, generateMd5} from '@src/utils'
 import filter from 'lodash/filter'
 import uniqWith from 'lodash/uniqWith'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
@@ -22,6 +22,7 @@ import {promises as fsp} from 'node:fs'
 import path from 'node:path'
 import tmp from 'tmp'
 import {parse as yamlParse} from 'yaml'
+import * as yauzl from 'yauzl-promise'
 
 /**
  * Acoustid fingerprint containing the fingerprint and duration
@@ -467,7 +468,47 @@ const uploadFirstRarEntry = async (pathToFile: string): Promise<string> => {
   return 'aaaa'
 }
 
-const uploadFirstZipEntry = async (pathToFile: string): Promise<string> => {
-  console.log('Uploading first zip entry for', pathToFile)
-  return 'aaaa'
+export const uploadFirstZipEntry = async (pathToFile: string): Promise<string> => {
+  const zip = await yauzl.open(pathToFile)
+
+  try {
+    // Read all entries
+    const entries: yauzl.Entry[] = []
+    for await (const entry of zip) {
+      // Skip directories
+      if (!entry.filename.endsWith('/')) {
+        entries.push(entry)
+      }
+    }
+
+    if (entries.length === 0) {
+      throw new Error('No files found in zip archive')
+    }
+
+    // Sort entries alphabetically by filename
+    entries.sort((a, b) => a.filename.localeCompare(b.filename))
+
+    // Get the first entry after sorting
+    const firstEntry = entries[0]
+    const outputPath = path.join(TEMP_FOLDER_ROOT, path.basename(firstEntry.filename))
+
+    // Extract the first entry
+    const readStream = await firstEntry.openReadStream()
+
+    // Collect data from read stream into buffer
+    const chunks: Buffer[] = []
+    for await (const chunk of readStream) {
+      chunks.push(chunk)
+    }
+
+    // Write buffer to file
+    const buffer = Buffer.concat(chunks)
+    await fsp.writeFile(outputPath, buffer)
+
+    // Generate MD5 of extracted file
+    // const md5 = await generateMd5(outputPath)
+    return outputPath
+  } finally {
+    await zip.close()
+  }
 }

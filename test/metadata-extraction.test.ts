@@ -15,6 +15,7 @@ import {
   type MetadataProfile,
   pruneFromMetadataList,
   pruneMetadata,
+  uploadFirstZipEntry,
 } from '../src/metadata-extraction'
 import {
   BAD_STORY_DATA_PROFILE,
@@ -386,6 +387,15 @@ describe('Metadata Extraction', () => {
         expect(metadataList).toEqual([{title: 'Cowboy Bebop'}, {studio: 'Sunrise'}, {tag: 'anime'}])
         expect(item).toBeNull()
       })
+    })
+  })
+
+  describe('uploadFirstZipEntry', () => {
+    it('uploads the first zip entry for The_Peacemaker_01_1967.eivu_compressed.cbz', async () => {
+      const pathToFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz'
+      const result = await uploadFirstZipEntry(pathToFile)
+      console.log('uploadFirstZipEntry result', result)
+      expect(result).toBeTruthy()
     })
   })
 })
