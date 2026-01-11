@@ -490,7 +490,7 @@ const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
 
     // Get the first entry after sorting
     const firstEntry = entries[0]
-    const outputPath = path.join(TEMP_FOLDER_ROOT, path.basename(firstEntry.filename))
+    const outputPath = path.join(TEMP_FOLDER_ROOT, `${COVERART_PREFIX}-${path.basename(firstEntry.filename)}`)
 
     // Extract the first entry
     const readStream = await firstEntry.openReadStream()
