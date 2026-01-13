@@ -1,5 +1,6 @@
 import {Client} from '@src/client'
 // import {CloudFile} from '@src/cloud-file'
+import {uploadComicMetadataArtwork} from '@src/metadata-extraction'
 
 const client = new Client()
 // const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
@@ -40,3 +41,9 @@ const e = await client.uploadFolder({
 console.log('====================')
 console.log('Upload Result:')
 console.dir(e)
+
+const result = await uploadComicMetadataArtwork(
+  'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz',
+)
+console.log('Uploaded cover art')
+console.dir(result)

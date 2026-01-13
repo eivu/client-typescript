@@ -15,7 +15,7 @@ import {
   type MetadataProfile,
   pruneFromMetadataList,
   pruneMetadata,
-  uploadFirstZipEntry,
+  uploadComicMetadataArtwork,
 } from '../src/metadata-extraction'
 import {
   BAD_STORY_DATA_PROFILE,
@@ -24,10 +24,16 @@ import {
   FROG_PRINCE_COVER_ART_COMPLETE,
   FROG_PRINCE_COVER_ART_DATA_PROFILE,
   FROG_PRINCE_COVER_ART_RESERVATION,
+  FROG_PRINCE_COVER_ART_S3_RESPONSE,
   FROG_PRINCE_COVER_ART_TRANSFER,
   FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO_WITH_COVER_ART,
   FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE,
   FROG_PRINCE_PARAGRAPH_1_FINGERPRINT,
+  THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE,
+  THE_PEACEMAKER_01_1967_COVER_ART_DATA_PROFILE,
+  THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION,
+  THE_PEACEMAKER_01_1967_COVER_ART_S3_RESPONSE,
+  THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER,
   THE_PEACEMAKER_01_1967_DATA_PROFILE,
   THE_PEACEMAKER_01_1967_PARSED_YML,
 } from './fixtures/responses'
@@ -36,15 +42,6 @@ import {removeAttributeFromBodyTest} from './helpers'
 const SERVER_HOST = process.env.EIVU_UPLOAD_SERVER_HOST as string
 const BUCKET_UUID = process.env.EIVU_BUCKET_UUID
 const URL_BUCKET_PREFIX = `/api/upload/v1/buckets/${BUCKET_UUID}`
-
-// Create a mock S3 response for the cover art upload
-const FROG_PRINCE_COVER_ART_S3_RESPONSE = {
-  $metadata: {
-    attempts: 1,
-    httpStatusCode: 200,
-  },
-  ETag: '"f5b5dd551bd75a524be57c0a5f1675a8"',
-}
 
 // Mock the AWS SDK S3Client
 const mockSend = jest.fn() as jest.MockedFunction<(command: unknown) => Promise<unknown>>
@@ -390,12 +387,53 @@ describe('Metadata Extraction', () => {
     })
   })
 
-  describe('uploadFirstZipEntry', () => {
+  describe('uploadComicMetadataArtwork', () => {
     it('uploads the first zip entry for The_Peacemaker_01_1967.eivu_compressed.cbz', async () => {
+      const coverArtFilesize = 775_296
+
+      // Mock S3 upload
+      mockSend.mockResolvedValue(THE_PEACEMAKER_01_1967_COVER_ART_S3_RESPONSE)
       const pathToFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz'
-      const result = await uploadFirstZipEntry(pathToFile)
-      console.log('uploadFirstZipEntry result', result)
+
+      const coverArtReserveReq = nock(SERVER_HOST)
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/FC95C8DB0CECB47D449DFFD694AD963C/reserve`, {
+          nsfw: false,
+          secured: false,
+        })
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION)
+
+      // Mock the HEAD request to check if file is online
+      const coverArtOnlineReq = nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
+        .head('/image/FC/95/C8/DB/0C/EC/B4/7D/44/9D/FF/D6/94/AD/96/3C/coverart-extractedByEivu.webp')
+        .reply(200, 'body', {
+          'Content-Length': String(coverArtFilesize),
+        })
+
+      const coverArtTransferReq = nock(SERVER_HOST)
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/FC95C8DB0CECB47D449DFFD694AD963C/transfer`, {
+          asset: 'coverart-extractedByEivu.jpeg',
+          content_type: 'image/jpeg', // eslint-disable-line camelcase
+          filesize: coverArtFilesize,
+        })
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER)
+
+      const coverArtCompleteReq = nock(SERVER_HOST)
+        .post(
+          `${URL_BUCKET_PREFIX}/cloud_files/FC95C8DB0CECB47D449DFFD694AD963C/complete`,
+          removeAttributeFromBodyTest(THE_PEACEMAKER_01_1967_COVER_ART_DATA_PROFILE, ['path_to_file']),
+        )
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE)
+      const result = await uploadComicMetadataArtwork(pathToFile)
+      console.log('Uploaded cover art')
+      console.dir(result)
       expect(result).toBeTruthy()
+      expect(coverArtReserveReq.isDone()).toBeTrue()
+      expect(coverArtOnlineReq.isDone()).toBeTrue()
+      expect(coverArtTransferReq.isDone()).toBeTrue()
+      expect(coverArtCompleteReq.isDone()).toBeTrue()
     })
   })
 })

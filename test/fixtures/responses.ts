@@ -269,6 +269,14 @@ export const FROG_PRINCE_COVER_ART_RESERVATION: CloudFileType = {
   year: null,
 }
 
+export const FROG_PRINCE_COVER_ART_S3_RESPONSE = {
+  $metadata: {
+    attempts: 1,
+    httpStatusCode: 200,
+  },
+  ETag: '"f5b5dd551bd75a524be57c0a5f1675a8"',
+}
+
 export const FROG_PRINCE_COVER_ART_TRANSFER: CloudFileType = {
   ...FROG_PRINCE_COVER_ART_RESERVATION,
   asset: 'coverart-extractedByEivu.jpeg',
@@ -639,6 +647,32 @@ export const THE_PEACEMAKER_01_1967_DATA_PROFILE = {
   ],
 }
 
+export const THE_PEACEMAKER_01_1967_COVER_ART_DATA_PROFILE = {
+  artists: [],
+  artwork_md5: null,
+  description: null,
+  duration: null,
+  info_url: null,
+  metadata_list: [
+    {
+      original_local_path_to_file: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
+    },
+  ],
+  name: 'The_Peacemaker_01_1967_COVERART.webp',
+  path_to_file: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
+  rating: null,
+  release: EMPTY_RELEASE,
+  year: null,
+}
+
+export const THE_PEACEMAKER_01_1967_COVER_ART_S3_RESPONSE = {
+  $metadata: {
+    attempts: 1,
+    httpStatusCode: 200,
+  },
+  ETag: '"fc95c8db0cecb47d449dffd694ad963c"',
+}
+
 export const THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION: CloudFileType = {
   artists: [],
   artwork_url: null,
@@ -683,24 +717,6 @@ export const THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER: CloudFileType = {
   content_type: 'image/webp',
   filesize: 775_296,
   state: CloudFileState.TRANSFERRED,
-}
-
-export const THE_PEACEMAKER_01_1967_COVER_ART_DATA_PROFILE = {
-  artists: [],
-  artwork_md5: null,
-  description: null,
-  duration: null,
-  info_url: null,
-  metadata_list: [
-    {
-      original_local_path_to_file: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
-    },
-  ],
-  name: 'The_Peacemaker_01_1967_COVERART.webp',
-  path_to_file: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
-  rating: null,
-  release: EMPTY_RELEASE,
-  year: null,
 }
 
 export const THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE: CloudFileType = {

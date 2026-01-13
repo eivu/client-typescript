@@ -13,7 +13,7 @@ import {
 } from '@src/constants'
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
-import {detectMime, generateMd5} from '@src/utils'
+import {detectMime} from '@src/utils'
 import filter from 'lodash/filter'
 import uniqWith from 'lodash/uniqWith'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
@@ -127,7 +127,7 @@ export const extractAudioInfo = async (pathToFile: string): Promise<MetadataPair
   if (id3InfoObject['id3:band']) audioInfo.push({'eivu:album_artist': id3InfoObject['id3:band']})
   if (id3InfoObject['id3:disc_nr']) audioInfo.push({'eivu:bundle_pos': id3InfoObject['id3:disc_nr']})
 
-  const artworkCloudFile = await uploadMetadataArtwork({iAudioMetadata: metadata, metadataList: audioInfo})
+  const artworkCloudFile = await uploadAudioMetadataArtwork({iAudioMetadata: metadata, metadataList: audioInfo})
 
   if (artworkCloudFile) {
     audioInfo.push({'eivu:artwork_md5': artworkCloudFile.remoteAttr.md5})
@@ -146,10 +146,60 @@ export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> =
   let coverArtMetadata: MetadataPair = {}
   if (mediatype === 'audio') return extractAudioInfo(pathToFile)
   if (pathToFile.endsWith('.cbr') || pathToFile.endsWith('.cbz')) {
-    coverArtMetadata = {'eivu:artwork_md5': 'aaaaa'} // placeholder for cover art
+    coverArtMetadata = await uploadComicMetadataArtwork(pathToFile)
   }
 
   return [coverArtMetadata, ...extractMetadataList(pathToFile)]
+}
+
+const extractFirstRarEntry = async (pathToFile: string): Promise<string> => {
+  console.log('Uploading first rar entry for', pathToFile)
+  return 'aaaa'
+}
+
+const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
+  const zip = await yauzl.open(pathToFile)
+
+  try {
+    // Read all entries
+    const entries: yauzl.Entry[] = []
+    for await (const entry of zip) {
+      // Skip directories
+      if (!entry.filename.endsWith('/')) {
+        entries.push(entry)
+      }
+    }
+
+    if (entries.length === 0) {
+      throw new Error('No files found in zip archive')
+    }
+
+    // Sort entries alphabetically by filename
+    entries.sort((a, b) => a.filename.localeCompare(b.filename))
+
+    // Get the first entry after sorting
+    const firstEntry = entries[0]
+    const outputPath = path.join(TEMP_FOLDER_ROOT, `${COVERART_PREFIX}-${path.basename(firstEntry.filename)}`)
+
+    // Extract the first entry
+    const readStream = await firstEntry.openReadStream()
+
+    // Collect data from read stream into buffer
+    const chunks: Buffer[] = []
+    for await (const chunk of readStream) {
+      chunks.push(chunk)
+    }
+
+    // Write buffer to file
+    const buffer = Buffer.concat(chunks)
+    await fsp.writeFile(outputPath, buffer)
+
+    // Generate MD5 of extracted file
+    // const md5 = await generateMd5(outputPath)
+    return outputPath
+  } finally {
+    await zip.close()
+  }
 }
 
 export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataProfile> => {
@@ -242,20 +292,6 @@ export const generateAcoustidFingerprint = (pathToFile: string): Promise<Acousti
     })
   })
 
-export const generateCoverArtMetadata = async (pathToFile: string): Promise<MetadataPair> => {
-  let entry
-  if (pathToFile.endsWith('.cbz')) entry = await uploadFirstZipEntry(pathToFile)
-  if (pathToFile.endsWith('.cbr')) entry = await uploadFirstRarEntry(pathToFile)
-
-  if (!entry) {
-    throw new Error(`Failed to generate cover art metadata for ${pathToFile}`)
-  }
-
-  console.log('Generating cover art metadata for', pathToFile)
-  console.log('Uploaded cover art md5:', entry)
-  return {'eivu:artwork_md5': entry} // placeholder for cover art
-}
-
 /**
  * Compares two MetadataPair objects for equality based on their key-value pairs
  * Since MetadataPair objects have exactly one key-value pair, we compare the single key and value
@@ -301,8 +337,16 @@ export const generateDataProfile = async ({
   // Use uniqWith with a custom comparator to deduplicate metadata pairs by their key-value pairs
   // This ensures that identical metadata entries from different sources (e.g., fileInfo and ymlInfo)
   // are properly deduplicated even though they're different object references
+  console.log('metadataList before merging:')
+  console.dir(metadataList)
+  console.log('fileInfo to merge:')
+  console.dir(fileInfo)
+  console.log('ymlInfo.metadata_list to merge:')
+  console.dir(ymlInfo.metadata_list)
   metadataList = uniqWith([...metadataList, ...fileInfo, ...ymlInfo.metadata_list], metadataPairEquals)
 
+  console.log('metadataList after merging and deduplication:')
+  console.dir(metadataList)
   // Optionally include original local path
   if (!pathToFile.startsWith(TEMP_FOLDER_ROOT)) {
     metadataList.push({original_local_path_to_file: pathToFile}) // eslint-disable-line camelcase
@@ -331,8 +375,10 @@ export const generateDataProfile = async ({
   const {description, info_url} = ymlInfo
   // const matched_recording = null
 
-  // alter name for cover art files
-  if (pathToFile.includes(COVERART_PREFIX)) {
+  if (metadataList.some((item) => Object.hasOwn(item, 'override:name'))) {
+    name = pruneString(metadataList, 'override:name')
+  } // alter name for audio cover art files
+  else if (pathToFile.includes(COVERART_PREFIX)) {
     name = 'Cover Art'
     const label = [artist_name, release_name].filter(Boolean).join(' - ')
     const name_xtra = label ? ` for ${label}` : ''
@@ -430,7 +476,7 @@ const pruneNumber = (metadataList: MetadataPair[], key: string): null | number =
  * @param params.metadataList - Metadata list to attach to the artwork file
  * @returns The uploaded CloudFile instance for the artwork, or null if no artwork exists
  */
-const uploadMetadataArtwork = async ({
+const uploadAudioMetadataArtwork = async ({
   iAudioMetadata,
   metadataList,
 }: {
@@ -463,57 +509,23 @@ const uploadMetadataArtwork = async ({
   }
 }
 
-const uploadFirstRarEntry = async (pathToFile: string): Promise<string> => {
-  console.log('Uploading first rar entry for', pathToFile)
-  return 'aaaa'
-}
-
-const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
-  const zip = await yauzl.open(pathToFile)
-
+export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<MetadataPair> => {
   try {
-    // Read all entries
-    const entries: yauzl.Entry[] = []
-    for await (const entry of zip) {
-      // Skip directories
-      if (!entry.filename.endsWith('/')) {
-        entries.push(entry)
-      }
-    }
+    let pathToCoverArt: string | undefined
+    if (pathToFile.endsWith('.cbz')) pathToCoverArt = await extractFirstZipEntry(pathToFile)
+    // if (pathToFile.endsWith('.cbr')) pathToCoverArt = await extractFirstRarEntry(pathToFile)
 
-    if (entries.length === 0) {
-      throw new Error('No files found in zip archive')
-    }
+    if (!pathToCoverArt) throw new Error(`Failed to extract cover art from ${pathToFile}`)
 
-    // Sort entries alphabetically by filename
-    entries.sort((a, b) => a.filename.localeCompare(b.filename))
+    const {name}: MetadataProfile = await extractInfoFromYml(pathToFile)
+    const label = `Cover Art for ${name ?? pathToFile}`
+    console.log('Uploading cover art with label:', label)
+    const metadataList: MetadataPair[] = [{'override:name': label} as MetadataPair]
 
-    // Get the first entry after sorting
-    const firstEntry = entries[0]
-    const outputPath = path.join(TEMP_FOLDER_ROOT, `${COVERART_PREFIX}-${path.basename(firstEntry.filename)}`)
-
-    // Extract the first entry
-    const readStream = await firstEntry.openReadStream()
-
-    // Collect data from read stream into buffer
-    const chunks: Buffer[] = []
-    for await (const chunk of readStream) {
-      chunks.push(chunk)
-    }
-
-    // Write buffer to file
-    const buffer = Buffer.concat(chunks)
-    await fsp.writeFile(outputPath, buffer)
-
-    // Generate MD5 of extracted file
-    // const md5 = await generateMd5(outputPath)
-    return outputPath
-  } finally {
-    await zip.close()
+    const coverArt = await Client.uploadFile({metadataList, pathToFile: pathToCoverArt})
+    return {'eivu:artwork_md5': coverArt.remoteAttr.md5}
+  } catch (error) {
+    console.error('Failed to generate cover art metadata for', pathToFile, error)
+    return {} as MetadataPair
   }
-}
-
-export const uploadFirstZipEntry = async (pathToFile: string): Promise<string> => {
-  let x
-  return extractFirstZipEntry(pathToFile)
 }
