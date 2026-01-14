@@ -389,6 +389,7 @@ describe('Metadata Extraction', () => {
 
   describe('uploadComicMetadataArtwork', () => {
     it('uploads the first zip entry for The_Peacemaker_01_1967.eivu_compressed.cbz', async () => {
+      nock.cleanAll()
       const coverArtFilesize = 775_296
 
       // Mock S3 upload
@@ -412,8 +413,8 @@ describe('Metadata Extraction', () => {
 
       const coverArtTransferReq = nock(SERVER_HOST)
         .post(`${URL_BUCKET_PREFIX}/cloud_files/FC95C8DB0CECB47D449DFFD694AD963C/transfer`, {
-          asset: 'coverart-extractedByEivu.jpeg',
-          content_type: 'image/jpeg', // eslint-disable-line camelcase
+          asset: 'coverart-extractedByEivu.webp',
+          content_type: 'image/webp', // eslint-disable-line camelcase
           filesize: coverArtFilesize,
         })
         .query({keyFormat: 'camel_lower'})

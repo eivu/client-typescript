@@ -658,7 +658,7 @@ export const THE_PEACEMAKER_01_1967_COVER_ART_DATA_PROFILE = {
       original_local_path_to_file: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
     },
   ],
-  name: 'The_Peacemaker_01_1967_COVERART.webp',
+  name: 'Cover Art for The Peacemaker #1',
   path_to_file: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
   rating: null,
   release: EMPTY_RELEASE,
@@ -713,7 +713,7 @@ export const THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION: CloudFileType = {
 
 export const THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER: CloudFileType = {
   ...THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION,
-  asset: 'The_Peacemaker_01_1967_COVERART.webp',
+  asset: 'coverart-extractedByEivu.webp',
   content_type: 'image/webp',
   filesize: 775_296,
   state: CloudFileState.TRANSFERRED,
@@ -728,6 +728,6 @@ export const THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE: CloudFileType = {
       value: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
     },
   ],
-  name: 'The_Peacemaker_01_1967_COVERART.webp',
+  name: 'Cover Art for The Peacemaker #1',
   state: CloudFileState.COMPLETED,
 }
