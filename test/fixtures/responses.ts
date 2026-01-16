@@ -279,7 +279,7 @@ export const FROG_PRINCE_COVER_ART_S3_RESPONSE = {
 
 export const FROG_PRINCE_COVER_ART_TRANSFER: CloudFileType = {
   ...FROG_PRINCE_COVER_ART_RESERVATION,
-  asset: 'coverart-extractedByEivu.jpeg',
+  asset: 'coverart-extractedByEivu-forAudio.jpeg',
   content_type: 'image/jpeg',
   filesize: 125_446,
   state: CloudFileState.TRANSFERRED,
@@ -317,7 +317,7 @@ export const FROG_PRINCE_COVER_ART_DATA_PROFILE = {
   metadata_list: FROG_PRINCE_COVER_ART_METADATA,
   name: 'Cover Art for The Brothers Grimm - The Frog Prince',
   path_to_file:
-    '/private/var/folders/hv/_ybbgb_s3kbd2vwkrkgvl04w0000gn/T/coverart-extractedByEivu--50540-I308Z07whFu4-.jpeg',
+    '/private/var/folders/hv/_ybbgb_s3kbd2vwkrkgvl04w0000gn/T/coverart-extractedByEivu-forAudio--50540-I308Z07whFu4-.jpeg',
   rating: null,
   release: {
     artwork_md5: null,
@@ -713,7 +713,7 @@ export const THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION: CloudFileType = {
 
 export const THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER: CloudFileType = {
   ...THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION,
-  asset: 'coverart-extractedByEivu.webp',
+  asset: 'coverart-extractedByEivu-forAudio.webp',
   content_type: 'image/webp',
   filesize: 775_296,
   state: CloudFileState.TRANSFERRED,

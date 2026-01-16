@@ -80,14 +80,14 @@ describe('Metadata Extraction', () => {
 
       // Mock the HEAD request to check if file is online
       const coverArtOnlineReq = nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
-        .head('/image/F5/B5/DD/55/1B/D7/5A/52/4B/E5/7C/0A/5F/16/75/A8/coverart-extractedByEivu.jpeg')
+        .head('/image/F5/B5/DD/55/1B/D7/5A/52/4B/E5/7C/0A/5F/16/75/A8/coverart-extractedByEivu-forAudio.jpeg')
         .reply(200, 'body', {
           'Content-Length': String(coverArtFilesize),
         })
 
       const coverArtTransferReq = nock(SERVER_HOST)
         .post(`${URL_BUCKET_PREFIX}/cloud_files/F5B5DD551BD75A524BE57C0A5F1675A8/transfer`, {
-          asset: 'coverart-extractedByEivu.jpeg',
+          asset: 'coverart-extractedByEivu-forAudio.jpeg',
           content_type: 'image/jpeg', // eslint-disable-line camelcase
           filesize: coverArtFilesize,
         })
@@ -280,14 +280,14 @@ describe('Metadata Extraction', () => {
 
       // Mock the HEAD request to check if file is online
       const coverArtOnlineReq = nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
-        .head('/image/F5/B5/DD/55/1B/D7/5A/52/4B/E5/7C/0A/5F/16/75/A8/coverart-extractedByEivu.jpeg')
+        .head('/image/F5/B5/DD/55/1B/D7/5A/52/4B/E5/7C/0A/5F/16/75/A8/coverart-extractedByEivu-forAudio.jpeg')
         .reply(200, 'body', {
           'Content-Length': String(coverArtFilesize),
         })
 
       const coverArtTransferReq = nock(SERVER_HOST)
         .post(`${URL_BUCKET_PREFIX}/cloud_files/F5B5DD551BD75A524BE57C0A5F1675A8/transfer`, {
-          asset: 'coverart-extractedByEivu.jpeg',
+          asset: 'coverart-extractedByEivu-forAudio.jpeg',
           content_type: 'image/jpeg', // eslint-disable-line camelcase
           filesize: coverArtFilesize,
         })
@@ -406,14 +406,14 @@ describe('Metadata Extraction', () => {
 
       // Mock the HEAD request to check if file is online
       const coverArtOnlineReq = nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
-        .head('/image/FC/95/C8/DB/0C/EC/B4/7D/44/9D/FF/D6/94/AD/96/3C/coverart-extractedByEivu.webp')
+        .head('/image/FC/95/C8/DB/0C/EC/B4/7D/44/9D/FF/D6/94/AD/96/3C/coverart-extractedByEivu-forComic.webp')
         .reply(200, 'body', {
           'Content-Length': String(coverArtFilesize),
         })
 
       const coverArtTransferReq = nock(SERVER_HOST)
         .post(`${URL_BUCKET_PREFIX}/cloud_files/FC95C8DB0CECB47D449DFFD694AD963C/transfer`, {
-          asset: 'coverart-extractedByEivu.webp',
+          asset: 'coverart-extractedByEivu-forAudio.webp',
           content_type: 'image/webp', // eslint-disable-line camelcase
           filesize: coverArtFilesize,
         })

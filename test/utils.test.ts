@@ -14,14 +14,14 @@ describe('Utils', () => {
       expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forComic.webp')
     })
 
-    it('returns "coverart-extractedByEivu.jpg" for cover art files', () => {
-      const pathToFile = '/some/path/coverart-extractedByEivu-random-string.jpg'
-      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu.jpg')
+    it('returns "coverart-extractedByEivu-forAudio.jpg" for cover art files', () => {
+      const pathToFile = '/some/path/coverart-extractedByEivu-forAudio-random-string.jpg'
+      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forAudio.jpg')
     })
 
-    it('returns "coverart-extractedByEivu.png" for cover art files', () => {
-      const pathToFile = '/some/path/coverart-extractedByEivu.png'
-      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu.png')
+    it('returns "coverart-extractedByEivu-forAudio.png" for cover art files', () => {
+      const pathToFile = '/some/path/coverart-extractedByEivu-forAudio.png'
+      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forAudio.png')
     })
 
     it('sanitizes regular filenames', () => {
