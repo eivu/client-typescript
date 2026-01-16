@@ -1,7 +1,8 @@
 import {Client} from '@src/client'
 import {CloudFile} from '@src/cloud-file'
 import {
-  COVERART_PREFIX,
+  COVERART_AUDIO_PREFIX,
+  COVERART_COMIC_PREFIX,
   PERFORMER_REGEX,
   RATING_425_REGEX,
   RATING_500_475_REGEX,
@@ -179,7 +180,7 @@ const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
 
     // Get the first entry after sorting
     const firstEntry = entries[0]
-    const outputPath = path.join(TEMP_FOLDER_ROOT, `${COVERART_PREFIX}-${path.basename(firstEntry.filename)}`)
+    const outputPath = path.join(TEMP_FOLDER_ROOT, `${COVERART_COMIC_PREFIX}-${path.basename(firstEntry.filename)}`)
 
     // Extract the first entry
     const readStream = await firstEntry.openReadStream()
@@ -352,8 +353,8 @@ export const generateDataProfile = async ({
     metadataList.push({original_local_path_to_file: pathToFile}) // eslint-disable-line camelcase
   }
 
-  // if working on cover art, prune unneeded metadata
-  if (pathToFile.includes(COVERART_PREFIX)) {
+  // if working on audio cover art, prune unneeded metadata
+  if (pathToFile.includes(COVERART_AUDIO_PREFIX)) {
     metadataList = filter(metadataList, (item) => {
       const key = Object.keys(item)[0]
       return ['eivu:artist_name', 'eivu:release_name', 'eivu:year', 'id3:album', 'id3:artist', 'id3:genre'].includes(
@@ -378,7 +379,7 @@ export const generateDataProfile = async ({
   if (metadataList.some((item) => Object.hasOwn(item, 'override:name'))) {
     name = pruneString(metadataList, 'override:name')
   } // alter name for audio cover art files
-  else if (pathToFile.includes(COVERART_PREFIX)) {
+  else if (pathToFile.includes(COVERART_AUDIO_PREFIX)) {
     name = 'Cover Art'
     const label = [artist_name, release_name].filter(Boolean).join(' - ')
     const name_xtra = label ? ` for ${label}` : ''
@@ -497,7 +498,7 @@ const uploadAudioMetadataArtwork = async ({
 
   const bufferData = Buffer.from(iAudioMetadata.common.picture[0].data)
 
-  const tmpFile = tmp.fileSync({mode: 0o644, postfix: `.${subtype}`, prefix: `${COVERART_PREFIX}-`})
+  const tmpFile = tmp.fileSync({mode: 0o644, postfix: `.${subtype}`, prefix: `${COVERART_AUDIO_PREFIX}-`})
 
   try {
     await fsp.appendFile(tmpFile.name, bufferData)

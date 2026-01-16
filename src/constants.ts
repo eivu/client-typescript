@@ -157,6 +157,8 @@ export enum V2_FRAMES {
 
 /** Prefix used for cover art identification */
 export const COVERART_PREFIX = 'coverart-extractedByEivu'
+export const COVERART_AUDIO_PREFIX = `${COVERART_PREFIX}-forAudio`
+export const COVERART_COMIC_PREFIX = `${COVERART_PREFIX}-forComic`
 
 /**
  * Root directory for temporary files, normalized for cross-platform compatibility
