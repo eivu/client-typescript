@@ -413,7 +413,7 @@ describe('Metadata Extraction', () => {
 
       const coverArtTransferReq = nock(SERVER_HOST)
         .post(`${URL_BUCKET_PREFIX}/cloud_files/FC95C8DB0CECB47D449DFFD694AD963C/transfer`, {
-          asset: 'coverart-extractedByEivu-forAudio.webp',
+          asset: 'coverart-extractedByEivu-forComic.webp',
           content_type: 'image/webp', // eslint-disable-line camelcase
           filesize: coverArtFilesize,
         })
