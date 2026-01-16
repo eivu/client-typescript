@@ -4,8 +4,18 @@ import {cleansedAssetName, md5AsFolders} from '../src/utils'
 
 describe('Utils', () => {
   describe('cleansedAssetName', () => {
+    it('returns "coverart-extractedByEivu-forAudio.webp" for cover art files', () => {
+      const pathToFile = '/some/path/coverart-extractedByEivu-forAudio-random-string.webp'
+      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forAudio.webp')
+    })
+
+    it('returns "coverart-extractedByEivu-forComic.webp" for cover art files', () => {
+      const pathToFile = '/some/path/coverart-extractedByEivu-forComic-random-string.webp'
+      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forComic.webp')
+    })
+
     it('returns "coverart-extractedByEivu.jpg" for cover art files', () => {
-      const pathToFile = '/some/path/coverart-extractedByEivu.jpg'
+      const pathToFile = '/some/path/coverart-extractedByEivu-random-string.jpg'
       expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu.jpg')
     })
 

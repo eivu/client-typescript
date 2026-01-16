@@ -1,4 +1,4 @@
-import {COVERART_PREFIX} from '@src/constants'
+import {COVERART_AUDIO_PREFIX, COVERART_COMIC_PREFIX, COVERART_PREFIX} from '@src/constants'
 import {pruneMetadata} from '@src/metadata-extraction'
 import axios from 'axios'
 import mime from 'mime-types'
@@ -113,6 +113,8 @@ const mimeLookup = (pathToFile: string): false | string => {
  */
 export function cleansedAssetName(name: string): string {
   const [basename, extension] = path.basename(name).split('.')
+  if (basename.startsWith(COVERART_AUDIO_PREFIX)) return `${COVERART_AUDIO_PREFIX}.${extension}`
+  if (basename.startsWith(COVERART_COMIC_PREFIX)) return `${COVERART_COMIC_PREFIX}.${extension}`
   if (basename.startsWith(COVERART_PREFIX)) return `${COVERART_PREFIX}.${extension}`
 
   return sanitize(name)
