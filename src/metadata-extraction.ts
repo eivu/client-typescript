@@ -345,7 +345,7 @@ export const generateDataProfile = async ({
   console.log('ymlInfo.metadata_list to merge:')
   console.dir(ymlInfo.metadata_list)
   metadataList = uniqWith([...metadataList, ...fileInfo, ...ymlInfo.metadata_list], metadataPairEquals)
-
+  metadataList = metadataList.filter((item) => Object.keys(item).length > 0)
   console.log('metadataList after merging and deduplication:')
   console.dir(metadataList)
   // Optionally include original local path
@@ -387,7 +387,8 @@ export const generateDataProfile = async ({
   } else {
     name = ymlInfo.name ?? pruneString(metadataList, 'eivu:name')
   }
-
+  console.log('metadataList:')
+  console.dir(metadataList)
   const dataProfile: MetadataProfile = {
     artists: artist_name ? [{name: artist_name} as Artist] : [],
     artwork_md5,
