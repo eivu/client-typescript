@@ -42,8 +42,16 @@ console.log('====================')
 console.log('Upload Result:')
 console.dir(e)
 
-const result = await uploadComicMetadataArtwork(
-  'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz',
-)
-console.log('Uploaded cover art')
-console.dir(result)
+const p: CloudFile = await client.uploadFile({
+  pathToFile: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz',
+})
+console.log('====================')
+console.log('Upload Result:')
+console.dir(p)
+console.log('====================')
+
+// const result = await uploadComicMetadataArtwork(
+//   'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz',
+// )
+// console.log('Uploaded cover art')
+// console.dir(result)
