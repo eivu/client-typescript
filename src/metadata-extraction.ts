@@ -18,7 +18,7 @@ import {detectMime} from '@src/utils'
 import filter from 'lodash/filter'
 import uniqWith from 'lodash/uniqWith'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
-import {createExtractorFromFile} from 'node-unrar-js'
+import {createExtractorFromData} from 'node-unrar-js'
 import {execFile} from 'node:child_process'
 import {promises as fsp} from 'node:fs'
 import path from 'node:path'
@@ -162,62 +162,49 @@ export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> =
  * @private
  */
 const extractFirstRarEntry = async (pathToFile: string): Promise<string> => {
-  // Create extractor from file
-  const extractor = await createExtractorFromFile({filepath: pathToFile})
+  // Read the RAR file into memory
+  const rarBuffer = await fsp.readFile(pathToFile)
+  const rarData = new Uint8Array(rarBuffer)
+
+  // Create extractor from data (in-memory mode)
+  const extractor = await createExtractorFromData({data: rarData})
 
   try {
     // Get file list
     const list = extractor.getFileList()
-    const fileHeadersIter = list.fileHeaders
+    const fileHeaders = [...list.fileHeaders]
 
-    // Collect all non-directory file entries
-    const headers = []
-    for (const fh of fileHeadersIter) {
-      if (!fh.flags.directory) {
-        headers.push(fh)
-      }
+    if (fileHeaders.length === 0) {
+      throw new Error('No files found in rar archive')
     }
 
-    if (headers.length === 0) {
-      throw new Error('No files found in RAR archive')
+    // Filter out directories
+    const entries = fileHeaders.filter((fh) => !fh.flags.directory)
+
+    if (entries.length === 0) {
+      throw new Error('No files found in rar archive (only directories)')
     }
 
     // Sort entries alphabetically by filename
-    headers.sort((a, b) => a.name.localeCompare(b.name))
+    entries.sort((a, b) => a.name.localeCompare(b.name))
 
     // Get the first entry after sorting
-    const firstHeader = headers[0]
-    const originalExtension = path.extname(firstHeader.name)
-    const outputPath = path.join(TEMP_FOLDER_ROOT, `${COVERART_COMIC_PREFIX}${originalExtension}`)
+    const firstEntry = entries[0]
+    const outputPath = path.join(TEMP_FOLDER_ROOT, `${COVERART_COMIC_PREFIX}-${path.basename(firstEntry.name)}`)
 
     // Extract the first entry
-    const extractResult = await extractor.extract({
-      files: [firstHeader.name],
-    })
+    const extracted = await extractor.extract({files: [firstEntry.name]})
+    const files = [...extracted.files]
 
-    // Find the extracted file and write it
-    for await (const arcFile of extractResult.files) {
-      const fh = arcFile.fileHeader
-
-      if (fh.name === firstHeader.name) {
-        if (fh.flags.directory) {
-          throw new Error('Selected entry is a directory, unexpected')
-        }
-
-        const content = arcFile.extraction
-
-        if (!content) {
-          throw new Error(`No extracted content for file ${fh.name}`)
-        }
-
-        // Write buffer to file
-        await fsp.writeFile(outputPath, Buffer.from(content))
-
-        return outputPath
-      }
+    if (files.length !== 1 || !files[0].extraction) {
+      throw new Error(`Failed to extract file: ${firstEntry.name}`)
     }
 
-    throw new Error('File to extract was not found in the extraction results')
+    // Write buffer to file
+    const buffer = Buffer.from(files[0].extraction)
+    await fsp.writeFile(outputPath, buffer)
+
+    return outputPath
   } finally {
     // Clean up extractor if needed (node-unrar-js doesn't require explicit close, but we'll keep the pattern)
   }
@@ -597,8 +584,18 @@ const uploadAudioMetadataArtwork = async ({
 export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<MetadataPair> => {
   try {
     let pathToCoverArt: string | undefined
-    if (pathToFile.endsWith('.cbz')) pathToCoverArt = await extractFirstZipEntry(pathToFile)
-    if (pathToFile.endsWith('.cbr')) pathToCoverArt = await extractFirstRarEntry(pathToFile)
+    if (pathToFile.endsWith('.cbz')) {
+      pathToCoverArt = await extractFirstZipEntry(pathToFile)
+    } else if (pathToFile.endsWith('.cbr')) {
+      // Try RAR extraction first, but fall back to ZIP if it fails
+      // (some .cbr files are actually ZIP archives)
+      try {
+        pathToCoverArt = await extractFirstRarEntry(pathToFile)
+      } catch {
+        // If RAR extraction fails, try ZIP extraction as fallback
+        pathToCoverArt = await extractFirstZipEntry(pathToFile)
+      }
+    }
 
     if (!pathToCoverArt) throw new Error(`Failed to extract cover art from ${pathToFile}`)
 
