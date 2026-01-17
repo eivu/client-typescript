@@ -713,7 +713,7 @@ export const THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION: CloudFileType = {
 
 export const THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER: CloudFileType = {
   ...THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION,
-  asset: 'coverart-extractedByEivu-forAudio.webp',
+  asset: 'coverart-extractedByEivu-forComic.webp',
   content_type: 'image/webp',
   filesize: 775_296,
   state: CloudFileState.TRANSFERRED,
@@ -722,12 +722,12 @@ export const THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER: CloudFileType = {
 export const THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE: CloudFileType = {
   ...THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER,
   metadata: [
-    {
-      id: 1,
-      type: 'original_local_path_to_file',
-      value: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
-    },
+    // {
+    //   id: 1,
+    //   type: 'original_local_path_to_file',
+    //   value: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
+    // },
   ],
-  name: 'Cover Art for The Peacemaker #1',
+  name: 'Cover Art for The Peacemaker',
   state: CloudFileState.COMPLETED,
 }
