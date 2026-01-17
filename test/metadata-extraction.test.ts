@@ -29,6 +29,11 @@ import {
   FROG_PRINCE_PARAGRAPH_1_AUDIO_INFO_WITH_COVER_ART,
   FROG_PRINCE_PARAGRAPH_1_DATA_PROFILE,
   FROG_PRINCE_PARAGRAPH_1_FINGERPRINT,
+  SPACE_ADVENTURES_033_1960_COVER_ART_COMPLETE,
+  SPACE_ADVENTURES_033_1960_COVER_ART_DATA_PROFILE,
+  SPACE_ADVENTURES_033_1960_COVER_ART_RESERVATION,
+  SPACE_ADVENTURES_033_1960_COVER_ART_S3_RESPONSE,
+  SPACE_ADVENTURES_033_1960_COVER_ART_TRANSFER,
   THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE,
   THE_PEACEMAKER_01_1967_COVER_ART_DATA_PROFILE,
   THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION,
@@ -427,6 +432,51 @@ describe('Metadata Extraction', () => {
         )
         .query({keyFormat: 'camel_lower'})
         .reply(200, THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE)
+      const result = await uploadComicMetadataArtwork(pathToFile)
+      expect(result).toBeTruthy()
+      expect(coverArtReserveReq.isDone()).toBeTrue()
+      expect(coverArtOnlineReq.isDone()).toBeTrue()
+      expect(coverArtTransferReq.isDone()).toBeTrue()
+      expect(coverArtCompleteReq.isDone()).toBeTrue()
+    })
+
+    it('uploads the first entry for Space_Adventures_033.eivu_compressed.cbr (tests RAR extraction with ZIP fallback)', async () => {
+      nock.cleanAll()
+      const coverArtFilesize = 396_820
+
+      // Mock S3 upload
+      mockSend.mockResolvedValue(SPACE_ADVENTURES_033_1960_COVER_ART_S3_RESPONSE)
+      const pathToFile = 'test/fixtures/samples/comics/Space_Adventures_033.eivu_compressed.cbr'
+
+      const coverArtReserveReq = nock(SERVER_HOST)
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/6C42CC77B1747B882C9D2A234E41D3FD/reserve`, {
+          nsfw: false,
+          secured: false,
+        })
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, SPACE_ADVENTURES_033_1960_COVER_ART_RESERVATION)
+
+      // Mock the HEAD request to check if file is online
+      const coverArtOnlineReq = nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
+        .head('/image/6C/42/CC/77/B1/74/7B/88/2C/9D/2A/23/4E/41/D3/FD/coverart-extractedByEivu-forComic.webp')
+        .reply(200, 'body', {
+          'Content-Length': String(coverArtFilesize),
+        })
+
+      const coverArtTransferReq = nock(SERVER_HOST)
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/6C42CC77B1747B882C9D2A234E41D3FD/transfer`, {
+          asset: 'coverart-extractedByEivu-forComic.webp',
+          content_type: 'image/webp', // eslint-disable-line camelcase
+          filesize: coverArtFilesize,
+        })
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, SPACE_ADVENTURES_033_1960_COVER_ART_TRANSFER)
+
+      const coverArtCompleteReq = nock(SERVER_HOST)
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/6C42CC77B1747B882C9D2A234E41D3FD/complete`)
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, SPACE_ADVENTURES_033_1960_COVER_ART_COMPLETE)
+
       const result = await uploadComicMetadataArtwork(pathToFile)
       expect(result).toBeTruthy()
       expect(coverArtReserveReq.isDone()).toBeTrue()

@@ -164,7 +164,9 @@ export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> =
 const extractFirstRarEntry = async (pathToFile: string): Promise<string> => {
   // Read the RAR file into memory
   const rarBuffer = await fsp.readFile(pathToFile)
-  const rarData = new Uint8Array(rarBuffer)
+  // Convert Buffer to ArrayBuffer (createExtractorFromData expects ArrayBuffer)
+  // Create a new ArrayBuffer to ensure it's not a SharedArrayBuffer
+  const rarData = rarBuffer.buffer.slice(rarBuffer.byteOffset, rarBuffer.byteOffset + rarBuffer.byteLength) as ArrayBuffer
 
   // Create extractor from data (in-memory mode)
   const extractor = await createExtractorFromData({data: rarData})

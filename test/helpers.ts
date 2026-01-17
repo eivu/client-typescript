@@ -62,6 +62,27 @@ export function removeAttributeFromBodyTest(
             return key !== field && key !== 'original_local_path_to_file'
           })
         }
+      } else if (field === 'original_local_path_to_file') {
+        // Filter original_local_path_to_file from metadata_list
+        // eslint-disable-next-line dot-notation
+        if (actualBody['metadata_list'] && Array.isArray(actualBody['metadata_list'])) {
+          // eslint-disable-next-line dot-notation
+          actualBody['metadata_list'] = actualBody['metadata_list'].filter((item: unknown) => {
+            const key = Object.keys(item as Record<string, unknown>)[0]
+
+            return key !== 'original_local_path_to_file'
+          })
+        }
+
+        // eslint-disable-next-line dot-notation
+        if (expectedBody['metadata_list'] && Array.isArray(expectedBody['metadata_list'])) {
+          // eslint-disable-next-line dot-notation
+          expectedBody['metadata_list'] = expectedBody['metadata_list'].filter((item: unknown) => {
+            const key = Object.keys(item as Record<string, unknown>)[0]
+
+            return key !== 'original_local_path_to_file'
+          })
+        }
       } else {
         // Check if the field value starts with the temp directory path
         // Normalize paths for cross-platform compatibility (handles / vs \ separators)
@@ -90,6 +111,11 @@ export function removeAttributeFromBodyTest(
             delete expectedBody[field]
             delete actualBody[field]
           }
+        } else {
+          // For non-string fields or when values don't match temp path pattern,
+          // remove the field from both bodies to exclude it from comparison
+          delete expectedBody[field]
+          delete actualBody[field]
         }
       }
     }

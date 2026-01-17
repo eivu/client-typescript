@@ -740,6 +740,9 @@ export const SPACE_ADVENTURES_033_1960_COVER_ART_DATA_PROFILE = {
   info_url: null,
   metadata_list: [
     {
+      'override:name': 'Cover Art for test/fixtures/samples/comics/Space_Adventures_033.eivu_compressed.cbr',
+    },
+    {
       original_local_path_to_file: 'test/fixtures/samples/image/Space_Adventures_033.webp',
     },
   ],
