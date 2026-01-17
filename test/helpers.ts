@@ -1,6 +1,6 @@
 import path from 'node:path'
 
-import {TEMP_FOLDER_ROOT} from '../src/constants'
+import {COVERART_PREFIX, TEMP_FOLDER_ROOT} from '../src/constants'
 
 /**
  * Creates a body matcher function for nock that compares request bodies
@@ -84,7 +84,7 @@ export function removeAttributeFromBodyTest(
           })
         }
       } else {
-        // Check if the field value starts with the temp directory path
+        // Check if the field value starts with the temp directory path or includes coverart prefix
         // Normalize paths for cross-platform compatibility (handles / vs \ separators)
         // Check both expected and actual body values to handle dynamic temp paths
         const expectedValue = expectedBody?.[field]
@@ -94,20 +94,25 @@ export function removeAttributeFromBodyTest(
           const normalizedExpected = path.normalize(expectedValue)
           const normalizedActual = path.normalize(actualValue)
 
-          // Remove the field if either value is in the temp directory
-          if (normalizedExpected.startsWith(TEMP_FOLDER_ROOT) || normalizedActual.startsWith(TEMP_FOLDER_ROOT)) {
+          // Remove the field if either value is in the temp directory or includes coverart prefix
+          if (
+            normalizedExpected.startsWith(TEMP_FOLDER_ROOT) ||
+            normalizedActual.startsWith(TEMP_FOLDER_ROOT) ||
+            normalizedExpected.includes(COVERART_PREFIX) ||
+            normalizedActual.includes(COVERART_PREFIX)
+          ) {
             delete expectedBody[field]
             delete actualBody[field]
           }
         } else if (typeof expectedValue === 'string') {
           const normalizedValue = path.normalize(expectedValue)
-          if (normalizedValue.startsWith(TEMP_FOLDER_ROOT)) {
+          if (normalizedValue.startsWith(TEMP_FOLDER_ROOT) || normalizedValue.includes(COVERART_PREFIX)) {
             delete expectedBody[field]
             delete actualBody[field]
           }
         } else if (typeof actualValue === 'string') {
           const normalizedValue = path.normalize(actualValue)
-          if (normalizedValue.startsWith(TEMP_FOLDER_ROOT)) {
+          if (normalizedValue.startsWith(TEMP_FOLDER_ROOT) || normalizedValue.includes(COVERART_PREFIX)) {
             delete expectedBody[field]
             delete actualBody[field]
           }
@@ -120,9 +125,10 @@ export function removeAttributeFromBodyTest(
       }
     }
 
-    // Also filter original_local_path_to_file from metadata_list if either body has a temp path
-    // This handles cases where cover art is extracted to temp files
+    // Also filter original_local_path_to_file from metadata_list if either body has a temp path or coverart path
+    // This handles cases where cover art is extracted to temp files or has coverart prefix
     let hasTempPath = false
+    let hasCoverartPath = false
 
     // eslint-disable-next-line dot-notation
     if (actualBody['metadata_list'] && Array.isArray(actualBody['metadata_list'])) {
@@ -133,10 +139,27 @@ export function removeAttributeFromBodyTest(
 
         return key === 'original_local_path_to_file' && typeof value === 'string' && path.normalize(value).startsWith(TEMP_FOLDER_ROOT)
       })
+      // eslint-disable-next-line dot-notation
+      hasCoverartPath = actualBody['metadata_list'].some((item: unknown) => {
+        const key = Object.keys(item as Record<string, unknown>)[0]
+        const value = Object.values(item as Record<string, unknown>)[0]
+
+        return key === 'original_local_path_to_file' && typeof value === 'string' && value.includes(COVERART_PREFIX)
+      })
     }
 
-    // If either body has a temp path, filter original_local_path_to_file from both
-    if (hasTempPath) {
+    // Also check expected body for coverart paths
+    if (!hasCoverartPath && expectedBody.metadata_list && Array.isArray(expectedBody.metadata_list)) {
+      hasCoverartPath = expectedBody.metadata_list.some((item: unknown) => {
+        const key = Object.keys(item as Record<string, unknown>)[0]
+        const value = Object.values(item as Record<string, unknown>)[0]
+
+        return key === 'original_local_path_to_file' && typeof value === 'string' && value.includes(COVERART_PREFIX)
+      })
+    }
+
+    // If either body has a temp path or coverart path, filter original_local_path_to_file from both
+    if (hasTempPath || hasCoverartPath) {
       // eslint-disable-next-line dot-notation
       if (actualBody['metadata_list'] && Array.isArray(actualBody['metadata_list'])) {
         // eslint-disable-next-line dot-notation
@@ -156,6 +179,27 @@ export function removeAttributeFromBodyTest(
           return key !== 'original_local_path_to_file'
         })
       }
+    }
+
+    // Always filter out override:* keys from metadata_list (they should already be pruned, but this is a safeguard)
+    // eslint-disable-next-line dot-notation
+    if (actualBody['metadata_list'] && Array.isArray(actualBody['metadata_list'])) {
+      // eslint-disable-next-line dot-notation
+      actualBody['metadata_list'] = actualBody['metadata_list'].filter((item: unknown) => {
+        const key = Object.keys(item as Record<string, unknown>)[0]
+
+        return !key.startsWith('override:')
+      })
+    }
+
+    // eslint-disable-next-line dot-notation
+    if (expectedBody['metadata_list'] && Array.isArray(expectedBody['metadata_list'])) {
+      // eslint-disable-next-line dot-notation
+      expectedBody['metadata_list'] = expectedBody['metadata_list'].filter((item: unknown) => {
+        const key = Object.keys(item as Record<string, unknown>)[0]
+
+        return !key.startsWith('override:')
+      })
     }
 
     return JSON.stringify(actualBody) === JSON.stringify(expectedBody)

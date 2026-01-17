@@ -3,6 +3,7 @@ import {CloudFile} from '@src/cloud-file'
 import {
   COVERART_AUDIO_PREFIX,
   COVERART_COMIC_PREFIX,
+  COVERART_PREFIX,
   PERFORMER_REGEX,
   RATING_425_REGEX,
   RATING_500_475_REGEX,
@@ -166,7 +167,10 @@ const extractFirstRarEntry = async (pathToFile: string): Promise<string> => {
   const rarBuffer = await fsp.readFile(pathToFile)
   // Convert Buffer to ArrayBuffer (createExtractorFromData expects ArrayBuffer)
   // Create a new ArrayBuffer to ensure it's not a SharedArrayBuffer
-  const rarData = rarBuffer.buffer.slice(rarBuffer.byteOffset, rarBuffer.byteOffset + rarBuffer.byteLength) as ArrayBuffer
+  const rarData = rarBuffer.buffer.slice(
+    rarBuffer.byteOffset,
+    rarBuffer.byteOffset + rarBuffer.byteLength,
+  ) as ArrayBuffer
 
   // Create extractor from data (in-memory mode)
   const extractor = await createExtractorFromData({data: rarData})
@@ -410,14 +414,9 @@ export const generateDataProfile = async ({
   // Optionally include original local path
   // For temp files (extracted cover art), we still want to track the original local path
   // unless it's already in the metadata list
-  if (!pathToFile.startsWith(TEMP_FOLDER_ROOT)) {
+  // Skip adding original_local_path_to_file for coverart files
+  if (!pathToFile.startsWith(TEMP_FOLDER_ROOT) && !pathToFile.includes(COVERART_PREFIX)) {
     metadataList.push({original_local_path_to_file: pathToFile}) // eslint-disable-line camelcase
-  } else if (pathToFile.includes(COVERART_COMIC_PREFIX) || pathToFile.includes(COVERART_AUDIO_PREFIX)) {
-    // For comic/audio cover art temp files, add original_local_path_to_file if not already present
-    const hasOriginalPath = metadataList.some((item) => Object.hasOwn(item, 'original_local_path_to_file'))
-    if (!hasOriginalPath) {
-      metadataList.push({original_local_path_to_file: pathToFile}) // eslint-disable-line camelcase
-    }
   }
 
   // if working on audio cover art, prune unneeded metadata
@@ -602,7 +601,7 @@ export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<Me
     if (!pathToCoverArt) throw new Error(`Failed to extract cover art from ${pathToFile}`)
 
     const {name}: MetadataProfile = await extractInfoFromYml(pathToFile)
-    const label = `Cover Art for ${name ?? pathToFile}`
+    const label = `Cover Art for ${name ?? path.basename(pathToFile)}`
     const metadataList: MetadataPair[] = [{'override:name': label} as MetadataPair]
 
     const coverArt = await Client.uploadFile({metadataList, pathToFile: pathToCoverArt})

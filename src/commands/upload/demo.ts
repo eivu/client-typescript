@@ -1,6 +1,7 @@
 import {Client} from '@src/client'
 import {CloudFile} from '@src/cloud-file'
-// import {uploadComicMetadataArtwork} from '@src/metadata-extraction'
+// import {uploadComicMetadataArtwork} from '@src
+// /metadata-extraction'
 
 const client = new Client()
 // const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'

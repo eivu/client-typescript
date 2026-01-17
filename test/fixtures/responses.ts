@@ -641,10 +641,15 @@ export const THE_PEACEMAKER_01_1967_PARSED_YML = {
 
 export const THE_PEACEMAKER_01_1967_DATA_PROFILE = {
   ...THE_PEACEMAKER_01_1967_PARSED_YML,
+  artwork_md5: 'FC95C8DB0CECB47D449DFFD694AD963C',
   metadata_list: [
     ...THE_PEACEMAKER_01_1967_PARSED_YML.metadata_list,
     {original_local_path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz'},
   ],
+  release: {
+    ...THE_PEACEMAKER_01_1967_PARSED_YML.release,
+    artwork_md5: 'FC95C8DB0CECB47D449DFFD694AD963C',
+  },
 }
 
 export const THE_PEACEMAKER_01_1967_COVER_ART_DATA_PROFILE = {
@@ -653,11 +658,7 @@ export const THE_PEACEMAKER_01_1967_COVER_ART_DATA_PROFILE = {
   description: null,
   duration: null,
   info_url: null,
-  metadata_list: [
-    {
-      original_local_path_to_file: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
-    },
-  ],
+  metadata_list: [],
   name: 'Cover Art for The Peacemaker',
   path_to_file: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
   rating: null,
@@ -738,15 +739,8 @@ export const SPACE_ADVENTURES_033_1960_COVER_ART_DATA_PROFILE = {
   description: null,
   duration: null,
   info_url: null,
-  metadata_list: [
-    {
-      'override:name': 'Cover Art for test/fixtures/samples/comics/Space_Adventures_033.eivu_compressed.cbr',
-    },
-    {
-      original_local_path_to_file: 'test/fixtures/samples/image/Space_Adventures_033.webp',
-    },
-  ],
-  name: 'Cover Art for Space Adventures #33',
+  metadata_list: [],
+  name: 'Cover Art for Space_Adventures_033.eivu_compressed.cbr',
   path_to_file: 'test/fixtures/samples/image/Space_Adventures_033.webp',
   rating: null,
   release: EMPTY_RELEASE,

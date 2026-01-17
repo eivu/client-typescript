@@ -257,9 +257,51 @@ describe('Metadata Extraction', () => {
     })
 
     it('generates a data profile for The_Peacemaker_01_1967.eivu_compressed.cbz', async () => {
+      nock.cleanAll()
+      const coverArtFilesize = 775_296
+
+      // Mock S3 upload
+      mockSend.mockResolvedValue(THE_PEACEMAKER_01_1967_COVER_ART_S3_RESPONSE)
       const pathToFile = 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz'
+
+      const coverArtReserveReq = nock(SERVER_HOST)
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/FC95C8DB0CECB47D449DFFD694AD963C/reserve`, {
+          nsfw: false,
+          secured: false,
+        })
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION)
+
+      // Mock the HEAD request to check if file is online
+      const coverArtOnlineReq = nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
+        .head('/image/FC/95/C8/DB/0C/EC/B4/7D/44/9D/FF/D6/94/AD/96/3C/coverart-extractedByEivu-forComic.webp')
+        .reply(200, 'body', {
+          'Content-Length': String(coverArtFilesize),
+        })
+
+      const coverArtTransferReq = nock(SERVER_HOST)
+        .post(`${URL_BUCKET_PREFIX}/cloud_files/FC95C8DB0CECB47D449DFFD694AD963C/transfer`, {
+          asset: 'coverart-extractedByEivu-forComic.webp',
+          content_type: 'image/webp', // eslint-disable-line camelcase
+          filesize: coverArtFilesize,
+        })
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER)
+
+      const coverArtCompleteReq = nock(SERVER_HOST)
+        .post(
+          `${URL_BUCKET_PREFIX}/cloud_files/FC95C8DB0CECB47D449DFFD694AD963C/complete`,
+          removeAttributeFromBodyTest(THE_PEACEMAKER_01_1967_COVER_ART_DATA_PROFILE, ['path_to_file']),
+        )
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE)
+
       const result: MetadataProfile = await generateDataProfile({pathToFile})
       expect(result).toEqual(THE_PEACEMAKER_01_1967_DATA_PROFILE)
+      expect(coverArtReserveReq.isDone()).toBeTrue()
+      expect(coverArtOnlineReq.isDone()).toBeTrue()
+      expect(coverArtTransferReq.isDone()).toBeTrue()
+      expect(coverArtCompleteReq.isDone()).toBeTrue()
     })
 
     it('generates a data profile for _Dredd ((Comic Book Movie)) ((p Karl Urban)) ((p Lena Headey)) ((s DNA Films)) ((script)) ((y 2012)).txt', async () => {
@@ -473,7 +515,10 @@ describe('Metadata Extraction', () => {
         .reply(200, SPACE_ADVENTURES_033_1960_COVER_ART_TRANSFER)
 
       const coverArtCompleteReq = nock(SERVER_HOST)
-        .post(`${URL_BUCKET_PREFIX}/cloud_files/6C42CC77B1747B882C9D2A234E41D3FD/complete`)
+        .post(
+          `${URL_BUCKET_PREFIX}/cloud_files/6C42CC77B1747B882C9D2A234E41D3FD/complete`,
+          removeAttributeFromBodyTest(SPACE_ADVENTURES_033_1960_COVER_ART_DATA_PROFILE, ['path_to_file']),
+        )
         .query({keyFormat: 'camel_lower'})
         .reply(200, SPACE_ADVENTURES_033_1960_COVER_ART_COMPLETE)
 
