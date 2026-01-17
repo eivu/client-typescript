@@ -91,8 +91,10 @@ export const md5AsFolders = (md5: string): string => {
 
 /**
  * Performs MIME type lookup with custom mappings for specific file extensions
+ * Provides custom MIME types for certain file extensions before falling back to standard mime-types lookup
  * @param pathToFile - The path to the file
  * @returns The MIME type string, or false if not found
+ * @private
  */
 const mimeLookup = (pathToFile: string): false | string => {
   if (pathToFile.endsWith('.m4a')) return 'audio/mpeg'
@@ -122,8 +124,10 @@ export function cleansedAssetName(name: string): string {
 
 /**
  * Sanitizes a filename by removing metadata, special characters, and normalizing the result
+ * Removes metadata tags, normalizes path separators, removes special characters, and ensures a valid filename
  * @param name - The filename to sanitize
  * @returns The sanitized filename safe for storage
+ * @private
  */
 function sanitize(name: string): string {
   name = pruneMetadata(name)

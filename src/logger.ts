@@ -7,6 +7,12 @@ export type Logger = pino.Logger
 // In test environment, use synchronous destination for immediate output
 // In production, use default async destination
 // In development, use pretty printing with sync transport
+/**
+ * Creates a configured Pino logger instance based on the environment
+ * Uses synchronous logging in test environments, pretty printing in development, and standard JSON in production
+ * @returns A configured Pino Logger instance
+ * @private
+ */
 const createLogger = () => {
   if (isTestEnvironment) {
     // For tests, use synchronous destination to ensure output appears immediately and in order

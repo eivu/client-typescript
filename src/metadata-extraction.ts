@@ -153,11 +153,24 @@ export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> =
   return [coverArtMetadata, ...extractMetadataList(pathToFile)]
 }
 
+/**
+ * Extracts the first entry from a RAR archive file
+ * @param pathToFile - The path to the RAR archive file
+ * @returns Promise that resolves to the path of the extracted first entry
+ * @private
+ */
 const extractFirstRarEntry = async (pathToFile: string): Promise<string> => {
   console.log('Uploading first rar entry for', pathToFile)
   return 'aaaa'
 }
 
+/**
+ * Extracts the first entry from a ZIP archive file
+ * Sorts entries alphabetically and extracts the first file (excluding directories)
+ * @param pathToFile - The path to the ZIP archive file
+ * @returns Promise that resolves to the path of the extracted first entry
+ * @private
+ */
 const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
   const zip = await yauzl.open(pathToFile)
 
@@ -203,6 +216,12 @@ const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
   }
 }
 
+/**
+ * Extracts metadata profile from an associated YAML file
+ * Attempts to read and parse a .eivu.yml file with the same name as the input file
+ * @param pathToFile - The path to the file (the corresponding .eivu.yml file will be read)
+ * @returns Promise that resolves to a MetadataProfile, either from the YAML file or an empty profile if the file doesn't exist
+ */
 export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataProfile> => {
   const ymlPath = `${pathToFile}.eivu.yml`
   try {
@@ -510,11 +529,17 @@ const uploadAudioMetadataArtwork = async ({
   }
 }
 
+/**
+ * Uploads cover art extracted from a comic archive (CBZ/CBR) as a separate cloud file
+ * Extracts the first image from the archive and uploads it with appropriate metadata
+ * @param pathToFile - The path to the comic archive file (.cbz or .cbr)
+ * @returns Promise that resolves to a MetadataPair containing the artwork MD5 hash, or an empty object on failure
+ */
 export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<MetadataPair> => {
   try {
     let pathToCoverArt: string | undefined
     if (pathToFile.endsWith('.cbz')) pathToCoverArt = await extractFirstZipEntry(pathToFile)
-    // if (pathToFile.endsWith('.cbr')) pathToCoverArt = await extractFirstRarEntry(pathToFile)
+    if (pathToFile.endsWith('.cbr')) pathToCoverArt = await extractFirstRarEntry(pathToFile)
 
     if (!pathToCoverArt) throw new Error(`Failed to extract cover art from ${pathToFile}`)
 

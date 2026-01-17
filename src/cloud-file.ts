@@ -125,6 +125,11 @@ export class CloudFile {
     return this.remoteAttr.state === CloudFileState.COMPLETED
   }
 
+  /**
+   * Determines the grouping/category for the cloud file based on its attributes
+   * Files are grouped as 'secured', by resource type (audio/image/video), or 'archive'
+   * @returns The grouping string: 'secured', 'audio', 'image', 'video', or 'archive'
+   */
   grouping(): string {
     if (this.remoteAttr.peepy || this.remoteAttr.secured) {
       return 'secured'
