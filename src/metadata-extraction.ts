@@ -18,6 +18,7 @@ import {detectMime} from '@src/utils'
 import filter from 'lodash/filter'
 import uniqWith from 'lodash/uniqWith'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
+import {createExtractorFromFile} from 'node-unrar-js'
 import {execFile} from 'node:child_process'
 import {promises as fsp} from 'node:fs'
 import path from 'node:path'
@@ -155,13 +156,71 @@ export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> =
 
 /**
  * Extracts the first entry from a RAR archive file
+ * Sorts entries alphabetically and extracts the first file (excluding directories)
  * @param pathToFile - The path to the RAR archive file
  * @returns Promise that resolves to the path of the extracted first entry
  * @private
  */
 const extractFirstRarEntry = async (pathToFile: string): Promise<string> => {
-  console.log('Uploading first rar entry for', pathToFile)
-  return 'aaaa'
+  // Create extractor from file
+  const extractor = await createExtractorFromFile({filepath: pathToFile})
+
+  try {
+    // Get file list
+    const list = extractor.getFileList()
+    const fileHeadersIter = list.fileHeaders
+
+    // Collect all non-directory file entries
+    const headers = []
+    for (const fh of fileHeadersIter) {
+      if (!fh.flags.directory) {
+        headers.push(fh)
+      }
+    }
+
+    if (headers.length === 0) {
+      throw new Error('No files found in RAR archive')
+    }
+
+    // Sort entries alphabetically by filename
+    headers.sort((a, b) => a.name.localeCompare(b.name))
+
+    // Get the first entry after sorting
+    const firstHeader = headers[0]
+    const originalExtension = path.extname(firstHeader.name)
+    const outputPath = path.join(TEMP_FOLDER_ROOT, `${COVERART_COMIC_PREFIX}${originalExtension}`)
+
+    // Extract the first entry
+    const extractResult = await extractor.extract({
+      files: [firstHeader.name],
+    })
+
+    // Find the extracted file and write it
+    for await (const arcFile of extractResult.files) {
+      const fh = arcFile.fileHeader
+
+      if (fh.name === firstHeader.name) {
+        if (fh.flags.directory) {
+          throw new Error('Selected entry is a directory, unexpected')
+        }
+
+        const content = arcFile.extraction
+
+        if (!content) {
+          throw new Error(`No extracted content for file ${fh.name}`)
+        }
+
+        // Write buffer to file
+        await fsp.writeFile(outputPath, Buffer.from(content))
+
+        return outputPath
+      }
+    }
+
+    throw new Error('File to extract was not found in the extraction results')
+  } finally {
+    // Clean up extractor if needed (node-unrar-js doesn't require explicit close, but we'll keep the pattern)
+  }
 }
 
 /**
