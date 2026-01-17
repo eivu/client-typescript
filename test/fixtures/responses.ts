@@ -731,3 +731,88 @@ export const THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE: CloudFileType = {
   name: 'Cover Art for The Peacemaker',
   state: CloudFileState.COMPLETED,
 }
+
+export const SPACE_ADVENTURES_033_1960_COVER_ART_DATA_PROFILE = {
+  artists: [],
+  artwork_md5: null,
+  description: null,
+  duration: null,
+  info_url: null,
+  metadata_list: [
+    {
+      original_local_path_to_file: 'test/fixtures/samples/image/Space_Adventures_033.webp',
+    },
+  ],
+  name: 'Cover Art for Space Adventures #33',
+  path_to_file: 'test/fixtures/samples/image/Space_Adventures_033.webp',
+  rating: null,
+  release: EMPTY_RELEASE,
+  year: null,
+}
+
+export const SPACE_ADVENTURES_033_1960_COVER_ART_S3_RESPONSE = {
+  $metadata: {
+    attempts: 1,
+    httpStatusCode: 200,
+  },
+  ETag: '"6c42cc77b1747b882c9d2a234e41d3fd"',
+}
+
+export const SPACE_ADVENTURES_033_1960_COVER_ART_RESERVATION: CloudFileType = {
+  artists: [],
+  artwork_url: null,
+  asset: null,
+  bucket_name: 'eivu-test',
+  bucket_uuid: '889c685a-de30-4ead-9a96-b3784233e1e8',
+  content_type: null,
+  created_at: '2025-09-29T23:32:35.951Z',
+  data_source_id: null,
+  date_aquired_at: null,
+  deletable: false,
+  delicate: false,
+  description: null,
+  duration: null,
+  ext_id: null,
+  filesize: 0,
+  folder_uuid: null,
+  info_url: null,
+  last_viewed_at: null,
+  md5: '6C42CC77B1747B882C9D2A234E41D3FD',
+  metadata: [],
+  name: '6C42CC77B1747B882C9D2A234E41D3FD (reserved)',
+  nsfw: false,
+  num_plays: 0,
+  peepy: false,
+  rating: null,
+  release_pos: null,
+  releases: [],
+  secured: false,
+  shared: true,
+  state: CloudFileState.RESERVED,
+  updated_at: '2025-09-29T23:32:35.951Z',
+  url: 'https://eivu-test.s3.wasabisys.com/image/6C/42/CC/77/B1/74/7B/88/2C/9D/2A/23/4E/41/D3/FD/',
+  user_uuid: '0f703c04-b448-455c-8a26-4edc22bf76dd',
+  uuid: '',
+  year: null,
+}
+
+export const SPACE_ADVENTURES_033_1960_COVER_ART_TRANSFER: CloudFileType = {
+  ...SPACE_ADVENTURES_033_1960_COVER_ART_RESERVATION,
+  asset: 'coverart-extractedByEivu-forComic.webp',
+  content_type: 'image/webp',
+  filesize: 396_820,
+  state: CloudFileState.TRANSFERRED,
+}
+
+export const SPACE_ADVENTURES_033_1960_COVER_ART_COMPLETE: CloudFileType = {
+  ...SPACE_ADVENTURES_033_1960_COVER_ART_TRANSFER,
+  metadata: [
+    // {
+    //   id: 1,
+    //   type: 'original_local_path_to_file',
+    //   value: 'test/fixtures/samples/image/Space_Adventures_033.webp',
+    // },
+  ],
+  name: 'Cover Art for Space Adventures #33',
+  state: CloudFileState.COMPLETED,
+}
