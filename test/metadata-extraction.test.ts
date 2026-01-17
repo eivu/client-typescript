@@ -428,8 +428,6 @@ describe('Metadata Extraction', () => {
         .query({keyFormat: 'camel_lower'})
         .reply(200, THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE)
       const result = await uploadComicMetadataArtwork(pathToFile)
-      console.log('Uploaded cover art')
-      console.dir(result)
       expect(result).toBeTruthy()
       expect(coverArtReserveReq.isDone()).toBeTrue()
       expect(coverArtOnlineReq.isDone()).toBeTrue()

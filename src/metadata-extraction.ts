@@ -338,19 +338,19 @@ export const generateDataProfile = async ({
   // Use uniqWith with a custom comparator to deduplicate metadata pairs by their key-value pairs
   // This ensures that identical metadata entries from different sources (e.g., fileInfo and ymlInfo)
   // are properly deduplicated even though they're different object references
-  console.log('metadataList before merging:')
-  console.dir(metadataList)
-  console.log('fileInfo to merge:')
-  console.dir(fileInfo)
-  console.log('ymlInfo.metadata_list to merge:')
-  console.dir(ymlInfo.metadata_list)
   metadataList = uniqWith([...metadataList, ...fileInfo, ...ymlInfo.metadata_list], metadataPairEquals)
   metadataList = metadataList.filter((item) => Object.keys(item).length > 0)
-  console.log('metadataList after merging and deduplication:')
-  console.dir(metadataList)
   // Optionally include original local path
+  // For temp files (extracted cover art), we still want to track the original local path
+  // unless it's already in the metadata list
   if (!pathToFile.startsWith(TEMP_FOLDER_ROOT)) {
     metadataList.push({original_local_path_to_file: pathToFile}) // eslint-disable-line camelcase
+  } else if (pathToFile.includes(COVERART_COMIC_PREFIX) || pathToFile.includes(COVERART_AUDIO_PREFIX)) {
+    // For comic/audio cover art temp files, add original_local_path_to_file if not already present
+    const hasOriginalPath = metadataList.some((item) => Object.hasOwn(item, 'original_local_path_to_file'))
+    if (!hasOriginalPath) {
+      metadataList.push({original_local_path_to_file: pathToFile}) // eslint-disable-line camelcase
+    }
   }
 
   // if working on audio cover art, prune unneeded metadata
@@ -387,8 +387,7 @@ export const generateDataProfile = async ({
   } else {
     name = ymlInfo.name ?? pruneString(metadataList, 'eivu:name')
   }
-  console.log('metadataList:')
-  console.dir(metadataList)
+
   const dataProfile: MetadataProfile = {
     artists: artist_name ? [{name: artist_name} as Artist] : [],
     artwork_md5,
@@ -521,7 +520,6 @@ export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<Me
 
     const {name}: MetadataProfile = await extractInfoFromYml(pathToFile)
     const label = `Cover Art for ${name ?? pathToFile}`
-    console.log('Uploading cover art with label:', label)
     const metadataList: MetadataPair[] = [{'override:name': label} as MetadataPair]
 
     const coverArt = await Client.uploadFile({metadataList, pathToFile: pathToCoverArt})

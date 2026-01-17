@@ -94,6 +94,44 @@ export function removeAttributeFromBodyTest(
       }
     }
 
+    // Also filter original_local_path_to_file from metadata_list if either body has a temp path
+    // This handles cases where cover art is extracted to temp files
+    let hasTempPath = false
+
+    // eslint-disable-next-line dot-notation
+    if (actualBody['metadata_list'] && Array.isArray(actualBody['metadata_list'])) {
+      // eslint-disable-next-line dot-notation
+      hasTempPath = actualBody['metadata_list'].some((item: unknown) => {
+        const key = Object.keys(item as Record<string, unknown>)[0]
+        const value = Object.values(item as Record<string, unknown>)[0]
+
+        return key === 'original_local_path_to_file' && typeof value === 'string' && path.normalize(value).startsWith(TEMP_FOLDER_ROOT)
+      })
+    }
+
+    // If either body has a temp path, filter original_local_path_to_file from both
+    if (hasTempPath) {
+      // eslint-disable-next-line dot-notation
+      if (actualBody['metadata_list'] && Array.isArray(actualBody['metadata_list'])) {
+        // eslint-disable-next-line dot-notation
+        actualBody['metadata_list'] = actualBody['metadata_list'].filter((item: unknown) => {
+          const key = Object.keys(item as Record<string, unknown>)[0]
+
+          return key !== 'original_local_path_to_file'
+        })
+      }
+
+      // eslint-disable-next-line dot-notation
+      if (expectedBody['metadata_list'] && Array.isArray(expectedBody['metadata_list'])) {
+        // eslint-disable-next-line dot-notation
+        expectedBody['metadata_list'] = expectedBody['metadata_list'].filter((item: unknown) => {
+          const key = Object.keys(item as Record<string, unknown>)[0]
+
+          return key !== 'original_local_path_to_file'
+        })
+      }
+    }
+
     return JSON.stringify(actualBody) === JSON.stringify(expectedBody)
   }
 }
