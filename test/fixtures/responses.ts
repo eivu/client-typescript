@@ -658,7 +658,7 @@ export const THE_PEACEMAKER_01_1967_COVER_ART_DATA_PROFILE = {
       original_local_path_to_file: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
     },
   ],
-  name: 'Cover Art for The Peacemaker #1',
+  name: 'Cover Art for The Peacemaker',
   path_to_file: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
   rating: null,
   release: EMPTY_RELEASE,
