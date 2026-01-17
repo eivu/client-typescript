@@ -1,6 +1,6 @@
 import {Client} from '@src/client'
-// import {CloudFile} from '@src/cloud-file'
-import {uploadComicMetadataArtwork} from '@src/metadata-extraction'
+import {CloudFile} from '@src/cloud-file'
+// import {uploadComicMetadataArtwork} from '@src/metadata-extraction'
 
 const client = new Client()
 // const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
@@ -48,6 +48,14 @@ const p: CloudFile = await client.uploadFile({
 console.log('====================')
 console.log('Upload Result:')
 console.dir(p)
+console.log('====================')
+
+const s: CloudFile = await client.uploadFile({
+  pathToFile: 'test/fixtures/samples/comics/Space_Adventures_033.eivu_compressed.cbr',
+})
+console.log('====================')
+console.log('Upload Result:')
+console.dir(s)
 console.log('====================')
 
 // const result = await uploadComicMetadataArtwork(
