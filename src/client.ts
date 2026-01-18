@@ -348,15 +348,19 @@ export class Client {
     if (!accessKeyId) {
       throw new Error('EIVU_ACCESS_KEY_ID environment variable is required')
     }
+
     if (!bucketName) {
       throw new Error('EIVU_BUCKET_NAME environment variable is required')
     }
+
     if (!endpoint) {
       throw new Error('EIVU_ENDPOINT environment variable is required')
     }
+
     if (!region) {
       throw new Error('EIVU_REGION environment variable is required')
     }
+
     if (!secretAccessKey) {
       throw new Error('EIVU_SECRET_ACCESS_KEY environment variable is required')
     }
