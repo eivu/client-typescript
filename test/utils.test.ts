@@ -1,6 +1,6 @@
 import {describe, expect, it} from '@jest/globals'
 
-import {cleansedAssetName, md5AsFolders} from '../src/utils'
+import {cleansedAssetName, generateMd5, md5AsFolders} from '../src/utils'
 
 describe('Utils', () => {
   describe('cleansedAssetName', () => {
@@ -58,6 +58,30 @@ describe('Utils', () => {
       it('converts an MD5 hash into a folder structure', () => {
         expect(md5AsFolders('198918F40ECC7CAB0FC4231ADAF67C96')).toBe('19/89/18/F4/0E/CC/7C/AB/0F/C4/23/1A/DA/F6/7C/96')
       })
+    })
+  })
+
+  describe('generateMd5', () => {
+    it('should generate MD5 hash for an existing file', async () => {
+      const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
+      const md5 = await generateMd5(pathToFile)
+      expect(md5).toBe('7ED971313D1AEA1B6E2BF8AF24BED64A')
+    })
+
+    it('should throw error for null pathToFile', async () => {
+      await expect(generateMd5(null as unknown as string)).rejects.toThrow('File path must be a non-empty string')
+    })
+
+    it('should throw error for non-existent file', async () => {
+      await expect(generateMd5('/path/to/nonexistent.txt')).rejects.toThrow('File not found')
+    })
+
+    it('should throw error for path traversal attack', async () => {
+      await expect(generateMd5('../../../etc/passwd')).rejects.toThrow('path traversal detected')
+    })
+
+    it('should throw error for directory instead of file', async () => {
+      await expect(generateMd5('test/fixtures/samples')).rejects.toThrow('Expected a file but got a directory')
     })
   })
 })
