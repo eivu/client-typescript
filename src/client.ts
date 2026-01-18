@@ -349,7 +349,7 @@ export class Client {
     }
 
     const missingVars = Object.entries(requiredEnvVars)
-      .filter(([, value]) => !value)
+      .filter(([, value]) => !value || value === '')
       .map(([key]) => key)
 
     if (missingVars.length > 0) {
