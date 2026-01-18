@@ -7,17 +7,129 @@ import * as fs from 'node:fs'
 import path from 'node:path'
 
 /**
+ * Validates a file path for existence and security issues
+ * @param pathToFile - The path to validate
+ * @param options - Validation options
+ * @param options.checkExists - Whether to check if the file exists (default: true)
+ * @param options.allowDirectories - Whether to allow directories (default: false)
+ * @throws Error if the path is invalid, contains path traversal, or doesn't exist
+ */
+export function validateFilePath(
+  pathToFile: string,
+  options: {allowDirectories?: boolean; checkExists?: boolean} = {},
+): void {
+  const {allowDirectories = false, checkExists = true} = options
+
+  // Check for null, undefined, or empty string
+  if (!pathToFile || typeof pathToFile !== 'string') {
+    throw new Error('File path must be a non-empty string')
+  }
+
+  // Trim whitespace
+  const trimmedPath = pathToFile.trim()
+  if (trimmedPath.length === 0) {
+    throw new Error('File path must be a non-empty string')
+  }
+
+  // Resolve to absolute path to check for path traversal
+  const resolvedPath = path.resolve(trimmedPath)
+
+  // Check for path traversal by comparing normalized paths
+  // This prevents attacks like "../../../etc/passwd"
+  const normalizedInput = path.normalize(trimmedPath)
+  if (normalizedInput.includes('..')) {
+    throw new Error(`Invalid file path: path traversal detected in "${pathToFile}"`)
+  }
+
+  // Additional check: ensure the resolved path doesn't escape the current working directory
+  // unless it's an absolute path provided by the user
+  if (!path.isAbsolute(trimmedPath)) {
+    const cwd = process.cwd()
+    if (!resolvedPath.startsWith(cwd)) {
+      throw new Error(`Invalid file path: path escapes working directory "${pathToFile}"`)
+    }
+  }
+
+  // Check if file exists
+  if (checkExists) {
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`File not found: ${pathToFile}`)
+    }
+
+    // Check if it's a directory when not allowed
+    if (!allowDirectories) {
+      const stats = fs.statSync(resolvedPath)
+      if (stats.isDirectory()) {
+        throw new Error(`Expected a file but got a directory: ${pathToFile}`)
+      }
+    }
+  }
+}
+
+/**
+ * Validates a directory path for existence and security issues
+ * @param pathToFolder - The path to validate
+ * @param options - Validation options
+ * @param options.checkExists - Whether to check if the directory exists (default: true)
+ * @throws Error if the path is invalid, contains path traversal, or doesn't exist
+ */
+export function validateDirectoryPath(
+  pathToFolder: string,
+  options: {checkExists?: boolean} = {},
+): void {
+  const {checkExists = true} = options
+
+  // Check for null, undefined, or empty string
+  if (!pathToFolder || typeof pathToFolder !== 'string') {
+    throw new Error('Directory path must be a non-empty string')
+  }
+
+  // Trim whitespace
+  const trimmedPath = pathToFolder.trim()
+  if (trimmedPath.length === 0) {
+    throw new Error('Directory path must be a non-empty string')
+  }
+
+  // Resolve to absolute path to check for path traversal
+  const resolvedPath = path.resolve(trimmedPath)
+
+  // Check for path traversal by comparing normalized paths
+  const normalizedInput = path.normalize(trimmedPath)
+  if (normalizedInput.includes('..')) {
+    throw new Error(`Invalid directory path: path traversal detected in "${pathToFolder}"`)
+  }
+
+  // Additional check: ensure the resolved path doesn't escape the current working directory
+  // unless it's an absolute path provided by the user
+  if (!path.isAbsolute(trimmedPath)) {
+    const cwd = process.cwd()
+    if (!resolvedPath.startsWith(cwd)) {
+      throw new Error(`Invalid directory path: path escapes working directory "${pathToFolder}"`)
+    }
+  }
+
+  // Check if directory exists
+  if (checkExists) {
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`Directory not found: ${pathToFolder}`)
+    }
+
+    const stats = fs.statSync(resolvedPath)
+    if (!stats.isDirectory()) {
+      throw new Error(`Expected a directory but got a file: ${pathToFolder}`)
+    }
+  }
+}
+
+/**
  * Generate the MD5 hash of a file's contents asynchronously using streams.
  * @param pathToFile - The path to the file to hash
  * @returns Promise that resolves to the MD5 hash in hex digest format
  */
 export async function generateMd5(pathToFile: string): Promise<string> {
+  validateFilePath(pathToFile)
+  
   return new Promise((resolve, reject) => {
-    if (!fs.existsSync(pathToFile)) {
-      reject(new Error(`File not found: ${pathToFile}`))
-      return
-    }
-
     const hash = crypto.createHash('md5')
     const stream = fs.createReadStream(pathToFile)
     stream.on('error', (err) => reject(err))
