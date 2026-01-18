@@ -475,7 +475,7 @@ describe('Metadata Extraction', () => {
         .query({keyFormat: 'camel_lower'})
         .reply(200, THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE)
       const result = await uploadComicMetadataArtwork(pathToFile)
-      expect(result).toBeTruthy()
+      expect(result).toEqual({'eivu:artwork_md5': 'FC95C8DB0CECB47D449DFFD694AD963C'})
       expect(coverArtReserveReq.isDone()).toBeTrue()
       expect(coverArtOnlineReq.isDone()).toBeTrue()
       expect(coverArtTransferReq.isDone()).toBeTrue()
@@ -523,7 +523,7 @@ describe('Metadata Extraction', () => {
         .reply(200, SPACE_ADVENTURES_033_1960_COVER_ART_COMPLETE)
 
       const result = await uploadComicMetadataArtwork(pathToFile)
-      expect(result).toBeTruthy()
+      expect(result).toEqual({'eivu:artwork_md5': '6C42CC77B1747B882C9D2A234E41D3FD'})
       expect(coverArtReserveReq.isDone()).toBeTrue()
       expect(coverArtOnlineReq.isDone()).toBeTrue()
       expect(coverArtTransferReq.isDone()).toBeTrue()
