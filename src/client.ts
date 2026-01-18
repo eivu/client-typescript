@@ -334,16 +334,39 @@ export class Client {
 
     cloudFile.identifyContentType()
     assetLogger.info(`Determined resourceType: ${cloudFile.resourceType}`)
-    const stats = await fsPromise.stat(cloudFile.localPathToFile as string)
+    const stats = await fsPromise.stat(cloudFile.localPathToFile)
     const filesize = stats.size
 
     assetLogger.info(`filesize: ${filesize}`)
+
+    const accessKeyId = process.env.EIVU_ACCESS_KEY_ID
+    const bucketName = process.env.EIVU_BUCKET_NAME
+    const endpoint = process.env.EIVU_ENDPOINT
+    const region = process.env.EIVU_REGION
+    const secretAccessKey = process.env.EIVU_SECRET_ACCESS_KEY
+
+    if (!accessKeyId) {
+      throw new Error('EIVU_ACCESS_KEY_ID environment variable is required')
+    }
+    if (!bucketName) {
+      throw new Error('EIVU_BUCKET_NAME environment variable is required')
+    }
+    if (!endpoint) {
+      throw new Error('EIVU_ENDPOINT environment variable is required')
+    }
+    if (!region) {
+      throw new Error('EIVU_REGION environment variable is required')
+    }
+    if (!secretAccessKey) {
+      throw new Error('EIVU_SECRET_ACCESS_KEY environment variable is required')
+    }
+
     const s3Config: S3UploaderConfig = {
-      accessKeyId: process.env.EIVU_ACCESS_KEY_ID as string,
-      bucketName: process.env.EIVU_BUCKET_NAME as string,
-      endpoint: process.env.EIVU_ENDPOINT as string,
-      region: process.env.EIVU_REGION as string,
-      secretAccessKey: process.env.EIVU_SECRET_ACCESS_KEY as string,
+      accessKeyId,
+      bucketName,
+      endpoint,
+      region,
+      secretAccessKey,
     }
 
     const s3Uploader = new S3Uploader({assetLogger, cloudFile, s3Config})

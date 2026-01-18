@@ -88,12 +88,16 @@ export class S3Uploader {
     const s3Client = new S3Client(s3Config)
     const remotePathToFile = this.generateRemotePath()
 
+    if (!this.cloudFile.localPathToFile) {
+      throw new Error('S3Uploader#putLocalFile requires CloudFile.localPathToFile to be set')
+    }
+
     this.assetLogger.info(
       `Uploading to S3: ${this.cloudFile.localPathToFile} -> https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
     )
     const putObjectCommand = new PutObjectCommand({
       ACL: 'public-read',
-      Body: await readFile(this.cloudFile.localPathToFile as string),
+      Body: await readFile(this.cloudFile.localPathToFile),
       Bucket: this.s3Config.bucketName,
       Key: remotePathToFile,
     })
