@@ -355,7 +355,11 @@ describe('Client', () => {
         )
 
         // Restore environment variable
-        process.env.EIVU_ACCESS_KEY_ID = originalAccessKey
+        if (originalAccessKey !== undefined) {
+          process.env.EIVU_ACCESS_KEY_ID = originalAccessKey
+        } else {
+          delete process.env.EIVU_ACCESS_KEY_ID
+        }
 
         expect(reserveReq.isDone()).toBe(true)
       })
