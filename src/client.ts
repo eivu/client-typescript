@@ -116,8 +116,8 @@ export class Client {
     pathToFile,
     secured = false,
   }: UploadFileParams): Promise<CloudFile> {
-    // Validate file path for existence and security
-    validateFilePath(pathToFile)
+    // Validate file path for existence and security, and get trimmed path
+    pathToFile = validateFilePath(pathToFile)
     
     if (await this.isEmptyFile(pathToFile)) {
       throw new Error(`Can not upload empty file: ${pathToFile}`)
@@ -164,8 +164,8 @@ export class Client {
     pathToFolder,
     secured = false,
   }: UploadFolderParams): Promise<string[]> {
-    // Validate directory path for existence and security
-    validateDirectoryPath(pathToFolder)
+    // Validate directory path for existence and security, and get trimmed path
+    pathToFolder = validateDirectoryPath(pathToFolder)
     
     const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
     const limit = pLimit(concurrency)
@@ -196,8 +196,8 @@ export class Client {
    * @throws Will not throw, but returns false if the file cannot be fetched from the cloud storage
    */
   async verifyUpload(pathToFile: string): Promise<boolean> {
-    // Validate file path for existence and security
-    validateFilePath(pathToFile)
+    // Validate file path for existence and security, and get trimmed path
+    pathToFile = validateFilePath(pathToFile)
     
     const md5 = await generateMd5(pathToFile)
     try {

@@ -83,5 +83,15 @@ describe('Utils', () => {
     it('should throw error for directory instead of file', async () => {
       await expect(generateMd5('test/fixtures/samples')).rejects.toThrow('Expected a file but got a directory')
     })
+
+    it('should handle path with leading/trailing whitespace by using trimmed path', async () => {
+      const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
+      const pathWithWhitespace = `  ${pathToFile}  `
+      const md5 = await generateMd5(pathWithWhitespace)
+      expect(md5).toBe('7ED971313D1AEA1B6E2BF8AF24BED64A')
+      // Verify that the trimmed path works, not the whitespace version
+      const md5FromTrimmed = await generateMd5(pathToFile)
+      expect(md5).toBe(md5FromTrimmed)
+    })
   })
 })

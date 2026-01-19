@@ -12,12 +12,13 @@ import path from 'node:path'
  * @param options - Validation options
  * @param options.checkExists - Whether to check if the file exists (default: true)
  * @param options.allowDirectories - Whether to allow directories (default: false)
+ * @returns The trimmed and validated file path
  * @throws Error if the path is invalid, contains path traversal, or doesn't exist
  */
 export function validateFilePath(
   pathToFile: string,
   options: {allowDirectories?: boolean; checkExists?: boolean} = {},
-): void {
+): string {
   const {allowDirectories = false, checkExists = true} = options
 
   // Check for null, undefined, or empty string
@@ -64,6 +65,9 @@ export function validateFilePath(
       }
     }
   }
+
+  // Return the trimmed path so callers can use it for file operations
+  return trimmedPath
 }
 
 /**
@@ -71,12 +75,13 @@ export function validateFilePath(
  * @param pathToFolder - The path to validate
  * @param options - Validation options
  * @param options.checkExists - Whether to check if the directory exists (default: true)
+ * @returns The trimmed and validated directory path
  * @throws Error if the path is invalid, contains path traversal, or doesn't exist
  */
 export function validateDirectoryPath(
   pathToFolder: string,
   options: {checkExists?: boolean} = {},
-): void {
+): string {
   const {checkExists = true} = options
 
   // Check for null, undefined, or empty string
@@ -119,6 +124,9 @@ export function validateDirectoryPath(
       throw new Error(`Expected a directory but got a file: ${pathToFolder}`)
     }
   }
+
+  // Return the trimmed path so callers can use it for directory operations
+  return trimmedPath
 }
 
 /**
@@ -127,11 +135,11 @@ export function validateDirectoryPath(
  * @returns Promise that resolves to the MD5 hash in hex digest format
  */
 export async function generateMd5(pathToFile: string): Promise<string> {
-  validateFilePath(pathToFile)
+  const trimmedPath = validateFilePath(pathToFile)
   
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash('md5')
-    const stream = fs.createReadStream(pathToFile)
+    const stream = fs.createReadStream(trimmedPath)
     stream.on('error', (err) => reject(err))
     stream.on('data', (chunk) => hash.update(chunk))
     stream.on('end', () => resolve(hash.digest('hex').toUpperCase()))

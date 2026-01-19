@@ -86,6 +86,27 @@ describe('File Path Validation', () => {
       expect(() => validateFilePath(specialFile)).not.toThrow()
       fs.unlinkSync(specialFile)
     })
+
+    it('should return trimmed path for path with leading whitespace', () => {
+      const pathWithLeadingWhitespace = `  ${tempFile}`
+      const trimmedPath = validateFilePath(pathWithLeadingWhitespace)
+      expect(trimmedPath).toBe(tempFile)
+      expect(trimmedPath).not.toBe(pathWithLeadingWhitespace)
+    })
+
+    it('should return trimmed path for path with trailing whitespace', () => {
+      const pathWithTrailingWhitespace = `${tempFile}  `
+      const trimmedPath = validateFilePath(pathWithTrailingWhitespace)
+      expect(trimmedPath).toBe(tempFile)
+      expect(trimmedPath).not.toBe(pathWithTrailingWhitespace)
+    })
+
+    it('should return trimmed path for path with both leading and trailing whitespace', () => {
+      const pathWithWhitespace = `  ${tempFile}  `
+      const trimmedPath = validateFilePath(pathWithWhitespace)
+      expect(trimmedPath).toBe(tempFile)
+      expect(trimmedPath).not.toBe(pathWithWhitespace)
+    })
   })
 
   describe('validateDirectoryPath', () => {
@@ -147,6 +168,27 @@ describe('File Path Validation', () => {
       fs.mkdirSync(specialDir, {recursive: true})
       expect(() => validateDirectoryPath(specialDir)).not.toThrow()
       fs.rmdirSync(specialDir)
+    })
+
+    it('should return trimmed path for path with leading whitespace', () => {
+      const pathWithLeadingWhitespace = `  ${tempDir}`
+      const trimmedPath = validateDirectoryPath(pathWithLeadingWhitespace)
+      expect(trimmedPath).toBe(tempDir)
+      expect(trimmedPath).not.toBe(pathWithLeadingWhitespace)
+    })
+
+    it('should return trimmed path for path with trailing whitespace', () => {
+      const pathWithTrailingWhitespace = `${tempDir}  `
+      const trimmedPath = validateDirectoryPath(pathWithTrailingWhitespace)
+      expect(trimmedPath).toBe(tempDir)
+      expect(trimmedPath).not.toBe(pathWithTrailingWhitespace)
+    })
+
+    it('should return trimmed path for path with both leading and trailing whitespace', () => {
+      const pathWithWhitespace = `  ${tempDir}  `
+      const trimmedPath = validateDirectoryPath(pathWithWhitespace)
+      expect(trimmedPath).toBe(tempDir)
+      expect(trimmedPath).not.toBe(pathWithWhitespace)
     })
   })
 

@@ -69,8 +69,8 @@ export class CloudFile {
     pathToFile: string
     secured?: boolean
   }): Promise<CloudFile> {
-    // Validate file path for existence and security
-    validateFilePath(pathToFile)
+    // Validate file path for existence and security, and get trimmed path
+    pathToFile = validateFilePath(pathToFile)
     
     try {
       return await CloudFile.reserve({nsfw, pathToFile, secured})
@@ -104,8 +104,8 @@ export class CloudFile {
     pathToFile: string
     secured?: boolean
   }): Promise<CloudFile> {
-    // Validate file path for existence and security
-    validateFilePath(pathToFile)
+    // Validate file path for existence and security, and get trimmed path
+    pathToFile = validateFilePath(pathToFile)
     
     const md5 = await generateMd5(pathToFile)
     const payload = {nsfw, secured}
