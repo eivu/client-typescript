@@ -1,4 +1,5 @@
 import {COVERART_AUDIO_PREFIX, COVERART_COMIC_PREFIX, COVERART_PREFIX} from '@src/constants'
+import logger from '@src/logger'
 import {pruneMetadata} from '@src/metadata-extraction'
 import axios from 'axios'
 import mime from 'mime-types'
@@ -58,8 +59,7 @@ export const isOnline = async (uri: null | string | undefined, localFilesize?: n
 
     return {isOnline: headerOk && filesizeOk, remoteFilesize: actualRemoteFilesize}
   } catch (error) {
-    console.warn('USE PINO: https://www.npmjs.com/package/pino')
-    console.warn(`isOnline check failed for ${uri}: ${(error as Error).message}`)
+    logger.debug({error, localFilesize, uri}, 'isOnline check failed')
     // If the request fails, treat as not online
     return {isOnline: false, remoteFilesize: null}
   }
