@@ -138,8 +138,8 @@ describe('S3Uploader', () => {
         expect(commandArgs.Body).not.toBeInstanceOf(Buffer)
 
         // Clean up the stream
-        if (commandArgs.Body && typeof (commandArgs.Body as {destroy?: () => void}).destroy === 'function') {
-          ;(commandArgs.Body as {destroy: () => void}).destroy()
+        if (commandArgs.Body && typeof (commandArgs.Body as ReadStream).destroy === 'function') {
+          (commandArgs.Body as ReadStream).destroy()
         }
       })
     })
