@@ -359,7 +359,7 @@ export class Client {
       throw new Error(`Failed to upload file to S3: ${cloudFile.localPathToFile}`)
     }
 
-    const onlineCheck = await isOnline(cloudFile.url(), filesize)
+    const onlineCheck = await isOnline(cloudFile.url(), filesize, assetLogger)
     if (onlineCheck.isOnline) {
       return cloudFile.transfer({asset, filesize})
     }
