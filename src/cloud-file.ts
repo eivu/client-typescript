@@ -1,5 +1,6 @@
 /* eslint-disable camelcase */
 
+import {getEnv} from '@src/env'
 import {type MetadataProfile} from '@src/metadata-extraction'
 import api from '@src/services/api.config'
 import {CloudFileState, type CloudFileType} from '@src/types/cloud-file-type'
@@ -227,7 +228,8 @@ export class CloudFile {
     if (!this.remoteAttr.md5) throw new Error('CloudFile#url requires this.remoteAttr.md5 to be set')
     if (!this.remoteAttr.asset) throw new Error('CloudFile#url requires this.remoteAttr.asset to be set')
 
-    return `https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com/${this.grouping()}/${md5AsFolders(
+    const env = getEnv()
+    return `https://${env.EIVU_BUCKET_NAME}.s3.wasabisys.com/${this.grouping()}/${md5AsFolders(
       this.remoteAttr.md5,
     )}/${this.remoteAttr.asset}`
   }
