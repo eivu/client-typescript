@@ -1,5 +1,7 @@
 import {describe, expect, it, jest} from '@jest/globals'
 import nock from 'nock'
+import fs from 'node:fs/promises'
+import tmp from 'tmp'
 
 import {Client} from '../src/client'
 import {CloudFile} from '../src/cloud-file'
@@ -376,18 +378,22 @@ describe('Client', () => {
   })
 
   describe('logMessage', () => {
+    let tmpDir: null | tmp.DirResult = null
+
     beforeEach(() => {
       jest.clearAllMocks()
     })
 
     afterEach(() => {
       jest.restoreAllMocks()
+      if (tmpDir) {
+        tmpDir.removeCallback()
+        tmpDir = null
+      }
     })
 
     it('writes a CSV row to a log file', async () => {
-      const fs = await import('node:fs/promises')
-      const tmp = await import('tmp')
-      const tmpDir = tmp.dirSync({unsafeCleanup: true})
+      tmpDir = tmp.dirSync({unsafeCleanup: true})
       const logPath = `${tmpDir.name}/test.csv`
 
       const client = new Client()
@@ -401,14 +407,10 @@ describe('Client', () => {
       expect(content).toContain('/path/to/file.txt')
       expect(content).toContain('abc123')
       expect(content).toContain('Test message')
-
-      tmpDir.removeCallback()
     })
 
     it('appends multiple entries to a log file', async () => {
-      const fs = await import('node:fs/promises')
-      const tmp = await import('tmp')
-      const tmpDir = tmp.dirSync({unsafeCleanup: true})
+      tmpDir = tmp.dirSync({unsafeCleanup: true})
       const logPath = `${tmpDir.name}/test.csv`
 
       const client = new Client()
@@ -425,8 +427,6 @@ describe('Client', () => {
       expect(lines.length).toBe(2)
       expect(lines[0]).toContain('file1.txt')
       expect(lines[1]).toContain('file2.txt')
-
-      tmpDir.removeCallback()
     })
 
     it('handles errors when writing to an invalid path', async () => {
