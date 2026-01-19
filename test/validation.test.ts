@@ -132,6 +132,21 @@ describe('File Path Validation', () => {
     it('should still reject actual path traversal with ../ as directory segment', () => {
       expect(() => validateFilePath('test/../file.txt')).toThrow('path traversal detected')
     })
+
+    it('should detect path traversal in Windows absolute path with forward slashes', () => {
+      // On Windows, Node.js accepts both / and \ as separators
+      // This test ensures we detect .. even when using forward slashes in Windows paths
+      expect(() => validateFilePath('C:/Users/victim/../../sensitive.txt', {checkExists: false})).toThrow(
+        'path traversal detected',
+      )
+    })
+
+    it('should detect path traversal in Windows absolute path with mixed slashes', () => {
+      // Test with mixed forward and backslashes
+      expect(() => validateFilePath(String.raw`C:/Users\victim/..\..\sensitive.txt`, {checkExists: false})).toThrow(
+        'path traversal detected',
+      )
+    })
   })
 
   describe('validateDirectoryPath', () => {
@@ -232,6 +247,21 @@ describe('File Path Validation', () => {
 
     it('should still reject actual path traversal with ../ as directory segment', () => {
       expect(() => validateDirectoryPath('test/../dir')).toThrow('path traversal detected')
+    })
+
+    it('should detect path traversal in Windows absolute path with forward slashes', () => {
+      // On Windows, Node.js accepts both / and \ as separators
+      // This test ensures we detect .. even when using forward slashes in Windows paths
+      expect(() => validateDirectoryPath('C:/Users/victim/../../sensitive', {checkExists: false})).toThrow(
+        'path traversal detected',
+      )
+    })
+
+    it('should detect path traversal in Windows absolute path with mixed slashes', () => {
+      // Test with mixed forward and backslashes
+      expect(() => validateDirectoryPath(String.raw`C:/Users\victim/..\..\sensitive`, {checkExists: false})).toThrow(
+        'path traversal detected',
+      )
     })
   })
 

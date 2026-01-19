@@ -38,7 +38,8 @@ export function validateFilePath(
   // Check for path traversal by checking if any path segment is exactly ".."
   // This prevents attacks like "../../../etc/passwd" but allows legitimate filenames with ".." in them
   // Check the original path (before normalization) to catch traversal attempts that would be resolved away
-  const pathSegments = trimmedPath.split(path.sep)
+  // Split by both / and \ to handle Windows paths that may use forward slashes
+  const pathSegments = trimmedPath.split(/[/\\]/)
   if (pathSegments.includes('..')) {
     throw new Error(`Invalid file path: path traversal detected in "${pathToFile}"`)
   }
@@ -102,7 +103,8 @@ export function validateDirectoryPath(
   // Check for path traversal by checking if any path segment is exactly ".."
   // This prevents attacks like "../../../etc" but allows legitimate directory names with ".." in them
   // Check the original path (before normalization) to catch traversal attempts that would be resolved away
-  const pathSegments = trimmedPath.split(path.sep)
+  // Split by both / and \ to handle Windows paths that may use forward slashes
+  const pathSegments = trimmedPath.split(/[/\\]/)
   if (pathSegments.includes('..')) {
     throw new Error(`Invalid directory path: path traversal detected in "${pathToFolder}"`)
   }
