@@ -3,7 +3,7 @@ import {Credentials} from '@aws-sdk/types'
 import {CloudFile} from '@src/cloud-file'
 import {type Logger} from '@src/logger'
 import {md5AsFolders} from '@src/utils'
-import {readFile} from 'node:fs/promises'
+import {createReadStream} from 'node:fs'
 /**
  * Error messages for S3 transfer failures
  */
@@ -93,7 +93,7 @@ export class S3Uploader {
     )
     const putObjectCommand = new PutObjectCommand({
       ACL: 'public-read',
-      Body: await readFile(this.cloudFile.localPathToFile as string),
+      Body: createReadStream(this.cloudFile.localPathToFile as string),
       Bucket: this.s3Config.bucketName,
       Key: remotePathToFile,
     })
