@@ -14,6 +14,11 @@ describe('Utils', () => {
       expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forComic.webp')
     })
 
+    it('handles filenames with multiple dots correctly (e.g., cover.01.webp)', () => {
+      const pathToFile = '/tmp/coverart-extractedByEivu-forComic-archiveName-cover.01.webp'
+      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forComic.webp')
+    })
+
     it('returns "coverart-extractedByEivu-forAudio.jpg" for cover art files', () => {
       const pathToFile = '/some/path/coverart-extractedByEivu-forAudio-random-string.jpg'
       expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forAudio.jpg')

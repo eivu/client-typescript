@@ -114,10 +114,13 @@ const mimeLookup = (pathToFile: string): false | string => {
  * @returns The cleansed asset name
  */
 export function cleansedAssetName(name: string): string {
-  const [basename, extension] = path.basename(name).split('.')
-  if (basename.startsWith(COVERART_AUDIO_PREFIX)) return `${COVERART_AUDIO_PREFIX}.${extension}`
-  if (basename.startsWith(COVERART_COMIC_PREFIX)) return `${COVERART_COMIC_PREFIX}.${extension}`
-  if (basename.startsWith(COVERART_PREFIX)) return `${COVERART_PREFIX}.${extension}`
+  const basename = path.basename(name)
+  const extension = path.extname(basename) // Returns '.webp' (includes the dot)
+  const nameWithoutExt = extension ? basename.slice(0, -extension.length) : basename
+
+  if (nameWithoutExt.startsWith(COVERART_AUDIO_PREFIX)) return `${COVERART_AUDIO_PREFIX}${extension}`
+  if (nameWithoutExt.startsWith(COVERART_COMIC_PREFIX)) return `${COVERART_COMIC_PREFIX}${extension}`
+  if (nameWithoutExt.startsWith(COVERART_PREFIX)) return `${COVERART_PREFIX}${extension}`
 
   return sanitize(name)
 }
