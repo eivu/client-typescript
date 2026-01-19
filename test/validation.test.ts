@@ -107,6 +107,31 @@ describe('File Path Validation', () => {
       expect(trimmedPath).toBe(tempFile)
       expect(trimmedPath).not.toBe(pathWithWhitespace)
     })
+
+    it('should accept file with double dots in filename (not path traversal)', () => {
+      const fileWithDots = path.join(tempDir, 'test..file.txt')
+      fs.writeFileSync(fileWithDots, 'test')
+      expect(() => validateFilePath(fileWithDots)).not.toThrow()
+      fs.unlinkSync(fileWithDots)
+    })
+
+    it('should accept file starting with double dots (not path traversal)', () => {
+      const hiddenFile = path.join(tempDir, '..hidden')
+      fs.writeFileSync(hiddenFile, 'test')
+      expect(() => validateFilePath(hiddenFile)).not.toThrow()
+      fs.unlinkSync(hiddenFile)
+    })
+
+    it('should accept file with double dots in middle of filename', () => {
+      const fileWithDots = path.join(tempDir, 'version..1.data')
+      fs.writeFileSync(fileWithDots, 'test')
+      expect(() => validateFilePath(fileWithDots)).not.toThrow()
+      fs.unlinkSync(fileWithDots)
+    })
+
+    it('should still reject actual path traversal with ../ as directory segment', () => {
+      expect(() => validateFilePath('test/../file.txt')).toThrow('path traversal detected')
+    })
   })
 
   describe('validateDirectoryPath', () => {
@@ -189,6 +214,24 @@ describe('File Path Validation', () => {
       const trimmedPath = validateDirectoryPath(pathWithWhitespace)
       expect(trimmedPath).toBe(tempDir)
       expect(trimmedPath).not.toBe(pathWithWhitespace)
+    })
+
+    it('should accept directory with double dots in name (not path traversal)', () => {
+      const dirWithDots = path.join(tempDir, 'test..dir')
+      fs.mkdirSync(dirWithDots, {recursive: true})
+      expect(() => validateDirectoryPath(dirWithDots)).not.toThrow()
+      fs.rmdirSync(dirWithDots)
+    })
+
+    it('should accept directory starting with double dots (not path traversal)', () => {
+      const hiddenDir = path.join(tempDir, '..hidden')
+      fs.mkdirSync(hiddenDir, {recursive: true})
+      expect(() => validateDirectoryPath(hiddenDir)).not.toThrow()
+      fs.rmdirSync(hiddenDir)
+    })
+
+    it('should still reject actual path traversal with ../ as directory segment', () => {
+      expect(() => validateDirectoryPath('test/../dir')).toThrow('path traversal detected')
     })
   })
 

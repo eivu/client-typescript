@@ -35,10 +35,11 @@ export function validateFilePath(
   // Resolve to absolute path to check for path traversal
   const resolvedPath = path.resolve(trimmedPath)
 
-  // Check for path traversal by comparing normalized paths
-  // This prevents attacks like "../../../etc/passwd"
-  const normalizedInput = path.normalize(trimmedPath)
-  if (normalizedInput.includes('..')) {
+  // Check for path traversal by checking if any path segment is exactly ".."
+  // This prevents attacks like "../../../etc/passwd" but allows legitimate filenames with ".." in them
+  // Check the original path (before normalization) to catch traversal attempts that would be resolved away
+  const pathSegments = trimmedPath.split(path.sep)
+  if (pathSegments.includes('..')) {
     throw new Error(`Invalid file path: path traversal detected in "${pathToFile}"`)
   }
 
@@ -98,9 +99,11 @@ export function validateDirectoryPath(
   // Resolve to absolute path to check for path traversal
   const resolvedPath = path.resolve(trimmedPath)
 
-  // Check for path traversal by comparing normalized paths
-  const normalizedInput = path.normalize(trimmedPath)
-  if (normalizedInput.includes('..')) {
+  // Check for path traversal by checking if any path segment is exactly ".."
+  // This prevents attacks like "../../../etc" but allows legitimate directory names with ".." in them
+  // Check the original path (before normalization) to catch traversal attempts that would be resolved away
+  const pathSegments = trimmedPath.split(path.sep)
+  if (pathSegments.includes('..')) {
     throw new Error(`Invalid directory path: path traversal detected in "${pathToFolder}"`)
   }
 
