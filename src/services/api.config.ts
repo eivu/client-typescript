@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-import {getEnv} from '@src/env'
+import {getEnv} from '../env'
 
 /**
  * Configured axios instance for the Eivu upload API

@@ -1,11 +1,12 @@
 /* eslint-disable camelcase */
 
-import {getEnv} from '@src/env'
 import {type MetadataProfile} from '@src/metadata-extraction'
 import api from '@src/services/api.config'
 import {CloudFileState, type CloudFileType} from '@src/types/cloud-file-type'
 import {detectMime, generateMd5, md5AsFolders, validateFilePath} from '@src/utils'
 import {type AxiosError} from 'axios'
+
+import {getEnv} from './env'
 
 /**
  * Parameters for constructing a CloudFile instance
