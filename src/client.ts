@@ -5,7 +5,6 @@ import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {cleansedAssetName, generateMd5, isOnline} from '@src/utils'
 import * as fastCsv from 'fast-csv'
 import {Glob} from 'glob'
-import fs from 'node:fs'
 import * as fsPromise from 'node:fs/promises'
 import pLimit from 'p-limit'
 
@@ -243,20 +242,8 @@ export class Client {
    * @private
    */
   private async logMessage(logPath: string, data: string[]): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      const stream = fs.createWriteStream(logPath, {flags: 'a'})
-      const csvStream = fastCsv.format({headers: false})
-      stream.write('\n')
-      csvStream.pipe(stream)
-
-      stream.on('error', reject)
-      csvStream.on('error', reject)
-
-      stream.on('finish', resolve)
-
-      csvStream.write(data)
-      csvStream.end()
-    })
+    const csvString = await fastCsv.writeToString([data], {headers: false})
+    await fsPromise.appendFile(logPath, '\n' + csvString.trim())
   }
 
   /**

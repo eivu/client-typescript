@@ -374,4 +374,68 @@ describe('Client', () => {
       expect(fetchReq.isDone()).toBe(true)
     })
   })
+
+  describe('logMessage', () => {
+    beforeEach(() => {
+      jest.clearAllMocks()
+    })
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('writes a CSV row to a log file', async () => {
+      const fs = await import('node:fs/promises')
+      const tmp = await import('tmp')
+      const tmpDir = tmp.dirSync({unsafeCleanup: true})
+      const logPath = `${tmpDir.name}/test.csv`
+
+      const client = new Client()
+      const testData = ['2024-01-01T00:00:00.000Z', '/path/to/file.txt', 'abc123', 'Test message']
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (client as any).logMessage(logPath, testData)
+
+      const content = await fs.readFile(logPath, 'utf8')
+      expect(content).toContain('2024-01-01T00:00:00.000Z')
+      expect(content).toContain('/path/to/file.txt')
+      expect(content).toContain('abc123')
+      expect(content).toContain('Test message')
+
+      tmpDir.removeCallback()
+    })
+
+    it('appends multiple entries to a log file', async () => {
+      const fs = await import('node:fs/promises')
+      const tmp = await import('tmp')
+      const tmpDir = tmp.dirSync({unsafeCleanup: true})
+      const logPath = `${tmpDir.name}/test.csv`
+
+      const client = new Client()
+      const testData1 = ['2024-01-01T00:00:00.000Z', '/path/to/file1.txt', 'abc123', 'Test message 1']
+      const testData2 = ['2024-01-01T00:00:00.000Z', '/path/to/file2.txt', 'def456', 'Test message 2']
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (client as any).logMessage(logPath, testData1)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (client as any).logMessage(logPath, testData2)
+
+      const content = await fs.readFile(logPath, 'utf8')
+      const lines = content.trim().split('\n')
+      expect(lines.length).toBe(2)
+      expect(lines[0]).toContain('file1.txt')
+      expect(lines[1]).toContain('file2.txt')
+
+      tmpDir.removeCallback()
+    })
+
+    it('handles errors when writing to an invalid path', async () => {
+      const client = new Client()
+      const invalidPath = '/nonexistent/directory/test.csv'
+      const testData = ['2024-01-01T00:00:00.000Z', '/path/to/file.txt', 'abc123', 'Test message']
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await expect((client as any).logMessage(invalidPath, testData)).rejects.toThrow()
+    })
+  })
 })
