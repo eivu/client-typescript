@@ -196,7 +196,11 @@ const extractFirstRarEntry = async (pathToFile: string): Promise<string> => {
 
     // Get the first entry after sorting
     const firstEntry = entries[0]
-    const outputPath = path.join(TEMP_FOLDER_ROOT, `${COVERART_COMIC_PREFIX}-${path.basename(firstEntry.name)}`)
+    const archiveBasename = path.basename(pathToFile, path.extname(pathToFile)).replaceAll('.eivu_compressed', '')
+    const outputPath = path.join(
+      TEMP_FOLDER_ROOT,
+      `${COVERART_COMIC_PREFIX}-${archiveBasename}-${path.basename(firstEntry.name)}`,
+    )
 
     // Extract the first entry
     const extracted = await extractor.extract({files: [firstEntry.name]})
@@ -245,7 +249,12 @@ const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
 
     // Get the first entry after sorting
     const firstEntry = entries[0]
-    const outputPath = path.join(TEMP_FOLDER_ROOT, `${COVERART_COMIC_PREFIX}-${path.basename(firstEntry.filename)}`)
+    const archiveBasename = path.basename(pathToFile, path.extname(pathToFile)).replaceAll('.eivu_compressed', '')
+    archiveBasename.replaceAll('.eivu_compressed', '')
+    const outputPath = path.join(
+      TEMP_FOLDER_ROOT,
+      `${COVERART_COMIC_PREFIX}-${archiveBasename}-${path.basename(firstEntry.filename)}`,
+    )
 
     // Extract the first entry
     const readStream = await firstEntry.openReadStream()
