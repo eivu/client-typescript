@@ -592,8 +592,8 @@ const uploadAudioMetadataArtwork = async ({
  * @returns Promise that resolves to a MetadataPair containing the artwork MD5 hash, or an empty object on failure
  */
 export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<MetadataPair> => {
+  let pathToCoverArt: string | undefined
   try {
-    let pathToCoverArt: string | undefined
     if (pathToFile.endsWith('.cbz')) {
       pathToCoverArt = await extractFirstZipEntry(pathToFile)
     } else if (pathToFile.endsWith('.cbr')) {
@@ -618,5 +618,15 @@ export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<Me
   } catch (error) {
     console.error('Failed to generate cover art metadata for', pathToFile, error)
     return {} as MetadataPair
+  } finally {
+    // Clean up the temporary file after upload completes or fails
+    if (pathToCoverArt) {
+      try {
+        await fsp.unlink(pathToCoverArt)
+      } catch (unlinkError) {
+        // Log but don't throw - file may have already been deleted or not exist
+        console.error('Failed to delete temp cover art file:', pathToCoverArt, unlinkError)
+      }
+    }
   }
 }
