@@ -161,14 +161,14 @@ describe('Client', () => {
           .reply(200, FROG_PRINCE_COVER_ART_RESERVATION)
 
         const coverArtCheckOnlineReq = nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
-          .head('/image/F5/B5/DD/55/1B/D7/5A/52/4B/E5/7C/0A/5F/16/75/A8/coverart-extractedByEivu.jpeg')
+          .head('/image/F5/B5/DD/55/1B/D7/5A/52/4B/E5/7C/0A/5F/16/75/A8/coverart-extractedByEivu-forAudio.jpeg')
           .reply(200, 'body', {
             'Content-Length': String(coverArtFilesize),
           })
 
         const coverArtTransferReq = nock(SERVER_HOST)
           .post(`${URL_BUCKET_PREFIX}/cloud_files/F5B5DD551BD75A524BE57C0A5F1675A8/transfer`, {
-            asset: 'coverart-extractedByEivu.jpeg',
+            asset: 'coverart-extractedByEivu-forAudio.jpeg',
             content_type: 'image/jpeg', // eslint-disable-line camelcase
             filesize: coverArtFilesize,
           })

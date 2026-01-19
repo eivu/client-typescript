@@ -1,6 +1,8 @@
 import {Client} from '@src/client'
 import {CloudFile} from '@src/cloud-file'
 import {
+  COVERART_AUDIO_PREFIX,
+  COVERART_COMIC_PREFIX,
   COVERART_PREFIX,
   PERFORMER_REGEX,
   RATING_425_REGEX,
@@ -17,11 +19,13 @@ import {detectMime} from '@src/utils'
 import filter from 'lodash/filter'
 import uniqWith from 'lodash/uniqWith'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
+import {createExtractorFromData} from 'node-unrar-js'
 import {execFile} from 'node:child_process'
 import {promises as fsp} from 'node:fs'
 import path from 'node:path'
 import tmp from 'tmp'
 import {parse as yamlParse} from 'yaml'
+import * as yauzl from 'yauzl-promise'
 
 /**
  * Acoustid fingerprint containing the fingerprint and duration
@@ -126,7 +130,7 @@ export const extractAudioInfo = async (pathToFile: string): Promise<MetadataPair
   if (id3InfoObject['id3:band']) audioInfo.push({'eivu:album_artist': id3InfoObject['id3:band']})
   if (id3InfoObject['id3:disc_nr']) audioInfo.push({'eivu:bundle_pos': id3InfoObject['id3:disc_nr']})
 
-  const artworkCloudFile = await uploadMetadataArtwork({iAudioMetadata: metadata, metadataList: audioInfo})
+  const artworkCloudFile = await uploadAudioMetadataArtwork({iAudioMetadata: metadata, metadataList: audioInfo})
 
   if (artworkCloudFile) {
     audioInfo.push({'eivu:artwork_md5': artworkCloudFile.remoteAttr.md5})
@@ -142,11 +146,143 @@ export const extractAudioInfo = async (pathToFile: string): Promise<MetadataPair
  */
 export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> => {
   const {mediatype} = detectMime(pathToFile)
+  let coverArtMetadata: MetadataPair = {}
   if (mediatype === 'audio') return extractAudioInfo(pathToFile)
+  if (pathToFile.endsWith('.cbr') || pathToFile.endsWith('.cbz')) {
+    coverArtMetadata = await uploadComicMetadataArtwork(pathToFile)
+  }
 
-  return extractMetadataList(pathToFile)
+  return [coverArtMetadata, ...extractMetadataList(pathToFile)]
 }
 
+/**
+ * Extracts the first entry from a RAR archive file
+ * Sorts entries alphabetically and extracts the first file (excluding directories)
+ * @param pathToFile - The path to the RAR archive file
+ * @returns Promise that resolves to the path of the extracted first entry
+ * @private
+ */
+const extractFirstRarEntry = async (pathToFile: string): Promise<string> => {
+  // Read the RAR file into memory
+  const rarBuffer = await fsp.readFile(pathToFile)
+  // Convert Buffer to ArrayBuffer (createExtractorFromData expects ArrayBuffer)
+  // Create a new ArrayBuffer to ensure it's not a SharedArrayBuffer
+  const rarData = rarBuffer.buffer.slice(
+    rarBuffer.byteOffset,
+    rarBuffer.byteOffset + rarBuffer.byteLength,
+  ) as ArrayBuffer
+
+  // Create extractor from data (in-memory mode)
+  const extractor = await createExtractorFromData({data: rarData})
+
+  try {
+    // Get file list
+    const list = extractor.getFileList()
+    const fileHeaders = [...list.fileHeaders]
+
+    if (fileHeaders.length === 0) {
+      throw new Error('No files found in rar archive')
+    }
+
+    // Filter out directories
+    const entries = fileHeaders.filter((fh) => !fh.flags.directory)
+
+    if (entries.length === 0) {
+      throw new Error('No files found in rar archive (only directories)')
+    }
+
+    // Sort entries alphabetically by filename
+    entries.sort((a, b) => a.name.localeCompare(b.name))
+
+    // Get the first entry after sorting
+    const firstEntry = entries[0]
+    const archiveBasename = path.basename(pathToFile, path.extname(pathToFile)).replaceAll('.eivu_compressed', '')
+    const outputPath = path.join(
+      TEMP_FOLDER_ROOT,
+      `${COVERART_COMIC_PREFIX}-${archiveBasename}-${path.basename(firstEntry.name)}`,
+    )
+
+    // Extract the first entry
+    const extracted = await extractor.extract({files: [firstEntry.name]})
+    const files = [...extracted.files]
+
+    if (files.length !== 1 || !files[0].extraction) {
+      throw new Error(`Failed to extract file: ${firstEntry.name}`)
+    }
+
+    // Write buffer to file
+    const buffer = Buffer.from(files[0].extraction)
+    await fsp.writeFile(outputPath, buffer)
+
+    return outputPath
+  } finally {
+    // Clean up extractor if needed (node-unrar-js doesn't require explicit close, but we'll keep the pattern)
+  }
+}
+
+/**
+ * Extracts the first entry from a ZIP archive file
+ * Sorts entries alphabetically and extracts the first file (excluding directories)
+ * @param pathToFile - The path to the ZIP archive file
+ * @returns Promise that resolves to the path of the extracted first entry
+ * @private
+ */
+const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
+  const zip = await yauzl.open(pathToFile)
+
+  try {
+    // Read all entries
+    const entries: yauzl.Entry[] = []
+    for await (const entry of zip) {
+      // Skip directories
+      if (!entry.filename.endsWith('/')) {
+        entries.push(entry)
+      }
+    }
+
+    if (entries.length === 0) {
+      throw new Error('No files found in zip archive')
+    }
+
+    // Sort entries alphabetically by filename
+    entries.sort((a, b) => a.filename.localeCompare(b.filename))
+
+    // Get the first entry after sorting
+    const firstEntry = entries[0]
+    const archiveBasename = path.basename(pathToFile, path.extname(pathToFile)).replaceAll('.eivu_compressed', '')
+    archiveBasename.replaceAll('.eivu_compressed', '')
+    const outputPath = path.join(
+      TEMP_FOLDER_ROOT,
+      `${COVERART_COMIC_PREFIX}-${archiveBasename}-${path.basename(firstEntry.filename)}`,
+    )
+
+    // Extract the first entry
+    const readStream = await firstEntry.openReadStream()
+
+    // Collect data from read stream into buffer
+    const chunks: Buffer[] = []
+    for await (const chunk of readStream) {
+      chunks.push(chunk)
+    }
+
+    // Write buffer to file
+    const buffer = Buffer.concat(chunks)
+    await fsp.writeFile(outputPath, buffer)
+
+    // Generate MD5 of extracted file
+    // const md5 = await generateMd5(outputPath)
+    return outputPath
+  } finally {
+    await zip.close()
+  }
+}
+
+/**
+ * Extracts metadata profile from an associated YAML file
+ * Attempts to read and parse a .eivu.yml file with the same name as the input file
+ * @param pathToFile - The path to the file (the corresponding .eivu.yml file will be read)
+ * @returns Promise that resolves to a MetadataProfile, either from the YAML file or an empty profile if the file doesn't exist
+ */
 export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataProfile> => {
   const ymlPath = `${pathToFile}.eivu.yml`
   try {
@@ -283,14 +419,17 @@ export const generateDataProfile = async ({
   // This ensures that identical metadata entries from different sources (e.g., fileInfo and ymlInfo)
   // are properly deduplicated even though they're different object references
   metadataList = uniqWith([...metadataList, ...fileInfo, ...ymlInfo.metadata_list], metadataPairEquals)
-
+  metadataList = metadataList.filter((item) => Object.keys(item).length > 0)
   // Optionally include original local path
-  if (!pathToFile.startsWith(TEMP_FOLDER_ROOT)) {
+  // For temp files (extracted cover art), we still want to track the original local path
+  // unless it's already in the metadata list
+  // Skip adding original_local_path_to_file for coverart files
+  if (!pathToFile.startsWith(TEMP_FOLDER_ROOT) && !pathToFile.includes(COVERART_PREFIX)) {
     metadataList.push({original_local_path_to_file: pathToFile}) // eslint-disable-line camelcase
   }
 
-  // if working on cover art, prune unneeded metadata
-  if (pathToFile.includes(COVERART_PREFIX)) {
+  // if working on audio cover art, prune unneeded metadata
+  if (pathToFile.includes(COVERART_AUDIO_PREFIX)) {
     metadataList = filter(metadataList, (item) => {
       const key = Object.keys(item)[0]
       return ['eivu:artist_name', 'eivu:release_name', 'eivu:year', 'id3:album', 'id3:artist', 'id3:genre'].includes(
@@ -312,8 +451,10 @@ export const generateDataProfile = async ({
   const {description, info_url} = ymlInfo
   // const matched_recording = null
 
-  // alter name for cover art files
-  if (pathToFile.includes(COVERART_PREFIX)) {
+  if (metadataList.some((item) => Object.hasOwn(item, 'override:name'))) {
+    name = pruneString(metadataList, 'override:name')
+  } // alter name for audio cover art files
+  else if (pathToFile.includes(COVERART_AUDIO_PREFIX)) {
     name = 'Cover Art'
     const label = [artist_name, release_name].filter(Boolean).join(' - ')
     const name_xtra = label ? ` for ${label}` : ''
@@ -411,7 +552,7 @@ const pruneNumber = (metadataList: MetadataPair[], key: string): null | number =
  * @param params.metadataList - Metadata list to attach to the artwork file
  * @returns The uploaded CloudFile instance for the artwork, or null if no artwork exists
  */
-const uploadMetadataArtwork = async ({
+const uploadAudioMetadataArtwork = async ({
   iAudioMetadata,
   metadataList,
 }: {
@@ -432,7 +573,7 @@ const uploadMetadataArtwork = async ({
 
   const bufferData = Buffer.from(iAudioMetadata.common.picture[0].data)
 
-  const tmpFile = tmp.fileSync({mode: 0o644, postfix: `.${subtype}`, prefix: `${COVERART_PREFIX}-`})
+  const tmpFile = tmp.fileSync({mode: 0o644, postfix: `.${subtype}`, prefix: `${COVERART_AUDIO_PREFIX}-`})
 
   try {
     await fsp.appendFile(tmpFile.name, bufferData)
@@ -441,5 +582,51 @@ const uploadMetadataArtwork = async ({
   } finally {
     // Clean up the temporary file after upload completes or fails
     tmpFile.removeCallback()
+  }
+}
+
+/**
+ * Uploads cover art extracted from a comic archive (CBZ/CBR) as a separate cloud file
+ * Extracts the first image from the archive and uploads it with appropriate metadata
+ * @param pathToFile - The path to the comic archive file (.cbz or .cbr)
+ * @returns Promise that resolves to a MetadataPair containing the artwork MD5 hash, or an empty object on failure
+ */
+export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<MetadataPair> => {
+  let pathToCoverArt: string | undefined
+  try {
+    if (pathToFile.endsWith('.cbz')) {
+      pathToCoverArt = await extractFirstZipEntry(pathToFile)
+    } else if (pathToFile.endsWith('.cbr')) {
+      // Try RAR extraction first, but fall back to ZIP if it fails
+      // (some .cbr files are actually ZIP archives)
+      try {
+        pathToCoverArt = await extractFirstRarEntry(pathToFile)
+      } catch {
+        // If RAR extraction fails, try ZIP extraction as fallback
+        pathToCoverArt = await extractFirstZipEntry(pathToFile)
+      }
+    }
+
+    if (!pathToCoverArt) throw new Error(`Failed to extract cover art from ${pathToFile}`)
+
+    const {name}: MetadataProfile = await extractInfoFromYml(pathToFile)
+    const label = `Cover Art for ${name ?? path.basename(pathToFile)}`
+    const metadataList: MetadataPair[] = [{'override:name': label} as MetadataPair]
+
+    const coverArt = await Client.uploadFile({metadataList, pathToFile: pathToCoverArt})
+    return {'eivu:artwork_md5': coverArt.remoteAttr.md5}
+  } catch (error) {
+    console.error('Failed to generate cover art metadata for', pathToFile, error)
+    return {} as MetadataPair
+  } finally {
+    // Clean up the temporary file after upload completes or fails
+    if (pathToCoverArt) {
+      try {
+        await fsp.unlink(pathToCoverArt)
+      } catch (unlinkError) {
+        // Log but don't throw - file may have already been deleted or not exist
+        console.error('Failed to delete temp cover art file:', pathToCoverArt, unlinkError)
+      }
+    }
   }
 }

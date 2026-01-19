@@ -4,14 +4,29 @@ import {cleansedAssetName, md5AsFolders} from '../src/utils'
 
 describe('Utils', () => {
   describe('cleansedAssetName', () => {
-    it('returns "coverart-extractedByEivu.jpg" for cover art files', () => {
-      const pathToFile = '/some/path/coverart-extractedByEivu.jpg'
-      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu.jpg')
+    it('returns "coverart-extractedByEivu-forAudio.webp" for cover art files', () => {
+      const pathToFile = '/some/path/coverart-extractedByEivu-forAudio-random-string.webp'
+      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forAudio.webp')
     })
 
-    it('returns "coverart-extractedByEivu.png" for cover art files', () => {
-      const pathToFile = '/some/path/coverart-extractedByEivu.png'
-      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu.png')
+    it('returns "coverart-extractedByEivu-forComic.webp" for cover art files', () => {
+      const pathToFile = '/some/path/coverart-extractedByEivu-forComic-random-string.webp'
+      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forComic.webp')
+    })
+
+    it('handles filenames with multiple dots correctly (e.g., cover.01.webp)', () => {
+      const pathToFile = '/tmp/coverart-extractedByEivu-forComic-archiveName-cover.01.webp'
+      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forComic.webp')
+    })
+
+    it('returns "coverart-extractedByEivu-forAudio.jpg" for cover art files', () => {
+      const pathToFile = '/some/path/coverart-extractedByEivu-forAudio-random-string.jpg'
+      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forAudio.jpg')
+    })
+
+    it('returns "coverart-extractedByEivu-forAudio.png" for cover art files', () => {
+      const pathToFile = '/some/path/coverart-extractedByEivu-forAudio.png'
+      expect(cleansedAssetName(pathToFile)).toBe('coverart-extractedByEivu-forAudio.png')
     })
 
     it('sanitizes regular filenames', () => {

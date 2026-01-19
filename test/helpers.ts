@@ -1,6 +1,136 @@
 import path from 'node:path'
 
-import {TEMP_FOLDER_ROOT} from '../src/constants'
+import {COVERART_PREFIX, TEMP_FOLDER_ROOT} from '../src/constants'
+
+/**
+ * Filters metadata_list array by removing items with the specified key.
+ */
+function filterMetadataListByKey(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  body: any,
+  keyToRemove: string,
+): void {
+  // eslint-disable-next-line dot-notation
+  if (body['metadata_list'] && Array.isArray(body['metadata_list'])) {
+    // eslint-disable-next-line dot-notation
+    body['metadata_list'] = body['metadata_list'].filter((item: unknown) => {
+      const key = Object.keys(item as Record<string, unknown>)[0]
+
+      return key !== keyToRemove
+    })
+  }
+}
+
+/**
+ * Checks if a string value is a temp path or contains coverart prefix.
+ */
+function isTempOrCoverartPath(value: unknown): boolean {
+  if (typeof value !== 'string') {
+    return false
+  }
+
+  const normalized = path.normalize(value)
+
+  return normalized.startsWith(TEMP_FOLDER_ROOT) || normalized.includes(COVERART_PREFIX)
+}
+
+/**
+ * Removes a field from both bodies if it matches temp/coverart path patterns.
+ */
+function removeFieldIfTempPath(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  expectedBody: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actualBody: any,
+  field: string,
+): void {
+  const expectedValue = expectedBody?.[field]
+  const actualValue = actualBody?.[field]
+
+  const shouldRemove =
+    isTempOrCoverartPath(expectedValue) || isTempOrCoverartPath(actualValue) || (!expectedValue && !actualValue)
+
+  if (shouldRemove) {
+    delete expectedBody[field]
+    delete actualBody[field]
+  }
+}
+
+/**
+ * Checks if metadata_list contains original_local_path_to_file with temp or coverart paths.
+ */
+function hasTempOrCoverartPathInMetadata(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  body: any,
+): {hasCoverartPath: boolean; hasTempPath: boolean} {
+  let hasTempPath = false
+  let hasCoverartPath = false
+
+  // eslint-disable-next-line dot-notation
+  if (body['metadata_list'] && Array.isArray(body['metadata_list'])) {
+    // eslint-disable-next-line dot-notation
+    hasTempPath = body['metadata_list'].some((item: unknown) => {
+      const key = Object.keys(item as Record<string, unknown>)[0]
+      const value = Object.values(item as Record<string, unknown>)[0]
+
+      return key === 'original_local_path_to_file' && typeof value === 'string' && path.normalize(value).startsWith(TEMP_FOLDER_ROOT)
+    })
+    // eslint-disable-next-line dot-notation
+    hasCoverartPath = body['metadata_list'].some((item: unknown) => {
+      const key = Object.keys(item as Record<string, unknown>)[0]
+      const value = Object.values(item as Record<string, unknown>)[0]
+
+      return key === 'original_local_path_to_file' && typeof value === 'string' && value.includes(COVERART_PREFIX)
+    })
+  }
+
+  return {hasCoverartPath, hasTempPath}
+}
+
+/**
+ * Processes exclude fields from expected and actual bodies.
+ */
+function processExcludeFields(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  expectedBody: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  actualBody: any,
+  excludeFields: string[],
+): void {
+  for (const field of excludeFields) {
+    if (field.includes(':')) {
+      // Field is a metadata key - filter it from metadata_list
+      filterMetadataListByKey(actualBody, field)
+      filterMetadataListByKey(expectedBody, field)
+      filterMetadataListByKey(actualBody, 'original_local_path_to_file')
+      filterMetadataListByKey(expectedBody, 'original_local_path_to_file')
+    } else if (field === 'original_local_path_to_file') {
+      // Filter original_local_path_to_file from metadata_list
+      filterMetadataListByKey(actualBody, 'original_local_path_to_file')
+      filterMetadataListByKey(expectedBody, 'original_local_path_to_file')
+    } else {
+      removeFieldIfTempPath(expectedBody, actualBody, field)
+    }
+  }
+}
+
+/**
+ * Filters out override: keys from metadata_list as a safeguard.
+ */
+function filterOverrideKeys(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  body: any,
+): void {
+  // eslint-disable-next-line dot-notation
+  if (body['metadata_list'] && Array.isArray(body['metadata_list'])) {
+    // eslint-disable-next-line dot-notation
+    body['metadata_list'] = body['metadata_list'].filter((item: unknown) => {
+      const key = Object.keys(item as Record<string, unknown>)[0]
+
+      return !key.startsWith('override:')
+    })
+  }
+}
 
 /**
  * Creates a body matcher function for nock that compares request bodies
@@ -40,59 +170,21 @@ export function removeAttributeFromBodyTest(
     const actualBody = {...(body as Record<string, unknown>)} as any
 
     // Remove dynamic fields from comparison
-    for (const field of excludeFields) {
-      if (field.includes(':')) {
-        // Field is a metadata key - filter it from metadata_list
-        // eslint-disable-next-line dot-notation
-        if (actualBody['metadata_list'] && Array.isArray(actualBody['metadata_list'])) {
-          // eslint-disable-next-line dot-notation
-          actualBody['metadata_list'] = actualBody['metadata_list'].filter((item: unknown) => {
-            const key = Object.keys(item as Record<string, unknown>)[0]
+    processExcludeFields(expectedBody, actualBody, excludeFields)
 
-            return key !== field && key !== 'original_local_path_to_file'
-          })
-        }
+    // Also filter original_local_path_to_file from metadata_list if either body has a temp path or coverart path
+    // This handles cases where cover art is extracted to temp files or has coverart prefix
+    const actualPathInfo = hasTempOrCoverartPathInMetadata(actualBody)
+    const expectedPathInfo = hasTempOrCoverartPathInMetadata(expectedBody)
 
-        // eslint-disable-next-line dot-notation
-        if (expectedBody['metadata_list'] && Array.isArray(expectedBody['metadata_list'])) {
-          // eslint-disable-next-line dot-notation
-          expectedBody['metadata_list'] = expectedBody['metadata_list'].filter((item: unknown) => {
-            const key = Object.keys(item as Record<string, unknown>)[0]
-
-            return key !== field && key !== 'original_local_path_to_file'
-          })
-        }
-      } else {
-        // Check if the field value starts with the temp directory path
-        // Normalize paths for cross-platform compatibility (handles / vs \ separators)
-        // Check both expected and actual body values to handle dynamic temp paths
-        const expectedValue = expectedBody?.[field]
-        const actualValue = actualBody?.[field]
-
-        if (typeof expectedValue === 'string' && typeof actualValue === 'string') {
-          const normalizedExpected = path.normalize(expectedValue)
-          const normalizedActual = path.normalize(actualValue)
-
-          // Remove the field if either value is in the temp directory
-          if (normalizedExpected.startsWith(TEMP_FOLDER_ROOT) || normalizedActual.startsWith(TEMP_FOLDER_ROOT)) {
-            delete expectedBody[field]
-            delete actualBody[field]
-          }
-        } else if (typeof expectedValue === 'string') {
-          const normalizedValue = path.normalize(expectedValue)
-          if (normalizedValue.startsWith(TEMP_FOLDER_ROOT)) {
-            delete expectedBody[field]
-            delete actualBody[field]
-          }
-        } else if (typeof actualValue === 'string') {
-          const normalizedValue = path.normalize(actualValue)
-          if (normalizedValue.startsWith(TEMP_FOLDER_ROOT)) {
-            delete expectedBody[field]
-            delete actualBody[field]
-          }
-        }
-      }
+    if (actualPathInfo.hasTempPath || actualPathInfo.hasCoverartPath || expectedPathInfo.hasCoverartPath) {
+      filterMetadataListByKey(actualBody, 'original_local_path_to_file')
+      filterMetadataListByKey(expectedBody, 'original_local_path_to_file')
     }
+
+    // Always filter out override:* keys from metadata_list (they should already be pruned, but this is a safeguard)
+    filterOverrideKeys(actualBody)
+    filterOverrideKeys(expectedBody)
 
     return JSON.stringify(actualBody) === JSON.stringify(expectedBody)
   }

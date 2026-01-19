@@ -269,9 +269,17 @@ export const FROG_PRINCE_COVER_ART_RESERVATION: CloudFileType = {
   year: null,
 }
 
+export const FROG_PRINCE_COVER_ART_S3_RESPONSE = {
+  $metadata: {
+    attempts: 1,
+    httpStatusCode: 200,
+  },
+  ETag: '"f5b5dd551bd75a524be57c0a5f1675a8"',
+}
+
 export const FROG_PRINCE_COVER_ART_TRANSFER: CloudFileType = {
   ...FROG_PRINCE_COVER_ART_RESERVATION,
-  asset: 'coverart-extractedByEivu.jpeg',
+  asset: 'coverart-extractedByEivu-forAudio.jpeg',
   content_type: 'image/jpeg',
   filesize: 125_446,
   state: CloudFileState.TRANSFERRED,
@@ -309,7 +317,7 @@ export const FROG_PRINCE_COVER_ART_DATA_PROFILE = {
   metadata_list: FROG_PRINCE_COVER_ART_METADATA,
   name: 'Cover Art for The Brothers Grimm - The Frog Prince',
   path_to_file:
-    '/private/var/folders/hv/_ybbgb_s3kbd2vwkrkgvl04w0000gn/T/coverart-extractedByEivu--50540-I308Z07whFu4-.jpeg',
+    '/private/var/folders/hv/_ybbgb_s3kbd2vwkrkgvl04w0000gn/T/coverart-extractedByEivu-forAudio--50540-I308Z07whFu4-.jpeg',
   rating: null,
   release: {
     artwork_md5: null,
@@ -625,7 +633,7 @@ export const THE_PEACEMAKER_01_1967_PARSED_YML = {
     },
   ],
   name: 'The Peacemaker',
-  path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz',
+  path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz',
   rating: null,
   release: EMPTY_RELEASE,
   year: 1967,
@@ -633,8 +641,175 @@ export const THE_PEACEMAKER_01_1967_PARSED_YML = {
 
 export const THE_PEACEMAKER_01_1967_DATA_PROFILE = {
   ...THE_PEACEMAKER_01_1967_PARSED_YML,
+  artwork_md5: 'FC95C8DB0CECB47D449DFFD694AD963C',
   metadata_list: [
     ...THE_PEACEMAKER_01_1967_PARSED_YML.metadata_list,
-    {original_local_path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.cbz'},
+    {original_local_path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz'},
   ],
+  release: {
+    ...THE_PEACEMAKER_01_1967_PARSED_YML.release,
+    artwork_md5: 'FC95C8DB0CECB47D449DFFD694AD963C',
+  },
+}
+
+export const THE_PEACEMAKER_01_1967_COVER_ART_DATA_PROFILE = {
+  artists: [],
+  artwork_md5: null,
+  description: null,
+  duration: null,
+  info_url: null,
+  metadata_list: [],
+  name: 'Cover Art for The Peacemaker',
+  path_to_file: '/tmp/coverart-extractedByEivu-forComic-The_Peacemaker_01_1967.eivu_compressed-COVERART.webp',
+  rating: null,
+  release: EMPTY_RELEASE,
+  year: null,
+}
+
+export const THE_PEACEMAKER_01_1967_COVER_ART_S3_RESPONSE = {
+  $metadata: {
+    attempts: 1,
+    httpStatusCode: 200,
+  },
+  ETag: '"fc95c8db0cecb47d449dffd694ad963c"',
+}
+
+export const THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION: CloudFileType = {
+  artists: [],
+  artwork_url: null,
+  asset: null,
+  bucket_name: 'eivu-test',
+  bucket_uuid: '889c685a-de30-4ead-9a96-b3784233e1e8',
+  content_type: null,
+  created_at: '2025-09-29T23:32:35.951Z',
+  data_source_id: null,
+  date_aquired_at: null,
+  deletable: false,
+  delicate: false,
+  description: null,
+  duration: null,
+  ext_id: null,
+  filesize: 0,
+  folder_uuid: null,
+  info_url: null,
+  last_viewed_at: null,
+  md5: 'FC95C8DB0CECB47D449DFFD694AD963C',
+  metadata: [],
+  name: 'FC95C8DB0CECB47D449DFFD694AD963C (reserved)',
+  nsfw: false,
+  num_plays: 0,
+  peepy: false,
+  rating: null,
+  release_pos: null,
+  releases: [],
+  secured: false,
+  shared: true,
+  state: CloudFileState.RESERVED,
+  updated_at: '2025-09-29T23:32:35.951Z',
+  url: 'https://eivu-test.s3.wasabisys.com/image/FC/95/C8/DB/0C/EC/B4/7D/44/9D/FF/D6/94/AD/96/3C/',
+  user_uuid: '0f703c04-b448-455c-8a26-4edc22bf76dd',
+  uuid: '',
+  year: null,
+}
+
+export const THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER: CloudFileType = {
+  ...THE_PEACEMAKER_01_1967_COVER_ART_RESERVATION,
+  asset: 'coverart-extractedByEivu-forComic.webp',
+  content_type: 'image/webp',
+  filesize: 775_296,
+  state: CloudFileState.TRANSFERRED,
+}
+
+export const THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE: CloudFileType = {
+  ...THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER,
+  metadata: [
+    // {
+    //   id: 1,
+    //   type: 'original_local_path_to_file',
+    //   value: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
+    // },
+  ],
+  name: 'Cover Art for The Peacemaker',
+  state: CloudFileState.COMPLETED,
+}
+
+export const SPACE_ADVENTURES_033_1960_COVER_ART_DATA_PROFILE = {
+  artists: [],
+  artwork_md5: null,
+  description: null,
+  duration: null,
+  info_url: null,
+  metadata_list: [],
+  name: 'Cover Art for Space_Adventures_033.eivu_compressed.cbr',
+  path_to_file: '/tmp/coverart-extractedByEivu-forComic-Space_Adventures_033.eivu_compressed-COVERART.webp',
+  rating: null,
+  release: EMPTY_RELEASE,
+  year: null,
+}
+
+export const SPACE_ADVENTURES_033_1960_COVER_ART_S3_RESPONSE = {
+  $metadata: {
+    attempts: 1,
+    httpStatusCode: 200,
+  },
+  ETag: '"6c42cc77b1747b882c9d2a234e41d3fd"',
+}
+
+export const SPACE_ADVENTURES_033_1960_COVER_ART_RESERVATION: CloudFileType = {
+  artists: [],
+  artwork_url: null,
+  asset: null,
+  bucket_name: 'eivu-test',
+  bucket_uuid: '889c685a-de30-4ead-9a96-b3784233e1e8',
+  content_type: null,
+  created_at: '2025-09-29T23:32:35.951Z',
+  data_source_id: null,
+  date_aquired_at: null,
+  deletable: false,
+  delicate: false,
+  description: null,
+  duration: null,
+  ext_id: null,
+  filesize: 0,
+  folder_uuid: null,
+  info_url: null,
+  last_viewed_at: null,
+  md5: '6C42CC77B1747B882C9D2A234E41D3FD',
+  metadata: [],
+  name: '6C42CC77B1747B882C9D2A234E41D3FD (reserved)',
+  nsfw: false,
+  num_plays: 0,
+  peepy: false,
+  rating: null,
+  release_pos: null,
+  releases: [],
+  secured: false,
+  shared: true,
+  state: CloudFileState.RESERVED,
+  updated_at: '2025-09-29T23:32:35.951Z',
+  url: 'https://eivu-test.s3.wasabisys.com/image/6C/42/CC/77/B1/74/7B/88/2C/9D/2A/23/4E/41/D3/FD/',
+  user_uuid: '0f703c04-b448-455c-8a26-4edc22bf76dd',
+  uuid: '',
+  year: null,
+}
+
+export const SPACE_ADVENTURES_033_1960_COVER_ART_TRANSFER: CloudFileType = {
+  ...SPACE_ADVENTURES_033_1960_COVER_ART_RESERVATION,
+  asset: 'coverart-extractedByEivu-forComic.webp',
+  content_type: 'image/webp',
+  filesize: 396_820,
+  state: CloudFileState.TRANSFERRED,
+}
+
+export const SPACE_ADVENTURES_033_1960_COVER_ART_COMPLETE: CloudFileType = {
+  ...SPACE_ADVENTURES_033_1960_COVER_ART_TRANSFER,
+  metadata: [
+    // {
+    //   id: 1,
+    //   type: 'original_local_path_to_file',
+    //   value: 'test/fixtures/samples/image/Space_Adventures_033.webp',
+    // },
+  ],
+  name: 'Cover Art for Space Adventures #33',
+  state: CloudFileState.COMPLETED,
 }

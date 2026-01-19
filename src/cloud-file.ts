@@ -125,6 +125,11 @@ export class CloudFile {
     return this.remoteAttr.state === CloudFileState.COMPLETED
   }
 
+  /**
+   * Determines the grouping/category for the cloud file based on its attributes
+   * Files are grouped as 'secured', by resource type (audio/image/video), or 'archive'
+   * @returns The grouping string: 'secured', 'audio', 'image', 'video', or 'archive'
+   */
   grouping(): string {
     if (this.remoteAttr.peepy || this.remoteAttr.secured) {
       return 'secured'
@@ -265,7 +270,12 @@ export class CloudFile {
   }): Promise<CloudFile> {
     const {data: parsedBody} = await api.post(`/cloud_files/${this.remoteAttr.md5}/${action}`, dataProfile)
     this.remoteAttr = parsedBody
-    this.stateHistory.push(CloudFileState.COMPLETED)
+    // Only update state history for 'complete' action, not for 'update_metadata'
+    // updateMetadata is just updating data without changing the file's lifecycle state
+    if (action === 'complete') {
+      this.stateHistory.push(CloudFileState.COMPLETED)
+    }
+
     return this
   }
 }
