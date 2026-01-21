@@ -1,5 +1,5 @@
 import {COVERART_AUDIO_PREFIX, COVERART_COMIC_PREFIX, COVERART_PREFIX} from '@src/constants'
-import logger from '@src/logger'
+import logger, {type Logger} from '@src/logger'
 import {pruneMetadata} from '@src/metadata-extraction'
 import axios from 'axios'
 import mime from 'mime-types'
@@ -181,11 +181,16 @@ export type IsOnlineResult = {
  * Errors are logged but do not throw; the function returns {isOnline: false, remoteFilesize: null} on failure.
  * @param uri - The URL of the remote file to check. If null or undefined, the check is skipped and the function returns {isOnline: false, remoteFilesize: null}.
  * @param localFilesize - Optional local file size to compare against the remote Content-Length header.
+ * @param onlineLogger - Logger instance for logging warnings when the check fails.
  * @returns An object with isOnline boolean and the remote filesize (or null if unavailable). isOnline is true if a non-null URL is provided, the remote file is online, and file sizes match (if provided); false otherwise.
  */
-export const isOnline = async (uri: null | string | undefined, localFilesize?: number): Promise<IsOnlineResult> => {
+export const isOnline = async (
+  uri: null | string | undefined,
+  localFilesize?: number,
+  onlineLogger?: Logger,
+): Promise<IsOnlineResult> => {
   if (!uri) return {isOnline: false, remoteFilesize: null}
-
+  onlineLogger = onlineLogger ?? logger
   try {
     const response = await axios.head(uri)
     const headerOk = response.status === 200
@@ -200,7 +205,7 @@ export const isOnline = async (uri: null | string | undefined, localFilesize?: n
 
     return {isOnline: headerOk && filesizeOk, remoteFilesize: actualRemoteFilesize}
   } catch (error) {
-    logger.error({error, localFilesize, uri}, 'isOnline check failed')
+    onlineLogger.error({error, localFilesize, uri}, 'isOnline check failed')
     // If the request fails, treat as not online
     return {isOnline: false, remoteFilesize: null}
   }
