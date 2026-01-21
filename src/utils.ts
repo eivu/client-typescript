@@ -51,7 +51,7 @@ export function validateFilePath(
   // unless it's an absolute path provided by the user
   if (!path.isAbsolute(trimmedPath)) {
     const cwd = process.cwd()
-    const cwdWithSep = cwd + path.sep
+    const cwdWithSep = cwd.endsWith(path.sep) ? cwd : `${cwd}${path.sep}`
     // Check that the path is actually inside cwd, not just a sibling directory with a prefix match
     // For example, if cwd is /home/user/project, we should reject /home/user/project-evil/file.txt
     if (resolvedPath !== cwd && !resolvedPath.startsWith(cwdWithSep)) {
@@ -122,7 +122,7 @@ export function validateDirectoryPath(
   // unless it's an absolute path provided by the user
   if (!path.isAbsolute(trimmedPath)) {
     const cwd = process.cwd()
-    const cwdWithSep = cwd + path.sep
+    const cwdWithSep = cwd.endsWith(path.sep) ? cwd : `${cwd}${path.sep}`
     // Check that the path is actually inside cwd, not just a sibling directory with a prefix match
     // For example, if cwd is /home/user/project, we should reject /home/user/project-evil/
     if (resolvedPath !== cwd && !resolvedPath.startsWith(cwdWithSep)) {

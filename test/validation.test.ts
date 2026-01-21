@@ -133,6 +133,18 @@ describe('File Path Validation', () => {
       expect(() => validateFilePath('test/../file.txt')).toThrow('path traversal detected')
     })
 
+    it('should allow relative path when cwd is filesystem root', () => {
+      const originalCwd = process.cwd()
+      const rootDir = path.parse(originalCwd).root
+
+      try {
+        process.chdir(rootDir)
+        expect(() => validateFilePath(path.join('subdir', 'file.txt'), {checkExists: false})).not.toThrow()
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
     it('should detect path traversal in Windows absolute path with forward slashes', () => {
       // On Windows, Node.js accepts both / and \ as separators
       // This test ensures we detect .. even when using forward slashes in Windows paths
@@ -290,6 +302,18 @@ describe('File Path Validation', () => {
 
     it('should still reject actual path traversal with ../ as directory segment', () => {
       expect(() => validateDirectoryPath('test/../dir')).toThrow('path traversal detected')
+    })
+
+    it('should allow relative directory path when cwd is filesystem root', () => {
+      const originalCwd = process.cwd()
+      const rootDir = path.parse(originalCwd).root
+
+      try {
+        process.chdir(rootDir)
+        expect(() => validateDirectoryPath(path.join('var', 'log'), {checkExists: false})).not.toThrow()
+      } finally {
+        process.chdir(originalCwd)
+      }
     })
 
     it('should detect path traversal in Windows absolute path with forward slashes', () => {
