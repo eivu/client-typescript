@@ -1,4 +1,5 @@
 import {COVERART_AUDIO_PREFIX, COVERART_COMIC_PREFIX, COVERART_PREFIX} from '@src/constants'
+import logger from '@src/logger'
 import {pruneMetadata} from '@src/metadata-extraction'
 import axios from 'axios'
 import mime from 'mime-types'
@@ -7,13 +8,15 @@ import * as fs from 'node:fs'
 import path from 'node:path'
 
 /**
- * Validates a file path for existence and security issues
+ * Validates a file path for existence and security issues.
+ * Trims whitespace, checks for path traversal attacks, and ensures the path is within the current working directory.
+ * Handles edge cases including when the current working directory is the filesystem root.
  * @param pathToFile - The path to validate
  * @param options - Validation options
  * @param options.checkExists - Whether to check if the file exists (default: true)
  * @param options.allowDirectories - Whether to allow directories (default: false)
  * @returns The trimmed and validated file path
- * @throws Error if the path is invalid, contains path traversal, or doesn't exist
+ * @throws Error if the path is invalid, contains path traversal, doesn't exist, or escapes the working directory
  */
 export function validateFilePath(
   pathToFile: string,
@@ -79,17 +82,16 @@ export function validateFilePath(
 }
 
 /**
- * Validates a directory path for existence and security issues
+ * Validates a directory path for existence and security issues.
+ * Trims whitespace, checks for path traversal attacks, and ensures the path is within the current working directory.
+ * Handles edge cases including when the current working directory is the filesystem root.
  * @param pathToFolder - The path to validate
  * @param options - Validation options
  * @param options.checkExists - Whether to check if the directory exists (default: true)
  * @returns The trimmed and validated directory path
- * @throws Error if the path is invalid, contains path traversal, or doesn't exist
+ * @throws Error if the path is invalid, contains path traversal, doesn't exist, or escapes the working directory
  */
-export function validateDirectoryPath(
-  pathToFolder: string,
-  options: {checkExists?: boolean} = {},
-): string {
+export function validateDirectoryPath(pathToFolder: string, options: {checkExists?: boolean} = {}): string {
   const {checkExists = true} = options
 
   // Check for null, undefined, or empty string
@@ -148,12 +150,14 @@ export function validateDirectoryPath(
 
 /**
  * Generate the MD5 hash of a file's contents asynchronously using streams.
- * @param pathToFile - The path to the file to hash
- * @returns Promise that resolves to the MD5 hash in hex digest format
+ * The file path is validated for security before hashing.
+ * @param pathToFile - The path to the file to hash (will be validated and trimmed)
+ * @returns Promise that resolves to the MD5 hash in uppercase hex digest format
+ * @throws Error if the file path is invalid, contains path traversal, or doesn't exist
  */
 export async function generateMd5(pathToFile: string): Promise<string> {
   const trimmedPath = validateFilePath(pathToFile)
-  
+
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash('md5')
     const stream = fs.createReadStream(trimmedPath)
@@ -174,6 +178,7 @@ export type IsOnlineResult = {
 /**
  * Checks if a file is available online by sending a HEAD request.
  * Optionally verifies that the remote file size matches the local file size.
+ * Errors are logged but do not throw; the function returns {isOnline: false, remoteFilesize: null} on failure.
  * @param uri - The URL of the remote file to check. If null or undefined, the check is skipped and the function returns {isOnline: false, remoteFilesize: null}.
  * @param localFilesize - Optional local file size to compare against the remote Content-Length header.
  * @returns An object with isOnline boolean and the remote filesize (or null if unavailable). isOnline is true if a non-null URL is provided, the remote file is online, and file sizes match (if provided); false otherwise.
@@ -195,8 +200,7 @@ export const isOnline = async (uri: null | string | undefined, localFilesize?: n
 
     return {isOnline: headerOk && filesizeOk, remoteFilesize: actualRemoteFilesize}
   } catch (error) {
-    console.warn('USE PINO: https://www.npmjs.com/package/pino')
-    console.warn(`isOnline check failed for ${uri}: ${(error as Error).message}`)
+    logger.error({error, localFilesize, uri}, 'isOnline check failed')
     // If the request fails, treat as not online
     return {isOnline: false, remoteFilesize: null}
   }

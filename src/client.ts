@@ -203,7 +203,8 @@ export class Client {
     try {
       const cloudFile = await CloudFile.fetch(md5)
       return cloudFile.completed()
-    } catch {
+    } catch (error) {
+      this.logger.debug({error, md5, pathToFile}, 'Failed to verify upload')
       return false
     }
   }
