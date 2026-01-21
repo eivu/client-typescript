@@ -38,7 +38,10 @@ export function validateFilePath(
   // Check for path traversal by checking if any path segment is exactly ".."
   // This prevents attacks like "../../../etc/passwd" but allows legitimate filenames with ".." in them
   // Check the original path (before normalization) to catch traversal attempts that would be resolved away
-  // Split by both / and \ to handle Windows paths that may use forward slashes
+  // IMPORTANT: Split by both / and \ using regex /[/\\]/ instead of path.sep because:
+  // - Node.js accepts both / and \ as path separators on Windows
+  // - Using path.sep (which is \ on Windows) would miss path traversal in absolute paths like "C:/Users/../file"
+  // - The regex ensures we detect ".." segments regardless of which separator is used
   const pathSegments = trimmedPath.split(/[/\\]/)
   if (pathSegments.includes('..')) {
     throw new Error(`Invalid file path: path traversal detected in "${pathToFile}"`)
@@ -106,7 +109,10 @@ export function validateDirectoryPath(
   // Check for path traversal by checking if any path segment is exactly ".."
   // This prevents attacks like "../../../etc" but allows legitimate directory names with ".." in them
   // Check the original path (before normalization) to catch traversal attempts that would be resolved away
-  // Split by both / and \ to handle Windows paths that may use forward slashes
+  // IMPORTANT: Split by both / and \ using regex /[/\\]/ instead of path.sep because:
+  // - Node.js accepts both / and \ as path separators on Windows
+  // - Using path.sep (which is \ on Windows) would miss path traversal in absolute paths like "C:/Users/../dir"
+  // - The regex ensures we detect ".." segments regardless of which separator is used
   const pathSegments = trimmedPath.split(/[/\\]/)
   if (pathSegments.includes('..')) {
     throw new Error(`Invalid directory path: path traversal detected in "${pathToFolder}"`)
