@@ -330,6 +330,74 @@ describe('Client', () => {
       })
     })
 
+    describe('error handling', () => {
+      it('throws an error when required environment variables are missing', async () => {
+        mockSend.mockResolvedValue(AI_OVERLORDS_S3_RESPONSE)
+        const client = new Client()
+        const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
+
+        // Store original env vars
+        const originalAccessKey = process.env.EIVU_ACCESS_KEY_ID
+
+        // Remove environment variable
+        delete process.env.EIVU_ACCESS_KEY_ID
+
+        const reserveReq = nock(SERVER_HOST)
+          .post(`${URL_BUCKET_PREFIX}/cloud_files/7ED971313D1AEA1B6E2BF8AF24BED64A/reserve`, {
+            nsfw: false,
+            secured: false,
+          })
+          .query({keyFormat: 'camel_lower'})
+          .reply(200, AI_OVERLORDS_RESERVATION)
+
+        await expect(client.uploadFile({pathToFile})).rejects.toThrow(
+          'Missing required environment variables: EIVU_ACCESS_KEY_ID',
+        )
+
+        // Restore environment variable
+        if (originalAccessKey === undefined) {
+          delete process.env.EIVU_ACCESS_KEY_ID
+        } else {
+          process.env.EIVU_ACCESS_KEY_ID = originalAccessKey
+        }
+
+        expect(reserveReq.isDone()).toBe(true)
+      })
+
+      it('throws an error when required environment variables are empty strings', async () => {
+        mockSend.mockResolvedValue(AI_OVERLORDS_S3_RESPONSE)
+        const client = new Client()
+        const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
+
+        // Store original env vars
+        const originalAccessKey = process.env.EIVU_ACCESS_KEY_ID
+
+        // Set environment variable to empty string
+        process.env.EIVU_ACCESS_KEY_ID = ''
+
+        const reserveReq = nock(SERVER_HOST)
+          .post(`${URL_BUCKET_PREFIX}/cloud_files/7ED971313D1AEA1B6E2BF8AF24BED64A/reserve`, {
+            nsfw: false,
+            secured: false,
+          })
+          .query({keyFormat: 'camel_lower'})
+          .reply(200, AI_OVERLORDS_RESERVATION)
+
+        await expect(client.uploadFile({pathToFile})).rejects.toThrow(
+          'Missing required environment variables: EIVU_ACCESS_KEY_ID',
+        )
+
+        // Restore environment variable
+        if (originalAccessKey === undefined) {
+          delete process.env.EIVU_ACCESS_KEY_ID
+        } else {
+          process.env.EIVU_ACCESS_KEY_ID = originalAccessKey
+        }
+
+        expect(reserveReq.isDone()).toBe(true)
+      })
+    })
+
     it('can be instantiated', () => {
       const client = new Client()
       expect(client).toBeInstanceOf(Client)
