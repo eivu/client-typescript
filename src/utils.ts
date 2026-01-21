@@ -1,5 +1,5 @@
 import {COVERART_AUDIO_PREFIX, COVERART_COMIC_PREFIX, COVERART_PREFIX} from '@src/constants'
-import {type Logger} from '@src/logger'
+import logger, {type Logger} from '@src/logger'
 import {pruneMetadata} from '@src/metadata-extraction'
 import axios from 'axios'
 import mime from 'mime-types'
@@ -87,10 +87,7 @@ export function validateFilePath(
  * @returns The trimmed and validated directory path
  * @throws Error if the path is invalid, contains path traversal, or doesn't exist
  */
-export function validateDirectoryPath(
-  pathToFolder: string,
-  options: {checkExists?: boolean} = {},
-): string {
+export function validateDirectoryPath(pathToFolder: string, options: {checkExists?: boolean} = {}): string {
   const {checkExists = true} = options
 
   // Check for null, undefined, or empty string
@@ -154,7 +151,7 @@ export function validateDirectoryPath(
  */
 export async function generateMd5(pathToFile: string): Promise<string> {
   const trimmedPath = validateFilePath(pathToFile)
-  
+
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash('md5')
     const stream = fs.createReadStream(trimmedPath)
@@ -177,12 +174,16 @@ export type IsOnlineResult = {
  * Optionally verifies that the remote file size matches the local file size.
  * @param uri - The URL of the remote file to check. If null or undefined, the check is skipped and the function returns {isOnline: false, remoteFilesize: null}.
  * @param localFilesize - Optional local file size to compare against the remote Content-Length header.
- * @param logger - Logger instance for logging warnings when the check fails.
+ * @param onlineLogger - Logger instance for logging warnings when the check fails.
  * @returns An object with isOnline boolean and the remote filesize (or null if unavailable). isOnline is true if a non-null URL is provided, the remote file is online, and file sizes match (if provided); false otherwise.
  */
-export const isOnline = async (uri: null | string | undefined, localFilesize?: number, logger?: Logger): Promise<IsOnlineResult> => {
+export const isOnline = async (
+  uri: null | string | undefined,
+  localFilesize?: number,
+  onlineLogger?: Logger,
+): Promise<IsOnlineResult> => {
   if (!uri) return {isOnline: false, remoteFilesize: null}
-
+  onlineLogger = onlineLogger ?? logger
   try {
     const response = await axios.head(uri)
     const headerOk = response.status === 200
@@ -197,7 +198,7 @@ export const isOnline = async (uri: null | string | undefined, localFilesize?: n
 
     return {isOnline: headerOk && filesizeOk, remoteFilesize: actualRemoteFilesize}
   } catch (error) {
-    logger?.warn(`isOnline check failed for ${uri}: ${(error as Error).message}`)
+    onlineLogger.warn(`isOnline check failed for ${uri}: ${(error as Error).message}`)
     // If the request fails, treat as not online
     return {isOnline: false, remoteFilesize: null}
   }
