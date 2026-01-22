@@ -813,3 +813,31 @@ export const SPACE_ADVENTURES_033_1960_COVER_ART_COMPLETE: CloudFileType = {
   name: 'Cover Art for Space Adventures #33',
   state: CloudFileState.COMPLETED,
 }
+
+export const WEREWOLF_001_1967_PARSED_YML = {
+  artists: [],
+  artwork_md5: null,
+  description:
+    "Dell Comics's Werewolf #1 had a cover date of December, 1966. The artist was Talented Tony Tallarico (who also drew Jigsaw for Harvey, The Blue Beetle for Charlton & Lobo (the western) also for Dell Comics), but the writer's identity isn't known, but has been credited to Don Segall (dialog on DC's Creeper, full scripts on Dell's Kona, Monarch of Monster Isle.)\n\nOur superhero was U.S. Air Force Major Wiley Wolf, who crash-landed in the Arctic and, stricken with amnesia, joined a wolf pack. The wolves accepted him, apparently because he nursed one of their wounded members (whom Wiley named Thor) back to health after he'd been wounded in the crash. By the time the CIA rescued him, he'd learned much of their wolf lore, and had formed such an attachment to Thor, the wolf accompanied him back to civilization.\n\nBack in the world, Wiley was equipped with a black stealth costume (which, though only a single molecule thick, protected him from bullets), and went to work as a superhero for the U.S. government. Radio implants in his and Thor's heads enabled the two to communicate without speaking aloud.\n\nLike Dell's other monster superheroes (Dracula & Frankenstein), this one lasted a mere three issues. There were no media spin-offs, no reprints, and no apparent demand for a revival. A bummer to me, I thought it was the best of the three and rather enjoyed it.",
+  duration: null,
+  info_url: 'https://beachbumcomics.blogspot.com/2014/08/werewolf-famous-monster-of-filmlands.html',
+  metadata_list: [
+    {character: 'Werewolf'},
+    {character: 'Wiley Wolf'},
+    {cover_artist: 'Bill Fraccio'},
+    {cover_artist: 'Tony Tallarico'},
+    {inker: 'Tony Tallarico'},
+    {penciler: 'Bill Fraccio'},
+    {letterer: 'Ben Oda'},
+    {publisher: 'Dell'},
+    {genre: 'Spy'},
+    {genre: 'Superhero'},
+    {tag: 'Werewolf'},
+    {writer: 'DJ Arneson'},
+    {writer: 'Joe Gill'},
+  ],
+  name: 'Werewolf #1',
+  rating: null,
+  release: EMPTY_RELEASE,
+  year: 1966,
+}

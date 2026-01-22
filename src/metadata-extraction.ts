@@ -290,7 +290,8 @@ const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
  * @returns Promise that resolves to a MetadataProfile, either from the YAML file or an empty profile if the file doesn't exist
  */
 export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataProfile> => {
-  const ymlPath = `${pathToFile}.eivu.yml`
+  const isAYml = pathToFile.endsWith('.eivu.yml')
+  const ymlPath = isAYml ? pathToFile : `${pathToFile}.eivu.yml`
   try {
     const file = await fsp.readFile(ymlPath, 'utf8')
     const info = yamlParse(file) as MetadataProfile
