@@ -20,6 +20,9 @@ import {
   PEXELS_RESERVATION,
   PEXELS_S3_RESPONSE,
   PEXELS_TRANSFER,
+  WEREWOLF_001_1966_COMPLETE,
+  WEREWOLF_001_1966_PARTIAL_PROFILE,
+  WEREWOLF_001_1966_RESERVATION,
 } from './fixtures/responses'
 import {removeAttributeFromBodyTest} from './helpers'
 
@@ -64,6 +67,37 @@ jest.mock('@aws-sdk/client-s3', () => ({
 }))
 
 describe('Client', () => {
+
+  describe('updateCloudFile', () => {
+    beforeEach(() => {
+      nock.cleanAll()
+      jest.clearAllMocks()
+      mockSend.mockClear()
+    })
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('updates the metadata of a cloud file', async () => {
+      const client = new Client()
+      const pathToYml = 'test/fixtures/samples/updates/6068BE59B486F912BB432DDA00D8949B.eivu.yml'
+      const fetchReq = nock(SERVER_HOST)
+        .get(`${URL_BUCKET_PREFIX}/cloud_files/6068BE59B486F912BB432DDA00D8949B`)
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, WEREWOLF_001_1966_RESERVATION)
+      const updateMetadataReq = nock(SERVER_HOST)
+          .post(`${URL_BUCKET_PREFIX}/cloud_files/6068BE59B486F912BB432DDA00D8949B/update_metadata`,
+            WEREWOLF_001_1966_PARTIAL_PROFILE)
+        .query({keyFormat: 'camel_lower'})
+        .reply(200, WEREWOLF_001_1966_COMPLETE)
+      const cloudFile = await client.updateCloudFile(pathToYml)
+      expect(cloudFile).toBeInstanceOf(CloudFile)
+      expect(fetchReq.isDone()).toBe(true)
+      expect(updateMetadataReq.isDone()).toBe(true)
+    })
+  })
+
   describe('uploadFile', () => {
     beforeEach(() => {
       nock.cleanAll()
