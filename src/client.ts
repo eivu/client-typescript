@@ -294,6 +294,24 @@ export class Client {
     await this.logMessage('logs/failure.csv', [new Date().toISOString(), pathToFile, md5, error.message])
   }
 
+  private async logMd5Failure(pathToFile: string, md5: string, error: Error): Promise<void> {
+    await this.logMessage('logs/failure.csv', [
+      new Date().toISOString(),
+      pathToFile,
+      md5,
+      `Update Failed: ${error.message}`,
+    ])
+  }
+
+  private async logMd5Success(pathToFile: string, md5: string): Promise<void> {
+    await this.logMessage('logs/success.csv', [
+      new Date().toISOString(),
+      pathToFile,
+      md5,
+      'CloudFile updated successfully',
+    ])
+  }
+
   /**
    * Writes a log message to a CSV file
    * Appends a new row to the specified CSV log file
@@ -331,11 +349,14 @@ export class Client {
   }
 
   private async processRateLimitedCloudFileUpdate(pathToFile: string): Promise<string> {
+    const md5 = path.basename(pathToFile, METADATA_YML_SUFFIX)
+
     try {
       await this.updateCloudFile(pathToFile)
+      await this.logMd5Success(pathToFile, md5)
       return `${pathToFile}: updated successfully`
     } catch (error) {
-      await this.logFailure(pathToFile, error as Error)
+      await this.logMd5Failure(pathToFile, md5, error as Error)
       return `${pathToFile}: ${(error as Error).message}`
     }
   }
