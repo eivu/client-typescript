@@ -50,4 +50,10 @@ logResponse(
   }),
 )
 
-logResponse(await client.updateCloudFile('test/fixtures/samples/updates/6068BE59B486F912BB432DDA00D8949B.eivu.yml'))
+logResponse(
+  await client.uploadFile({
+    pathToFile: 'test/fixtures/samples/comics/Werewolf 002 [Dell] (1967) (Vigilante407-DCP).eivu_compressed.cbr',
+  }),
+)
+
+logResponse(await client.bulkUpdateCloudFiles({pathToFolder: 'test/fixtures/samples/updates'}))
