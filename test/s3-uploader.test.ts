@@ -111,7 +111,7 @@ describe('S3Uploader', () => {
         expect(mockSend).toHaveBeenCalledTimes(1)
       })
 
-      it('uses a stream instead of loading the entire file into memory', async () => {
+      it('uses a Buffer to support AWS SDK retry behavior', async () => {
         // Setup the mock to return the expected response
         mockSend.mockResolvedValue(AI_OVERLORDS_S3_RESPONSE)
 
@@ -133,14 +133,10 @@ describe('S3Uploader', () => {
         // Get the arguments passed to PutObjectCommand constructor
         const commandArgs = putObjectCommandMock.mock.calls[0][0] as {Body: unknown}
 
-        // Verify that Body is a ReadStream, not a Buffer
-        expect(commandArgs.Body).toBeInstanceOf(ReadStream)
-        expect(commandArgs.Body).not.toBeInstanceOf(Buffer)
-
-        // Clean up the stream
-        if (commandArgs.Body && typeof (commandArgs.Body as ReadStream).destroy === 'function') {
-          ;(commandArgs.Body as ReadStream).destroy()
-        }
+        // Verify that Body is a Buffer, not a ReadStream
+        // Buffers can be reused on retries, whereas streams can only be consumed once
+        expect(commandArgs.Body).toBeInstanceOf(Buffer)
+        expect(commandArgs.Body).not.toBeInstanceOf(ReadStream)
       })
 
       it('throws an error when localPathToFile is null', async () => {
