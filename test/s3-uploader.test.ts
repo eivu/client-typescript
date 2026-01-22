@@ -142,6 +142,23 @@ describe('S3Uploader', () => {
           ;(commandArgs.Body as ReadStream).destroy()
         }
       })
+
+      it('throws an error when localPathToFile is null', async () => {
+        const cloudFile = new CloudFile({
+          localPathToFile: null,
+          remoteAttr: {
+            ...AI_OVERLORDS_RESERVATION,
+            asset: cleansedAssetName('test/fixtures/samples/image/ai overlords.jpg'),
+          },
+          resourceType: 'image',
+        })
+
+        const s3Uploader = new S3Uploader({assetLogger: mockLogger, cloudFile, s3Config})
+
+        await expect(s3Uploader.putLocalFile()).rejects.toThrow(
+          'S3Uploader#putLocalFile requires CloudFile.localPathToFile to be set',
+        )
+      })
     })
   })
 })
