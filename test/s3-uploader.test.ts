@@ -1,4 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, jest} from '@jest/globals'
+import {ReadStream} from 'node:fs'
 
 import type {Logger} from '../src/logger'
 
@@ -9,8 +10,13 @@ import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_S3_RESPONSE, MOV_BBB_RESERVATION}
 
 // Mock the AWS SDK S3Client
 const mockSend = jest.fn() as jest.MockedFunction<(command: unknown) => Promise<unknown>>
+const putObjectCommandMock = jest.fn()
+
 jest.mock('@aws-sdk/client-s3', () => ({
-  PutObjectCommand: jest.fn(),
+  PutObjectCommand: jest.fn().mockImplementation((input: unknown) => {
+    putObjectCommandMock(input)
+    return input
+  }),
   S3Client: jest.fn().mockImplementation(() => ({
     send: mockSend,
   })),
@@ -46,6 +52,7 @@ describe('S3Uploader', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockSend.mockClear()
+    putObjectCommandMock.mockClear()
   })
 
   afterEach(() => {
@@ -104,9 +111,12 @@ describe('S3Uploader', () => {
         expect(mockSend).toHaveBeenCalledTimes(1)
       })
 
-      it('throws an error when localPathToFile is null', async () => {
+      it('uses a stream instead of loading the entire file into memory', async () => {
+        // Setup the mock to return the expected response
+        mockSend.mockResolvedValue(AI_OVERLORDS_S3_RESPONSE)
+
         const cloudFile = new CloudFile({
-          localPathToFile: null,
+          localPathToFile: 'test/fixtures/samples/image/ai overlords.jpg',
           remoteAttr: {
             ...AI_OVERLORDS_RESERVATION,
             asset: cleansedAssetName('test/fixtures/samples/image/ai overlords.jpg'),
@@ -115,10 +125,22 @@ describe('S3Uploader', () => {
         })
 
         const s3Uploader = new S3Uploader({assetLogger: mockLogger, cloudFile, s3Config})
+        await s3Uploader.putLocalFile()
 
-        await expect(s3Uploader.putLocalFile()).rejects.toThrow(
-          'S3Uploader#putLocalFile requires CloudFile.localPathToFile to be set',
-        )
+        // Verify PutObjectCommand was called
+        expect(putObjectCommandMock).toHaveBeenCalledTimes(1)
+
+        // Get the arguments passed to PutObjectCommand constructor
+        const commandArgs = putObjectCommandMock.mock.calls[0][0] as {Body: unknown}
+
+        // Verify that Body is a ReadStream, not a Buffer
+        expect(commandArgs.Body).toBeInstanceOf(ReadStream)
+        expect(commandArgs.Body).not.toBeInstanceOf(Buffer)
+
+        // Clean up the stream
+        if (commandArgs.Body && typeof (commandArgs.Body as ReadStream).destroy === 'function') {
+          ;(commandArgs.Body as ReadStream).destroy()
+        }
       })
     })
   })
