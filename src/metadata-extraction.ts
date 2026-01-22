@@ -86,7 +86,7 @@ export const EMPTY_METADATA_PROFILE: MetadataProfile = {
 export const extractAudioInfo = async (pathToFile: string): Promise<MetadataPair[]> => {
   // Validate file path for existence and security, and get trimmed path
   pathToFile = validateFilePath(pathToFile)
-  
+
   const metadata = await parseFile(pathToFile)
   const id3InfoArray: MetadataPair[] = []
   const v2TagsId = metadata.format.tagTypes.find((value) => ['ID3v2.2', 'ID3v2.3', 'ID3v2.4'].includes(value))
@@ -150,7 +150,7 @@ export const extractAudioInfo = async (pathToFile: string): Promise<MetadataPair
 export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> => {
   // Validate file path for existence and security, and get trimmed path
   pathToFile = validateFilePath(pathToFile)
-  
+
   const {mediatype} = detectMime(pathToFile)
   let coverArtMetadata: MetadataPair = {}
   if (mediatype === 'audio') return extractAudioInfo(pathToFile)
@@ -295,9 +295,13 @@ export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataPr
   try {
     const file = await fsp.readFile(ymlPath, 'utf8')
     const info = yamlParse(file) as MetadataProfile
-    return {...EMPTY_METADATA_PROFILE, ...info, path_to_file: pathToFile} // eslint-disable-line camelcase
+    return isAYml
+      ? {...EMPTY_METADATA_PROFILE, ...info}
+      : {...EMPTY_METADATA_PROFILE, ...info, path_to_file: pathToFile} // eslint-disable-line camelcase
   } catch {
-    return {...EMPTY_METADATA_PROFILE, path_to_file: pathToFile} // eslint-disable-line camelcase
+    return isAYml
+      ? {...EMPTY_METADATA_PROFILE}
+      : {...EMPTY_METADATA_PROFILE, path_to_file: pathToFile} // eslint-disable-line camelcase
   }
 }
 
@@ -372,7 +376,7 @@ export const extractYear = (input: string): null | number => {
 export const generateAcoustidFingerprint = (pathToFile: string): Promise<AcoustidFingerprint> => {
   // Validate file path for existence and security, and get trimmed path
   pathToFile = validateFilePath(pathToFile)
-  
+
   return new Promise((resolve, reject) => {
     execFile('fpcalc', ['-json', pathToFile], (error, stdout, stderr) => {
       if (error) {
@@ -424,7 +428,7 @@ export const generateDataProfile = async ({
 }): Promise<MetadataProfile> => {
   // Validate file path for existence and security, and get trimmed path
   pathToFile = validateFilePath(pathToFile)
-  
+
   // Extract additional metadata from the filename and merge with provided metadata list
   const fileInfo = await extractInfo(pathToFile)
   const ymlInfo: MetadataProfile = await extractInfoFromYml(pathToFile)
