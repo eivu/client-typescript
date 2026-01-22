@@ -3,6 +3,7 @@ import logger, {type Logger} from '@src/logger'
 import {extractInfoFromYml, generateDataProfile, type MetadataPair, type MetadataProfile} from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {cleansedAssetName, generateMd5, isOnline, validateDirectoryPath, validateFilePath} from '@src/utils'
+import cleanDeep from 'clean-deep'
 import * as fastCsv from 'fast-csv'
 import {Glob} from 'glob'
 import fs from 'node:fs'
@@ -229,99 +230,25 @@ export class Client {
 
   /**
    * Filters out null values, empty arrays, and objects where all values are null from a metadata profile
-   * Recursively processes nested objects to ensure clean payloads
+   * Uses clean-deep for the heavy lifting, then removes objects where all values are null
    * @param profile - The metadata profile to filter
    * @returns A filtered metadata profile with null values, empty arrays, and null-only objects removed
    * @private
    */
   private filterMetadataProfile(profile: MetadataProfile): MetadataProfile {
-    const filtered: Partial<MetadataProfile> = {}
+    // First pass: use clean-deep to remove null values, empty arrays, and empty objects
+    const cleaned = cleanDeep(profile, {
+      emptyArrays: true,
+      emptyObjects: true,
+      emptyStrings: false, // Keep empty strings if they exist
+      nullValues: true,
+      undefinedValues: true,
+    })
 
-    // Helper function to recursively filter objects
-    const filterObject = (obj: Record<string, unknown>): null | Record<string, unknown> => {
-      const result: Record<string, unknown> = {}
+    // Second pass: remove objects where all values are null (clean-deep doesn't handle this)
+    const result = this.removeAllNullObjects(cleaned)
 
-      for (const [key, value] of Object.entries(obj)) {
-        if (value === null) continue
-
-        if (Array.isArray(value)) {
-          if (value.length === 0) continue
-
-          // Filter array items recursively if they are objects
-          const filteredArray = value
-            .map((item) => {
-              if (item && typeof item === 'object' && !Array.isArray(item)) {
-                const filtered = filterObject(item as Record<string, unknown>)
-
-                return filtered && !this.hasAllNullValues(filtered) ? filtered : null
-              }
-
-              return item
-            })
-            .filter((item) => item !== null)
-
-          if (filteredArray.length > 0) {
-            result[key] = filteredArray
-          }
-        } else if (value && typeof value === 'object' && !Array.isArray(value)) {
-          const filteredObj = filterObject(value as Record<string, unknown>)
-
-          if (filteredObj && !this.hasAllNullValues(filteredObj)) {
-            result[key] = filteredObj
-          }
-        } else {
-          result[key] = value
-        }
-      }
-
-      return Object.keys(result).length > 0 ? result : null
-    }
-
-    // Process each field in the profile
-    for (const [key, value] of Object.entries(profile)) {
-      if (value === null) continue
-
-      if (Array.isArray(value)) {
-        if (value.length === 0) continue
-
-        // Filter array items recursively if they are objects
-        const filteredArray = value
-          .map((item) => {
-            if (item && typeof item === 'object' && !Array.isArray(item)) {
-              const filtered = filterObject(item as Record<string, unknown>)
-
-              return filtered && !this.hasAllNullValues(filtered) ? filtered : null
-            }
-
-            return item
-          })
-          .filter((item) => item !== null)
-
-        if (filteredArray.length > 0) {
-          filtered[key as keyof MetadataProfile] = filteredArray as never
-        }
-      } else if (value && typeof value === 'object' && !Array.isArray(value)) {
-        const filteredObj = filterObject(value as Record<string, unknown>)
-
-        if (filteredObj && !this.hasAllNullValues(filteredObj)) {
-          filtered[key as keyof MetadataProfile] = filteredObj as never
-        }
-      } else {
-        filtered[key as keyof MetadataProfile] = value as never
-      }
-    }
-
-    return filtered as MetadataProfile
-  }
-
-  /**
-   * Checks if an object has all null values
-   * @param obj - The object to check
-   * @returns True if all values in the object are null
-   * @private
-   */
-  private hasAllNullValues(obj: Record<string, unknown>): boolean {
-    return Object.values(obj).every((value) => value === null)
+    return result as MetadataProfile
   }
 
   /**
@@ -513,5 +440,44 @@ export class Client {
     throw new Error(
       `File ${cloudFile.remoteAttr.md5}:${asset} is offline/filesize mismatch. expected size: ${filesize} got: ${remoteFilesizeStr}`,
     )
+  }
+
+  /**
+   * Recursively removes objects where all values are null
+   * @param obj - The object or value to process
+   * @returns The cleaned object with all-null objects removed, or null if the object itself is all null
+   * @private
+   */
+  private removeAllNullObjects(obj: unknown): unknown {
+    if (obj === null || obj === undefined) {
+      return null
+    }
+
+    if (Array.isArray(obj)) {
+      const filtered = obj.map((item) => this.removeAllNullObjects(item)).filter((item) => item !== null)
+
+      return filtered.length > 0 ? filtered : null
+    }
+
+    if (obj && typeof obj === 'object') {
+      const entries = Object.entries(obj as Record<string, unknown>)
+        .map(([key, value]) => [key, this.removeAllNullObjects(value)])
+        .filter(([, value]) => value !== null)
+
+      if (entries.length === 0) {
+        return null
+      }
+
+      const result = Object.fromEntries(entries)
+
+      // Check if all remaining values are null
+      if (Object.values(result).every((v) => v === null)) {
+        return null
+      }
+
+      return result
+    }
+
+    return obj
   }
 }
