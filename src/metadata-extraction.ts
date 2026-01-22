@@ -16,6 +16,7 @@ import {
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
 import {detectMime, validateFilePath} from '@src/utils'
+import cleanDeep from 'clean-deep'
 import filter from 'lodash/filter'
 import uniqWith from 'lodash/uniqWith'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
@@ -647,4 +648,64 @@ export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<Me
       }
     }
   }
+}
+
+/**
+ * Filters out null values, empty arrays, and objects where all values are null from a metadata profile
+ * Uses clean-deep for the heavy lifting, then removes objects where all values are null
+ * @param profile - The metadata profile to filter
+ * @returns A filtered metadata profile with null values, empty arrays, and null-only objects removed
+ */
+export function filterMetadataProfile(profile: MetadataProfile): MetadataProfile {
+  // First pass: use clean-deep to remove null values, empty arrays, and empty objects
+  const cleaned = cleanDeep(profile, {
+    emptyArrays: true,
+    emptyObjects: true,
+    emptyStrings: false, // Keep empty strings if they exist
+    nullValues: true,
+    undefinedValues: true,
+  })
+
+  // Second pass: remove objects where all values are null (clean-deep doesn't handle this)
+  const result = removeAllNullObjects(cleaned)
+
+  return result as MetadataProfile
+}
+
+/**
+ * Recursively removes objects where all values are null
+ * @param obj - The object or value to process
+ * @returns The cleaned object with all-null objects removed, or null if the object itself is all null
+ */
+export function removeAllNullObjects(obj: unknown): unknown {
+  if (obj === null || obj === undefined) {
+    return null
+  }
+
+  if (Array.isArray(obj)) {
+    const filtered = obj.map((item) => removeAllNullObjects(item)).filter((item) => item !== null)
+
+    return filtered.length > 0 ? filtered : null
+  }
+
+  if (obj && typeof obj === 'object') {
+    const entries = Object.entries(obj as Record<string, unknown>)
+      .map(([key, value]) => [key, removeAllNullObjects(value)])
+      .filter(([, value]) => value !== null)
+
+    if (entries.length === 0) {
+      return null
+    }
+
+    const result = Object.fromEntries(entries)
+
+    // Check if all remaining values are null
+    if (Object.values(result).every((v) => v === null)) {
+      return null
+    }
+
+    return result
+  }
+
+  return obj
 }
