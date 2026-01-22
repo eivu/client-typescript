@@ -7,7 +7,6 @@ const logResponse = (result: unknown) => {
   console.log('====================')
 }
 
-const client = new Client()
 // // const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
 // // let pathToFile
 // // try {
@@ -25,7 +24,7 @@ const client = new Client()
 // // console.log('====================')
 
 logResponse(
-  await client.uploadFolder({
+  await Client.uploadFolder({
     nsfw: true,
     pathToFolder: 'test/fixtures/samples/secured/numbers/',
     secured: true,
@@ -45,15 +44,15 @@ logResponse(
 // )
 
 logResponse(
-  await client.uploadFile({
+  await Client.uploadFile({
     pathToFile: 'test/fixtures/samples/comics/Werewolf 001 (c2c) (Dell 1966).eivu_compressed.cbr',
   }),
 )
 
 logResponse(
-  await client.uploadFile({
+  await Client.uploadFile({
     pathToFile: 'test/fixtures/samples/comics/Werewolf 002 [Dell] (1967) (Vigilante407-DCP).eivu_compressed.cbr',
   }),
 )
 
-logResponse(await client.bulkUpdateCloudFiles({pathToFolder: 'test/fixtures/samples/updates'}))
+logResponse(await Client.bulkUpdateCloudFiles({pathToFolder: 'test/fixtures/samples/updates'}))

@@ -69,6 +69,11 @@ export class Client {
     this.logger = logger
   }
 
+  static async bulkUpdateCloudFiles({concurrency = 3, pathToFolder}: BulkUpdateCloudFilesParams): Promise<string[]> {
+    const client = new Client()
+    return client.bulkUpdateCloudFiles({concurrency, pathToFolder})
+  }
+
   /**
    * Static helper method to upload a file without instantiating a client
    * Creates a new client instance and delegates to the instance method
