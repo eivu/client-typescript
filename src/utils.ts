@@ -1,4 +1,5 @@
 import {COVERART_AUDIO_PREFIX, COVERART_COMIC_PREFIX, COVERART_PREFIX} from '@src/constants'
+import logger, {type Logger} from '@src/logger'
 import {pruneMetadata} from '@src/metadata-extraction'
 import axios from 'axios'
 import mime from 'mime-types'
@@ -7,19 +8,159 @@ import * as fs from 'node:fs'
 import path from 'node:path'
 
 /**
- * Generate the MD5 hash of a file's contents asynchronously using streams.
- * @param pathToFile - The path to the file to hash
- * @returns Promise that resolves to the MD5 hash in hex digest format
+ * Validates a file path for existence and security issues.
+ * Trims whitespace, checks for path traversal attacks, and ensures the path is within the current working directory.
+ * Handles edge cases including when the current working directory is the filesystem root.
+ * @param pathToFile - The path to validate
+ * @param options - Validation options
+ * @param options.checkExists - Whether to check if the file exists (default: true)
+ * @param options.allowDirectories - Whether to allow directories (default: false)
+ * @returns The trimmed and validated file path
+ * @throws Error if the path is invalid, contains path traversal, doesn't exist, or escapes the working directory
  */
-export async function generateMd5(pathToFile: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (!fs.existsSync(pathToFile)) {
-      reject(new Error(`File not found: ${pathToFile}`))
-      return
+export function validateFilePath(
+  pathToFile: string,
+  options: {allowDirectories?: boolean; checkExists?: boolean} = {},
+): string {
+  const {allowDirectories = false, checkExists = true} = options
+
+  // Check for null, undefined, or empty string
+  if (!pathToFile || typeof pathToFile !== 'string') {
+    throw new Error('File path must be a non-empty string')
+  }
+
+  // Trim whitespace
+  const trimmedPath = pathToFile.trim()
+  if (trimmedPath.length === 0) {
+    throw new Error('File path must be a non-empty string')
+  }
+
+  // Resolve to absolute path to check for path traversal
+  const resolvedPath = path.resolve(trimmedPath)
+
+  // Check for path traversal by checking if any path segment is exactly ".."
+  // This prevents attacks like "../../../etc/passwd" but allows legitimate filenames with ".." in them
+  // Check the original path (before normalization) to catch traversal attempts that would be resolved away
+  // IMPORTANT: Split by both / and \ using regex /[/\\]/ instead of path.sep because:
+  // - Node.js accepts both / and \ as path separators on Windows
+  // - Using path.sep (which is \ on Windows) would miss path traversal in absolute paths like "C:/Users/../file"
+  // - The regex ensures we detect ".." segments regardless of which separator is used
+  const pathSegments = trimmedPath.split(/[/\\]/)
+  if (pathSegments.includes('..')) {
+    throw new Error(`Invalid file path: path traversal detected in "${pathToFile}"`)
+  }
+
+  // Additional check: ensure the resolved path doesn't escape the current working directory
+  // unless it's an absolute path provided by the user
+  if (!path.isAbsolute(trimmedPath)) {
+    const cwd = process.cwd()
+    const cwdWithSep = cwd.endsWith(path.sep) ? cwd : `${cwd}${path.sep}`
+    // Check that the path is actually inside cwd, not just a sibling directory with a prefix match
+    // For example, if cwd is /home/user/project, we should reject /home/user/project-evil/file.txt
+    if (resolvedPath !== cwd && !resolvedPath.startsWith(cwdWithSep)) {
+      throw new Error(`Invalid file path: path escapes working directory "${pathToFile}"`)
+    }
+  }
+
+  // Check if file exists
+  if (checkExists) {
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`File not found: ${pathToFile}`)
     }
 
+    // Check if it's a directory when not allowed
+    if (!allowDirectories) {
+      const stats = fs.statSync(resolvedPath)
+      if (stats.isDirectory()) {
+        throw new Error(`Expected a file but got a directory: ${pathToFile}`)
+      }
+    }
+  }
+
+  // Return the trimmed path so callers can use it for file operations
+  return trimmedPath
+}
+
+/**
+ * Validates a directory path for existence and security issues.
+ * Trims whitespace, checks for path traversal attacks, and ensures the path is within the current working directory.
+ * Handles edge cases including when the current working directory is the filesystem root.
+ * @param pathToFolder - The path to validate
+ * @param options - Validation options
+ * @param options.checkExists - Whether to check if the directory exists (default: true)
+ * @returns The trimmed and validated directory path
+ * @throws Error if the path is invalid, contains path traversal, doesn't exist, or escapes the working directory
+ */
+export function validateDirectoryPath(pathToFolder: string, options: {checkExists?: boolean} = {}): string {
+  const {checkExists = true} = options
+
+  // Check for null, undefined, or empty string
+  if (!pathToFolder || typeof pathToFolder !== 'string') {
+    throw new Error('Directory path must be a non-empty string')
+  }
+
+  // Trim whitespace
+  const trimmedPath = pathToFolder.trim()
+  if (trimmedPath.length === 0) {
+    throw new Error('Directory path must be a non-empty string')
+  }
+
+  // Resolve to absolute path to check for path traversal
+  const resolvedPath = path.resolve(trimmedPath)
+
+  // Check for path traversal by checking if any path segment is exactly ".."
+  // This prevents attacks like "../../../etc" but allows legitimate directory names with ".." in them
+  // Check the original path (before normalization) to catch traversal attempts that would be resolved away
+  // IMPORTANT: Split by both / and \ using regex /[/\\]/ instead of path.sep because:
+  // - Node.js accepts both / and \ as path separators on Windows
+  // - Using path.sep (which is \ on Windows) would miss path traversal in absolute paths like "C:/Users/../dir"
+  // - The regex ensures we detect ".." segments regardless of which separator is used
+  const pathSegments = trimmedPath.split(/[/\\]/)
+  if (pathSegments.includes('..')) {
+    throw new Error(`Invalid directory path: path traversal detected in "${pathToFolder}"`)
+  }
+
+  // Additional check: ensure the resolved path doesn't escape the current working directory
+  // unless it's an absolute path provided by the user
+  if (!path.isAbsolute(trimmedPath)) {
+    const cwd = process.cwd()
+    const cwdWithSep = cwd.endsWith(path.sep) ? cwd : `${cwd}${path.sep}`
+    // Check that the path is actually inside cwd, not just a sibling directory with a prefix match
+    // For example, if cwd is /home/user/project, we should reject /home/user/project-evil/
+    if (resolvedPath !== cwd && !resolvedPath.startsWith(cwdWithSep)) {
+      throw new Error(`Invalid directory path: path escapes working directory "${pathToFolder}"`)
+    }
+  }
+
+  // Check if directory exists
+  if (checkExists) {
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`Directory not found: ${pathToFolder}`)
+    }
+
+    const stats = fs.statSync(resolvedPath)
+    if (!stats.isDirectory()) {
+      throw new Error(`Expected a directory but got a file: ${pathToFolder}`)
+    }
+  }
+
+  // Return the trimmed path so callers can use it for directory operations
+  return trimmedPath
+}
+
+/**
+ * Generate the MD5 hash of a file's contents asynchronously using streams.
+ * The file path is validated for security before hashing.
+ * @param pathToFile - The path to the file to hash (will be validated and trimmed)
+ * @returns Promise that resolves to the MD5 hash in uppercase hex digest format
+ * @throws Error if the file path is invalid, contains path traversal, or doesn't exist
+ */
+export async function generateMd5(pathToFile: string): Promise<string> {
+  const trimmedPath = validateFilePath(pathToFile)
+
+  return new Promise((resolve, reject) => {
     const hash = crypto.createHash('md5')
-    const stream = fs.createReadStream(pathToFile)
+    const stream = fs.createReadStream(trimmedPath)
     stream.on('error', (err) => reject(err))
     stream.on('data', (chunk) => hash.update(chunk))
     stream.on('end', () => resolve(hash.digest('hex').toUpperCase()))
@@ -37,13 +178,19 @@ export type IsOnlineResult = {
 /**
  * Checks if a file is available online by sending a HEAD request.
  * Optionally verifies that the remote file size matches the local file size.
+ * Errors are logged but do not throw; the function returns {isOnline: false, remoteFilesize: null} on failure.
  * @param uri - The URL of the remote file to check. If null or undefined, the check is skipped and the function returns {isOnline: false, remoteFilesize: null}.
  * @param localFilesize - Optional local file size to compare against the remote Content-Length header.
+ * @param onlineLogger - Logger instance for logging warnings when the check fails.
  * @returns An object with isOnline boolean and the remote filesize (or null if unavailable). isOnline is true if a non-null URL is provided, the remote file is online, and file sizes match (if provided); false otherwise.
  */
-export const isOnline = async (uri: null | string | undefined, localFilesize?: number): Promise<IsOnlineResult> => {
+export const isOnline = async (
+  uri: null | string | undefined,
+  localFilesize?: number,
+  onlineLogger?: Logger,
+): Promise<IsOnlineResult> => {
   if (!uri) return {isOnline: false, remoteFilesize: null}
-
+  onlineLogger = onlineLogger ?? logger
   try {
     const response = await axios.head(uri)
     const headerOk = response.status === 200
@@ -58,8 +205,7 @@ export const isOnline = async (uri: null | string | undefined, localFilesize?: n
 
     return {isOnline: headerOk && filesizeOk, remoteFilesize: actualRemoteFilesize}
   } catch (error) {
-    console.warn('USE PINO: https://www.npmjs.com/package/pino')
-    console.warn(`isOnline check failed for ${uri}: ${(error as Error).message}`)
+    onlineLogger.error({error, localFilesize, uri}, 'isOnline check failed')
     // If the request fails, treat as not online
     return {isOnline: false, remoteFilesize: null}
   }

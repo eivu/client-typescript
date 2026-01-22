@@ -139,7 +139,7 @@ describe('S3Uploader', () => {
 
         // Clean up the stream
         if (commandArgs.Body && typeof (commandArgs.Body as ReadStream).destroy === 'function') {
-          (commandArgs.Body as ReadStream).destroy()
+          ;(commandArgs.Body as ReadStream).destroy()
         }
       })
     })

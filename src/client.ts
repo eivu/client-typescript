@@ -2,7 +2,7 @@ import {CloudFile} from '@src/cloud-file'
 import logger, {type Logger} from '@src/logger'
 import {generateDataProfile, MetadataPair} from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
-import {cleansedAssetName, generateMd5, isOnline} from '@src/utils'
+import {cleansedAssetName, generateMd5, isOnline, validateDirectoryPath, validateFilePath} from '@src/utils'
 import * as fastCsv from 'fast-csv'
 import {Glob} from 'glob'
 import fs from 'node:fs'
@@ -116,6 +116,9 @@ export class Client {
     pathToFile,
     secured = false,
   }: UploadFileParams): Promise<CloudFile> {
+    // Validate file path for existence and security, and get trimmed path
+    pathToFile = validateFilePath(pathToFile)
+    
     if (await this.isEmptyFile(pathToFile)) {
       throw new Error(`Can not upload empty file: ${pathToFile}`)
     }
@@ -161,6 +164,9 @@ export class Client {
     pathToFolder,
     secured = false,
   }: UploadFolderParams): Promise<string[]> {
+    // Validate directory path for existence and security, and get trimmed path
+    pathToFolder = validateDirectoryPath(pathToFolder)
+    
     const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
     const limit = pLimit(concurrency)
     const uploadPromises: Promise<string>[] = []
@@ -190,11 +196,15 @@ export class Client {
    * @throws Will not throw, but returns false if the file cannot be fetched from the cloud storage
    */
   async verifyUpload(pathToFile: string): Promise<boolean> {
+    // Validate file path for existence and security, and get trimmed path
+    pathToFile = validateFilePath(pathToFile)
+    
     const md5 = await generateMd5(pathToFile)
     try {
       const cloudFile = await CloudFile.fetch(md5)
       return cloudFile.completed()
-    } catch {
+    } catch (error) {
+      this.logger.debug({error, md5, pathToFile}, 'Failed to verify upload')
       return false
     }
   }
@@ -342,16 +352,35 @@ export class Client {
 
     cloudFile.identifyContentType()
     assetLogger.info(`Determined resourceType: ${cloudFile.resourceType}`)
-    const stats = await fsPromise.stat(cloudFile.localPathToFile as string)
+    const stats = await fsPromise.stat(cloudFile.localPathToFile)
     const filesize = stats.size
 
     assetLogger.info(`filesize: ${filesize}`)
+
+    // Validate required environment variables
+    const requiredEnvVars = {
+      EIVU_ACCESS_KEY_ID: process.env.EIVU_ACCESS_KEY_ID,
+      EIVU_BUCKET_NAME: process.env.EIVU_BUCKET_NAME,
+      EIVU_ENDPOINT: process.env.EIVU_ENDPOINT,
+      EIVU_REGION: process.env.EIVU_REGION,
+      EIVU_SECRET_ACCESS_KEY: process.env.EIVU_SECRET_ACCESS_KEY,
+    }
+
+    const missingVars = Object.entries(requiredEnvVars)
+      .filter(([, value]) => !value || value === '')
+      .map(([key]) => key)
+
+    if (missingVars.length > 0) {
+      throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`)
+    }
+
+    // Safe to use type assertions after runtime validation
     const s3Config: S3UploaderConfig = {
-      accessKeyId: process.env.EIVU_ACCESS_KEY_ID as string,
-      bucketName: process.env.EIVU_BUCKET_NAME as string,
-      endpoint: process.env.EIVU_ENDPOINT as string,
-      region: process.env.EIVU_REGION as string,
-      secretAccessKey: process.env.EIVU_SECRET_ACCESS_KEY as string,
+      accessKeyId: requiredEnvVars.EIVU_ACCESS_KEY_ID as string,
+      bucketName: requiredEnvVars.EIVU_BUCKET_NAME as string,
+      endpoint: requiredEnvVars.EIVU_ENDPOINT as string,
+      region: requiredEnvVars.EIVU_REGION as string,
+      secretAccessKey: requiredEnvVars.EIVU_SECRET_ACCESS_KEY as string,
     }
 
     const s3Uploader = new S3Uploader({assetLogger, cloudFile, s3Config})
@@ -359,7 +388,7 @@ export class Client {
       throw new Error(`Failed to upload file to S3: ${cloudFile.localPathToFile}`)
     }
 
-    const onlineCheck = await isOnline(cloudFile.url(), filesize)
+    const onlineCheck = await isOnline(cloudFile.url(), filesize, assetLogger)
     if (onlineCheck.isOnline) {
       return cloudFile.transfer({asset, filesize})
     }

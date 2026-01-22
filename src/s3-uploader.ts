@@ -73,8 +73,13 @@ export class S3Uploader {
    * Uploads a local file to S3 cloud storage
    * Logs upload progress and completion/error messages using the assetLogger
    * @returns True if upload successful and MD5 validation passes, false otherwise
+   * @throws Error if localPathToFile is not set
    */
   async putLocalFile(): Promise<boolean> {
+    if (!this.cloudFile.localPathToFile) {
+      throw new Error('S3Uploader#putLocalFile requires CloudFile.localPathToFile to be set')
+    }
+
     const credentials: Credentials = {
       accessKeyId: this.s3Config.accessKeyId,
       secretAccessKey: this.s3Config.secretAccessKey,

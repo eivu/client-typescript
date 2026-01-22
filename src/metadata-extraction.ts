@@ -15,7 +15,7 @@ import {
 } from '@src/constants'
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
-import {detectMime} from '@src/utils'
+import {detectMime, validateFilePath} from '@src/utils'
 import filter from 'lodash/filter'
 import uniqWith from 'lodash/uniqWith'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
@@ -84,6 +84,9 @@ export const EMPTY_METADATA_PROFILE: MetadataProfile = {
  * @returns An array of metadata objects with type-value pairs
  */
 export const extractAudioInfo = async (pathToFile: string): Promise<MetadataPair[]> => {
+  // Validate file path for existence and security, and get trimmed path
+  pathToFile = validateFilePath(pathToFile)
+  
   const metadata = await parseFile(pathToFile)
   const id3InfoArray: MetadataPair[] = []
   const v2TagsId = metadata.format.tagTypes.find((value) => ['ID3v2.2', 'ID3v2.3', 'ID3v2.4'].includes(value))
@@ -145,6 +148,9 @@ export const extractAudioInfo = async (pathToFile: string): Promise<MetadataPair
  * @returns The extracted metadata
  */
 export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> => {
+  // Validate file path for existence and security, and get trimmed path
+  pathToFile = validateFilePath(pathToFile)
+  
   const {mediatype} = detectMime(pathToFile)
   let coverArtMetadata: MetadataPair = {}
   if (mediatype === 'audio') return extractAudioInfo(pathToFile)
@@ -362,8 +368,11 @@ export const extractYear = (input: string): null | number => {
  * @param pathToFile - The file path to generate an Acoustid fingerprint for
  * @returns A promise that resolves to the Acoustid fingerprint
  */
-export const generateAcoustidFingerprint = (pathToFile: string): Promise<AcoustidFingerprint> =>
-  new Promise((resolve, reject) => {
+export const generateAcoustidFingerprint = (pathToFile: string): Promise<AcoustidFingerprint> => {
+  // Validate file path for existence and security, and get trimmed path
+  pathToFile = validateFilePath(pathToFile)
+  
+  return new Promise((resolve, reject) => {
     execFile('fpcalc', ['-json', pathToFile], (error, stdout, stderr) => {
       if (error) {
         reject(new Error(`Error executing fpcalc: ${stderr}`))
@@ -372,6 +381,7 @@ export const generateAcoustidFingerprint = (pathToFile: string): Promise<Acousti
       }
     })
   })
+}
 
 /**
  * Compares two MetadataPair objects for equality based on their key-value pairs
@@ -411,6 +421,9 @@ export const generateDataProfile = async ({
   metadataList?: MetadataPair[]
   pathToFile: string
 }): Promise<MetadataProfile> => {
+  // Validate file path for existence and security, and get trimmed path
+  pathToFile = validateFilePath(pathToFile)
+  
   // Extract additional metadata from the filename and merge with provided metadata list
   const fileInfo = await extractInfo(pathToFile)
   const ymlInfo: MetadataProfile = await extractInfoFromYml(pathToFile)

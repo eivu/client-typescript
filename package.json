@@ -6,7 +6,7 @@
   "bin": {
     "eivu-upload": "./bin/run.js"
   },
-  "bugs": "https://github.com/eivu/eivu-upload-client/issues",
+  "bugs": "https://github.com/eivu/client-typescript/issues",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.901.0",
     "@aws-sdk/types": "^3.901.0",
@@ -63,7 +63,7 @@
     "./dist",
     "./oclif.manifest.json"
   ],
-  "homepage": "https://github.com/eivu/eivu-upload-client",
+  "homepage": "https://github.com/eivu/client-typescript",
   "keywords": [
     "oclif"
   ],
@@ -85,7 +85,7 @@
       }
     }
   },
-  "repository": "eivu/eivu-upload-client",
+  "repository": "eivu/client-typescript",
   "scripts": {
     "build": "shx rm -rf dist && tsc -b",
     "lint": "eslint",

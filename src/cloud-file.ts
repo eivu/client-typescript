@@ -3,7 +3,7 @@
 import {type MetadataProfile} from '@src/metadata-extraction'
 import api from '@src/services/api.config'
 import {CloudFileState, type CloudFileType} from '@src/types/cloud-file-type'
-import {detectMime, generateMd5, md5AsFolders} from '@src/utils'
+import {detectMime, generateMd5, md5AsFolders, validateFilePath} from '@src/utils'
 import {type AxiosError} from 'axios'
 
 /**
@@ -69,6 +69,9 @@ export class CloudFile {
     pathToFile: string
     secured?: boolean
   }): Promise<CloudFile> {
+    // Validate file path for existence and security, and get trimmed path
+    pathToFile = validateFilePath(pathToFile)
+    
     try {
       return await CloudFile.reserve({nsfw, pathToFile, secured})
     } catch (error) {
@@ -101,6 +104,9 @@ export class CloudFile {
     pathToFile: string
     secured?: boolean
   }): Promise<CloudFile> {
+    // Validate file path for existence and security, and get trimmed path
+    pathToFile = validateFilePath(pathToFile)
+    
     const md5 = await generateMd5(pathToFile)
     const payload = {nsfw, secured}
     const {data: responseData} = await api.post(`/cloud_files/${md5}/reserve`, payload)
