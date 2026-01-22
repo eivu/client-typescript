@@ -1,12 +1,13 @@
 import {CloudFile} from '@src/cloud-file'
 import logger, {type Logger} from '@src/logger'
-import {generateDataProfile, MetadataPair} from '@src/metadata-extraction'
+import {generateDataProfile, type MetadataPair, extractInfoFromYml} from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {cleansedAssetName, generateMd5, isOnline, validateDirectoryPath, validateFilePath} from '@src/utils'
 import * as fastCsv from 'fast-csv'
 import {Glob} from 'glob'
 import fs from 'node:fs'
 import * as fsPromise from 'node:fs/promises'
+import path from 'node:path'
 import pLimit from 'p-limit'
 
 type BaseParams = {
@@ -77,6 +78,24 @@ export class Client {
     return client.uploadFile({metadataList, nsfw, pathToFile, secured})
   }
 
+  async updateCloudFile(pathToFile: string): Promise<CloudFile> {
+    if (!pathToFile.endsWith('.eivu.yml')) throw new Error('Client#updateFile only supports .eivu.yml metadata files')
+
+    // Validate file path for existence and security, and get trimmed path
+    pathToFile = validateFilePath(pathToFile)
+    const md5 = path.basename(pathToFile, '.eivu.yml')
+    try {
+      const cloudFile = await CloudFile.fetch(md5)
+      const dataProfile = await extractInfoFromYml(pathToFile)
+      console.log('====================')
+      console.dir(dataProfile)
+      return cloudFile.updateMetadata(dataProfile)
+    } catch (error) {
+      this.logger.error({error, md5, pathToFile}, 'Failed to update file metadata')
+      throw error
+    }
+  }
+
   /**
    * Static helper method to upload a folder without instantiating a client
    * Creates a new client instance and delegates to the instance method
@@ -118,7 +137,7 @@ export class Client {
   }: UploadFileParams): Promise<CloudFile> {
     // Validate file path for existence and security, and get trimmed path
     pathToFile = validateFilePath(pathToFile)
-    
+
     if (await this.isEmptyFile(pathToFile)) {
       throw new Error(`Can not upload empty file: ${pathToFile}`)
     }
@@ -166,7 +185,7 @@ export class Client {
   }: UploadFolderParams): Promise<string[]> {
     // Validate directory path for existence and security, and get trimmed path
     pathToFolder = validateDirectoryPath(pathToFolder)
-    
+
     const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
     const limit = pLimit(concurrency)
     const uploadPromises: Promise<string>[] = []
@@ -198,7 +217,7 @@ export class Client {
   async verifyUpload(pathToFile: string): Promise<boolean> {
     // Validate file path for existence and security, and get trimmed path
     pathToFile = validateFilePath(pathToFile)
-    
+
     const md5 = await generateMd5(pathToFile)
     try {
       const cloudFile = await CloudFile.fetch(md5)
