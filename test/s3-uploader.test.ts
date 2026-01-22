@@ -1,4 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, jest} from '@jest/globals'
+import {ReadStream} from 'node:fs'
 
 import type {Logger} from '../src/logger'
 
@@ -9,8 +10,13 @@ import {AI_OVERLORDS_RESERVATION, AI_OVERLORDS_S3_RESPONSE, MOV_BBB_RESERVATION}
 
 // Mock the AWS SDK S3Client
 const mockSend = jest.fn() as jest.MockedFunction<(command: unknown) => Promise<unknown>>
+const putObjectCommandMock = jest.fn()
+
 jest.mock('@aws-sdk/client-s3', () => ({
-  PutObjectCommand: jest.fn(),
+  PutObjectCommand: jest.fn().mockImplementation((input: unknown) => {
+    putObjectCommandMock(input)
+    return input
+  }),
   S3Client: jest.fn().mockImplementation(() => ({
     send: mockSend,
   })),
@@ -46,6 +52,7 @@ describe('S3Uploader', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockSend.mockClear()
+    putObjectCommandMock.mockClear()
   })
 
   afterEach(() => {
@@ -102,6 +109,51 @@ describe('S3Uploader', () => {
 
         expect(result).toBe(true)
         expect(mockSend).toHaveBeenCalledTimes(1)
+      })
+
+      it('uses a Buffer to support AWS SDK retry behavior', async () => {
+        // Setup the mock to return the expected response
+        mockSend.mockResolvedValue(AI_OVERLORDS_S3_RESPONSE)
+
+        const cloudFile = new CloudFile({
+          localPathToFile: 'test/fixtures/samples/image/ai overlords.jpg',
+          remoteAttr: {
+            ...AI_OVERLORDS_RESERVATION,
+            asset: cleansedAssetName('test/fixtures/samples/image/ai overlords.jpg'),
+          },
+          resourceType: 'image',
+        })
+
+        const s3Uploader = new S3Uploader({assetLogger: mockLogger, cloudFile, s3Config})
+        await s3Uploader.putLocalFile()
+
+        // Verify PutObjectCommand was called
+        expect(putObjectCommandMock).toHaveBeenCalledTimes(1)
+
+        // Get the arguments passed to PutObjectCommand constructor
+        const commandArgs = putObjectCommandMock.mock.calls[0][0] as {Body: unknown}
+
+        // Verify that Body is a Buffer, not a ReadStream
+        // Buffers can be reused on retries, whereas streams can only be consumed once
+        expect(commandArgs.Body).toBeInstanceOf(Buffer)
+        expect(commandArgs.Body).not.toBeInstanceOf(ReadStream)
+      })
+
+      it('throws an error when localPathToFile is null', async () => {
+        const cloudFile = new CloudFile({
+          localPathToFile: null,
+          remoteAttr: {
+            ...AI_OVERLORDS_RESERVATION,
+            asset: cleansedAssetName('test/fixtures/samples/image/ai overlords.jpg'),
+          },
+          resourceType: 'image',
+        })
+
+        const s3Uploader = new S3Uploader({assetLogger: mockLogger, cloudFile, s3Config})
+
+        await expect(s3Uploader.putLocalFile()).rejects.toThrow(
+          'S3Uploader#putLocalFile requires CloudFile.localPathToFile to be set',
+        )
       })
     })
   })

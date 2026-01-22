@@ -73,8 +73,13 @@ export class S3Uploader {
    * Uploads a local file to S3 cloud storage
    * Logs upload progress and completion/error messages using the assetLogger
    * @returns True if upload successful and MD5 validation passes, false otherwise
+   * @throws Error if localPathToFile is not set
    */
   async putLocalFile(): Promise<boolean> {
+    if (!this.cloudFile.localPathToFile) {
+      throw new Error('S3Uploader#putLocalFile requires CloudFile.localPathToFile to be set')
+    }
+
     const credentials: Credentials = {
       accessKeyId: this.s3Config.accessKeyId,
       secretAccessKey: this.s3Config.secretAccessKey,
@@ -91,9 +96,12 @@ export class S3Uploader {
     this.assetLogger.info(
       `Uploading to S3: ${this.cloudFile.localPathToFile} -> https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
     )
+    // Read file into Buffer to support AWS SDK retry behavior
+    // Streams can only be consumed once, so retries would fail with createReadStream
+    const fileBuffer = await readFile(this.cloudFile.localPathToFile as string)
     const putObjectCommand = new PutObjectCommand({
       ACL: 'public-read',
-      Body: await readFile(this.cloudFile.localPathToFile as string),
+      Body: fileBuffer,
       Bucket: this.s3Config.bucketName,
       Key: remotePathToFile,
     })

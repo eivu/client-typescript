@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup git
+        run: |
+          git config --global user.email ${{ secrets.GH_EMAIL }}
+          git config --global user.name ${{ secrets.GH_USERNAME }}
+
+      - name: Generate oclif README
+        id: oclif-readme
+        run: |
+          npm exec oclif readme
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -am "chore: update README.md"
+            git remote set-url origin https://${{ secrets.PERSONAL_EIVU_TOKEN }}@github.com/${{ github.repository }}.git
+            git push -u origin ${{ github.ref_name }}
+          fi
+
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_EIVU_TOKEN }}
+          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
