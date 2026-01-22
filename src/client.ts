@@ -349,6 +349,8 @@ export class Client {
   }
 
   private async processRateLimitedCloudFileUpdate(pathToFile: string): Promise<string> {
+    // Extract MD5 from filename (e.g., "6068BE59B486F912BB432DDA00D8949B.eivu.yml" -> "6068BE59B486F912BB432DDA00D8949B")
+    // IMPORTANT: Do NOT hash the YML file contents - the MD5 is the cloud file's identifier, not the YML file's hash
     const md5 = path.basename(pathToFile, METADATA_YML_SUFFIX)
 
     try {
@@ -356,6 +358,8 @@ export class Client {
       await this.logMd5Success(pathToFile, md5)
       return `${pathToFile}: updated successfully`
     } catch (error) {
+      // Use logMd5Failure (not logFailure) to pass the extracted MD5 directly
+      // logFailure would incorrectly hash the YML file contents instead of using the cloud file's MD5
       await this.logMd5Failure(pathToFile, md5, error as Error)
       return `${pathToFile}: ${(error as Error).message}`
     }
