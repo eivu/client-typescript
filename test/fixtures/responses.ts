@@ -841,3 +841,11 @@ export const WEREWOLF_001_1967_PARSED_YML = {
   release: EMPTY_RELEASE,
   year: 1966,
 }
+
+export const WEREWOLF_001_1967_COMPLETE = {
+  description: WEREWOLF_001_1967_PARSED_YML.description,
+  info_url: WEREWOLF_001_1967_PARSED_YML.info_url,
+  metadata_list: WEREWOLF_001_1967_PARSED_YML.metadata_list,
+  name: WEREWOLF_001_1967_PARSED_YML.name,
+  year: WEREWOLF_001_1967_PARSED_YML.year,
+}

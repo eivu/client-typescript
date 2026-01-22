@@ -1,6 +1,6 @@
 import {CloudFile} from '@src/cloud-file'
 import logger, {type Logger} from '@src/logger'
-import {generateDataProfile, type MetadataPair, extractInfoFromYml} from '@src/metadata-extraction'
+import {extractInfoFromYml, generateDataProfile, type MetadataPair, type MetadataProfile} from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {cleansedAssetName, generateMd5, isOnline, validateDirectoryPath, validateFilePath} from '@src/utils'
 import * as fastCsv from 'fast-csv'
@@ -78,24 +78,6 @@ export class Client {
     return client.uploadFile({metadataList, nsfw, pathToFile, secured})
   }
 
-  async updateCloudFile(pathToFile: string): Promise<CloudFile> {
-    if (!pathToFile.endsWith('.eivu.yml')) throw new Error('Client#updateFile only supports .eivu.yml metadata files')
-
-    // Validate file path for existence and security, and get trimmed path
-    pathToFile = validateFilePath(pathToFile)
-    const md5 = path.basename(pathToFile, '.eivu.yml')
-    try {
-      const cloudFile = await CloudFile.fetch(md5)
-      const dataProfile = await extractInfoFromYml(pathToFile)
-      console.log('====================')
-      console.dir(dataProfile)
-      return cloudFile.updateMetadata(dataProfile)
-    } catch (error) {
-      this.logger.error({error, md5, pathToFile}, 'Failed to update file metadata')
-      throw error
-    }
-  }
-
   /**
    * Static helper method to upload a folder without instantiating a client
    * Creates a new client instance and delegates to the instance method
@@ -116,6 +98,23 @@ export class Client {
   }: UploadFolderParams): Promise<string[]> {
     const client = new Client()
     return client.uploadFolder({concurrency, metadataList, nsfw, pathToFolder, secured})
+  }
+
+  async updateCloudFile(pathToFile: string): Promise<CloudFile> {
+    if (!pathToFile.endsWith('.eivu.yml')) throw new Error('Client#updateFile only supports .eivu.yml metadata files')
+
+    // Validate file path for existence and security, and get trimmed path
+    pathToFile = validateFilePath(pathToFile)
+    const md5 = path.basename(pathToFile, '.eivu.yml')
+    try {
+      const cloudFile = await CloudFile.fetch(md5)
+      const dataProfile = await extractInfoFromYml(pathToFile)
+      const filteredProfile = this.filterMetadataProfile(dataProfile)
+      return cloudFile.updateMetadata(filteredProfile)
+    } catch (error) {
+      this.logger.error({error, md5, pathToFile}, 'Failed to update file metadata')
+      throw error
+    }
   }
 
   /**
@@ -226,6 +225,103 @@ export class Client {
       this.logger.debug({error, md5, pathToFile}, 'Failed to verify upload')
       return false
     }
+  }
+
+  /**
+   * Filters out null values, empty arrays, and objects where all values are null from a metadata profile
+   * Recursively processes nested objects to ensure clean payloads
+   * @param profile - The metadata profile to filter
+   * @returns A filtered metadata profile with null values, empty arrays, and null-only objects removed
+   * @private
+   */
+  private filterMetadataProfile(profile: MetadataProfile): MetadataProfile {
+    const filtered: Partial<MetadataProfile> = {}
+
+    // Helper function to recursively filter objects
+    const filterObject = (obj: Record<string, unknown>): null | Record<string, unknown> => {
+      const result: Record<string, unknown> = {}
+
+      for (const [key, value] of Object.entries(obj)) {
+        if (value === null) continue
+
+        if (Array.isArray(value)) {
+          if (value.length === 0) continue
+
+          // Filter array items recursively if they are objects
+          const filteredArray = value
+            .map((item) => {
+              if (item && typeof item === 'object' && !Array.isArray(item)) {
+                const filtered = filterObject(item as Record<string, unknown>)
+
+                return filtered && !this.hasAllNullValues(filtered) ? filtered : null
+              }
+
+              return item
+            })
+            .filter((item) => item !== null)
+
+          if (filteredArray.length > 0) {
+            result[key] = filteredArray
+          }
+        } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+          const filteredObj = filterObject(value as Record<string, unknown>)
+
+          if (filteredObj && !this.hasAllNullValues(filteredObj)) {
+            result[key] = filteredObj
+          }
+        } else {
+          result[key] = value
+        }
+      }
+
+      return Object.keys(result).length > 0 ? result : null
+    }
+
+    // Process each field in the profile
+    for (const [key, value] of Object.entries(profile)) {
+      if (value === null) continue
+
+      if (Array.isArray(value)) {
+        if (value.length === 0) continue
+
+        // Filter array items recursively if they are objects
+        const filteredArray = value
+          .map((item) => {
+            if (item && typeof item === 'object' && !Array.isArray(item)) {
+              const filtered = filterObject(item as Record<string, unknown>)
+
+              return filtered && !this.hasAllNullValues(filtered) ? filtered : null
+            }
+
+            return item
+          })
+          .filter((item) => item !== null)
+
+        if (filteredArray.length > 0) {
+          filtered[key as keyof MetadataProfile] = filteredArray as never
+        }
+      } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+        const filteredObj = filterObject(value as Record<string, unknown>)
+
+        if (filteredObj && !this.hasAllNullValues(filteredObj)) {
+          filtered[key as keyof MetadataProfile] = filteredObj as never
+        }
+      } else {
+        filtered[key as keyof MetadataProfile] = value as never
+      }
+    }
+
+    return filtered as MetadataProfile
+  }
+
+  /**
+   * Checks if an object has all null values
+   * @param obj - The object to check
+   * @returns True if all values in the object are null
+   * @private
+   */
+  private hasAllNullValues(obj: Record<string, unknown>): boolean {
+    return Object.values(obj).every((value) => value === null)
   }
 
   /**

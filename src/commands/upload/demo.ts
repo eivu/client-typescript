@@ -24,27 +24,13 @@ const client = new Client()
 // // console.dir(a)
 // // console.log('====================')
 
-// // pathToFile = 'test/fixtures/samples/secured/gesel-792764.jpg'
-// // // const obj = await CloudFile.fetchOrReserveBy({pathToFile})
-// // // obj.reset()
-// // const b: CloudFile = await client.uploadFile({
-// //   metadataList: [{tag: 'eivu-testing'}],
-// //   nsfw: true,
-// //   pathToFile,
-// //   secured: true,
-// // })
-// // console.log('====================')
-// // console.log('Upload Result:')
-// // console.dir(b)
-// // console.log('====================')
-
-// logResponse(
-//   await client.uploadFolder({
-//     nsfw: true,
-//     pathToFolder: 'test/fixtures/samples/secured/numbers/',
-//     secured: true,
-//   }),
-// )
+logResponse(
+  await client.uploadFolder({
+    nsfw: true,
+    pathToFolder: 'test/fixtures/samples/secured/numbers/',
+    secured: true,
+  }),
+)
 
 // logResponse(
 //   await client.uploadFile({
@@ -58,10 +44,10 @@ const client = new Client()
 //   }),
 // )
 
-// // logResponse(
-//   await client.uploadFile({
-//     pathToFile: 'test/fixtures/samples/comics/Werewolf_001_1967.eivu_compressed.cbz',
-//   }),
-// )
+logResponse(
+  await client.uploadFile({
+    pathToFile: 'test/fixtures/samples/comics/Werewolf 001 (c2c) (Dell 1966).eivu_compressed.cbr',
+  }),
+)
 
-logResponse(await client.updateCloudFile('test/fixtures/samples/updates/578C59ADC612B6A09290DAB9BF8C9333.eivu.yml'))
+logResponse(await client.updateCloudFile('test/fixtures/samples/updates/6068BE59B486F912BB432DDA00D8949B.eivu.yml'))
