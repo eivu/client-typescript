@@ -160,6 +160,9 @@ export const COVERART_PREFIX = 'coverart-extractedByEivu'
 export const COVERART_AUDIO_PREFIX = `${COVERART_PREFIX}-forAudio`
 export const COVERART_COMIC_PREFIX = `${COVERART_PREFIX}-forComic`
 
+/** Suffix for metadata YAML files */
+export const METADATA_YML_SUFFIX = '.eivu.yml'
+
 /**
  * Root directory for temporary files, normalized for cross-platform compatibility
  * Uses the OS-specific temp directory (e.g., /tmp on Linux, /var/folders on macOS, %TEMP% on Windows)

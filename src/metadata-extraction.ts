@@ -4,6 +4,7 @@ import {
   COVERART_AUDIO_PREFIX,
   COVERART_COMIC_PREFIX,
   COVERART_PREFIX,
+  METADATA_YML_SUFFIX,
   PERFORMER_REGEX,
   RATING_425_REGEX,
   RATING_500_475_REGEX,
@@ -291,8 +292,8 @@ const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
  * @returns Promise that resolves to a MetadataProfile, either from the YAML file or an empty profile if the file doesn't exist
  */
 export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataProfile> => {
-  const isAYml = pathToFile.endsWith('.eivu.yml')
-  const ymlPath = isAYml ? pathToFile : `${pathToFile}.eivu.yml`
+  const isAYml = pathToFile.endsWith(METADATA_YML_SUFFIX)
+  const ymlPath = isAYml ? pathToFile : `${pathToFile}${METADATA_YML_SUFFIX}`
   try {
     const file = await fsp.readFile(ymlPath, 'utf8')
     const info = yamlParse(file) as MetadataProfile
@@ -300,9 +301,7 @@ export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataPr
       ? {...EMPTY_METADATA_PROFILE, ...info}
       : {...EMPTY_METADATA_PROFILE, ...info, path_to_file: pathToFile} // eslint-disable-line camelcase
   } catch {
-    return isAYml
-      ? {...EMPTY_METADATA_PROFILE}
-      : {...EMPTY_METADATA_PROFILE, path_to_file: pathToFile} // eslint-disable-line camelcase
+    return isAYml ? {...EMPTY_METADATA_PROFILE} : {...EMPTY_METADATA_PROFILE, path_to_file: pathToFile} // eslint-disable-line camelcase
   }
 }
 

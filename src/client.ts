@@ -1,4 +1,5 @@
 import {CloudFile} from '@src/cloud-file'
+import {METADATA_YML_SUFFIX} from '@src/constants'
 import logger, {type Logger} from '@src/logger'
 import {
   extractInfoFromYml,
@@ -19,6 +20,11 @@ type BaseParams = {
   metadataList?: MetadataPair[]
   nsfw?: boolean
   secured?: boolean
+}
+
+type BulkUpdateCloudFilesParams = {
+  concurrency?: number
+  pathToFolder: string
 }
 
 type UploadFileParams = BaseParams & {
@@ -43,7 +49,7 @@ export class Client {
     'gitignore',
     'gitkeep',
     'cue',
-    'eivu.yml',
+    METADATA_YML_SUFFIX.replace('.', ''), // 'eivu.yml' NOT '.eivu.yml'
     'm4p',
     'log',
     'md5',
@@ -105,12 +111,32 @@ export class Client {
     return client.uploadFolder({concurrency, metadataList, nsfw, pathToFolder, secured})
   }
 
+  async bulkUpdateCloudFiles({concurrency = 3, pathToFolder}: BulkUpdateCloudFilesParams): Promise<string[]> {
+    pathToFolder = validateDirectoryPath(pathToFolder)
+
+    const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
+    const limit = pLimit(concurrency)
+    const updatePromises: Promise<string>[] = []
+    await fsPromise.mkdir('logs', {recursive: true}) // ensure logs directory exists
+
+    for await (const pathToFile of directoryGlob) {
+      if (!pathToFile.endsWith(METADATA_YML_SUFFIX)) continue
+
+      this.logger.info(`queueing: ${pathToFile}`)
+      const updatePromise = limit(() => this.processRateLimitedCloudFileUpdate(pathToFile))
+      updatePromises.push(updatePromise)
+    }
+
+    return Promise.all(updatePromises)
+  }
+
   async updateCloudFile(pathToFile: string): Promise<CloudFile> {
-    if (!pathToFile.endsWith('.eivu.yml')) throw new Error('Client#updateFile only supports .eivu.yml metadata files')
+    if (!pathToFile.endsWith(METADATA_YML_SUFFIX))
+      throw new Error(`Client#updateFile only supports ${METADATA_YML_SUFFIX} metadata files`)
 
     // Validate file path for existence and security, and get trimmed path
     pathToFile = validateFilePath(pathToFile)
-    const md5 = path.basename(pathToFile, '.eivu.yml')
+    const md5 = path.basename(pathToFile, METADATA_YML_SUFFIX)
     try {
       const cloudFile = await CloudFile.fetch(md5)
       const dataProfile = await extractInfoFromYml(pathToFile)
@@ -200,15 +226,11 @@ export class Client {
       if (Client.SKIPPABLE_FOLDERS.some((folder) => pathToFile.includes(`/${folder}/`))) continue
 
       this.logger.info(`queueing: ${pathToFile}`)
-      // create a new client for each file to avoid state issues
-      // limit(() => this.uploadFile({pathToFile}))
       const uploadPromise = limit(() => this.processRateLimitedUpload({metadataList, nsfw, pathToFile, secured}))
       uploadPromises.push(uploadPromise)
     }
 
     return Promise.all(uploadPromises)
-    // Filter out undefined values (failed uploads that couldn't be fetched)
-    // return results
   }
 
   /**
@@ -231,7 +253,6 @@ export class Client {
       return false
     }
   }
-
 
   /**
    * Checks if a file is empty (has zero size)
@@ -302,6 +323,16 @@ export class Client {
   private async logSuccess(pathToFile: string): Promise<void> {
     const md5 = await generateMd5(pathToFile)
     await this.logMessage('logs/success.csv', [new Date().toISOString(), pathToFile, md5, 'Upload successful'])
+  }
+
+  private async processRateLimitedCloudFileUpdate(pathToFile: string): Promise<string> {
+    try {
+      await this.updateCloudFile(pathToFile)
+      return `${pathToFile}: updated successfully`
+    } catch (error) {
+      await this.logFailure(pathToFile, error as Error)
+      return `${pathToFile}: ${(error as Error).message}`
+    }
   }
 
   /**
@@ -423,5 +454,4 @@ export class Client {
       `File ${cloudFile.remoteAttr.md5}:${asset} is offline/filesize mismatch. expected size: ${filesize} got: ${remoteFilesizeStr}`,
     )
   }
-
 }
