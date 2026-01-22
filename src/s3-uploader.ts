@@ -3,7 +3,7 @@ import {Credentials} from '@aws-sdk/types'
 import {CloudFile} from '@src/cloud-file'
 import {type Logger} from '@src/logger'
 import {md5AsFolders} from '@src/utils'
-import {createReadStream} from 'node:fs'
+import {readFile} from 'node:fs/promises'
 /**
  * Error messages for S3 transfer failures
  */
@@ -96,9 +96,12 @@ export class S3Uploader {
     this.assetLogger.info(
       `Uploading to S3: ${this.cloudFile.localPathToFile} -> https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
     )
+    // Read file into Buffer to support AWS SDK retry behavior
+    // Streams can only be consumed once, so retries would fail with createReadStream
+    const fileBuffer = await readFile(this.cloudFile.localPathToFile as string)
     const putObjectCommand = new PutObjectCommand({
       ACL: 'public-read',
-      Body: createReadStream(this.cloudFile.localPathToFile as string),
+      Body: fileBuffer,
       Bucket: this.s3Config.bucketName,
       Key: remotePathToFile,
     })
