@@ -8,7 +8,14 @@ import {
   type MetadataPair,
 } from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
-import {cleansedAssetName, generateMd5, isOnline, validateDirectoryPath, validateFilePath} from '@src/utils'
+import {
+  cleansedAssetName,
+  generateMd5,
+  isEivuYmlFile,
+  isOnline,
+  validateDirectoryPath,
+  validateFilePath,
+} from '@src/utils'
 import * as fastCsv from 'fast-csv'
 import {Glob} from 'glob'
 import fs from 'node:fs'
@@ -142,7 +149,7 @@ export class Client {
     await fsPromise.mkdir('logs', {recursive: true}) // ensure logs directory exists
 
     for await (const pathToFile of directoryGlob) {
-      if (!pathToFile.endsWith(METADATA_YML_SUFFIX)) continue
+      if (!isEivuYmlFile(pathToFile)) continue
 
       this.logger.info(`queueing: ${pathToFile}`)
       const updatePromise = limit(() => this.processRateLimitedCloudFileUpdate(pathToFile))
@@ -161,7 +168,7 @@ export class Client {
    * @throws Error if the file path doesn't end with .eivu.yml or if the update fails
    */
   async updateCloudFile(pathToFile: string): Promise<CloudFile> {
-    if (!pathToFile.endsWith(METADATA_YML_SUFFIX))
+    if (!isEivuYmlFile(pathToFile))
       throw new Error(`Client#updateFile only supports ${METADATA_YML_SUFFIX} metadata files`)
 
     // Validate file path for existence and security, and get trimmed path

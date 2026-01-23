@@ -1,4 +1,4 @@
-import {COVERART_AUDIO_PREFIX, COVERART_COMIC_PREFIX, COVERART_PREFIX} from '@src/constants'
+import {COVERART_AUDIO_PREFIX, COVERART_COMIC_PREFIX, COVERART_PREFIX, METADATA_YML_SUFFIX} from '@src/constants'
 import logger, {type Logger} from '@src/logger'
 import {pruneMetadata} from '@src/metadata-extraction'
 import axios from 'axios'
@@ -166,6 +166,8 @@ export async function generateMd5(pathToFile: string): Promise<string> {
     stream.on('end', () => resolve(hash.digest('hex').toUpperCase()))
   })
 }
+
+export const isEivuYmlFile = (pathToFile: string): boolean => pathToFile.toLowerCase().endsWith(METADATA_YML_SUFFIX)
 
 /**
  * Result of checking if a file is online

@@ -1,6 +1,6 @@
 import {describe, expect, it} from '@jest/globals'
 
-import {cleansedAssetName, generateMd5, md5AsFolders} from '../src/utils'
+import {cleansedAssetName, generateMd5, isEivuYmlFile, md5AsFolders} from '../src/utils'
 
 describe('Utils', () => {
   describe('cleansedAssetName', () => {
@@ -44,6 +44,23 @@ describe('Utils', () => {
       const pathToFile =
         '/test/fixtures/samples/video/`Cowboy Bebop - Asteroid Blues ((anime)) ((script)) ((all time best)).txt'
       expect(cleansedAssetName(pathToFile)).toBe('_Cowboy_Bebop_-_Asteroid_Blues.txt')
+    })
+  })
+
+  describe('isEivuYmlFile', () => {
+    it('returns true for a valid .eivu.yml file (lower case)', () => {
+      const pathToFile = '/some/path/6068BE59B486F912BB432DDA00D8949B.eivu.yml'
+      expect(isEivuYmlFile(pathToFile)).toBe(true)
+    })
+
+    it('returns true for a valid .eivu.yml file (upper case)', () => {
+      const pathToFile = '/SOME/PATH/6068BE59B486F912BB432DDA00D8949B.EIVU.YML'
+      expect(isEivuYmlFile(pathToFile)).toBe(true)
+    })
+
+    it('returns false for a non-.eivu.yml file', () => {
+      const pathToFile = '/some/path/6068BE59B486F912BB432DDA00D8949B.txt'
+      expect(isEivuYmlFile(pathToFile)).toBe(false)
     })
   })
 

@@ -16,7 +16,7 @@ import {
 } from '@src/constants'
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
-import {detectMime, validateFilePath} from '@src/utils'
+import {detectMime, isEivuYmlFile, validateFilePath} from '@src/utils'
 import cleanDeep from 'clean-deep'
 import filter from 'lodash/filter'
 import uniqWith from 'lodash/uniqWith'
@@ -292,7 +292,7 @@ const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
  * @returns Promise that resolves to a MetadataProfile, either from the YAML file or an empty profile if the file doesn't exist
  */
 export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataProfile> => {
-  const isAYml = pathToFile.endsWith(METADATA_YML_SUFFIX)
+  const isAYml = isEivuYmlFile(pathToFile)
   const ymlPath = isAYml ? pathToFile : `${pathToFile}${METADATA_YML_SUFFIX}`
   try {
     const file = await fsp.readFile(ymlPath, 'utf8')
