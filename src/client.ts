@@ -49,7 +49,7 @@ export class Client {
     'gitignore',
     'gitkeep',
     'cue',
-    METADATA_YML_SUFFIX.replace('.', ''), // 'eivu.yml' NOT '.eivu.yml'
+    METADATA_YML_SUFFIX.slice(1), // 'eivu.yml' NOT '.eivu.yml'
     'm4p',
     'log',
     'md5',
