@@ -13,3 +13,4 @@ tsconfig.tsbuildinfo
 yarn.lock
 pnpm-lock.yaml
 npm-lock.yaml
+tsconfig.tsbuildinfo

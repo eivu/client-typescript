@@ -1,5 +1,6 @@
 import {CloudFile} from '@src/cloud-file'
 import {METADATA_YML_SUFFIX} from '@src/constants'
+import {getEnv} from '@src/env'
 import logger, {type Logger} from '@src/logger'
 import {
   extractInfoFromYml,
@@ -490,31 +491,13 @@ export class Client {
     const filesize = stats.size
 
     assetLogger.info(`filesize: ${filesize}`)
-
-    // Validate required environment variables
-    const requiredEnvVars = {
-      EIVU_ACCESS_KEY_ID: process.env.EIVU_ACCESS_KEY_ID,
-      EIVU_BUCKET_NAME: process.env.EIVU_BUCKET_NAME,
-      EIVU_ENDPOINT: process.env.EIVU_ENDPOINT,
-      EIVU_REGION: process.env.EIVU_REGION,
-      EIVU_SECRET_ACCESS_KEY: process.env.EIVU_SECRET_ACCESS_KEY,
-    }
-
-    const missingVars = Object.entries(requiredEnvVars)
-      .filter(([, value]) => !value || value === '')
-      .map(([key]) => key)
-
-    if (missingVars.length > 0) {
-      throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`)
-    }
-
-    // Safe to use type assertions after runtime validation
+    const env = getEnv()
     const s3Config: S3UploaderConfig = {
-      accessKeyId: requiredEnvVars.EIVU_ACCESS_KEY_ID as string,
-      bucketName: requiredEnvVars.EIVU_BUCKET_NAME as string,
-      endpoint: requiredEnvVars.EIVU_ENDPOINT as string,
-      region: requiredEnvVars.EIVU_REGION as string,
-      secretAccessKey: requiredEnvVars.EIVU_SECRET_ACCESS_KEY as string,
+      accessKeyId: env.EIVU_ACCESS_KEY_ID,
+      bucketName: env.EIVU_BUCKET_NAME,
+      endpoint: env.EIVU_ENDPOINT,
+      region: env.EIVU_REGION,
+      secretAccessKey: env.EIVU_SECRET_ACCESS_KEY,
     }
 
     const s3Uploader = new S3Uploader({assetLogger, cloudFile, s3Config})

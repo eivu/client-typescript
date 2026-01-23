@@ -6,6 +6,8 @@ import {CloudFileState, type CloudFileType} from '@src/types/cloud-file-type'
 import {detectMime, generateMd5, md5AsFolders, validateFilePath} from '@src/utils'
 import {type AxiosError} from 'axios'
 
+import {getEnv} from './env'
+
 /**
  * Parameters for constructing a CloudFile instance
  */
@@ -227,7 +229,8 @@ export class CloudFile {
     if (!this.remoteAttr.md5) throw new Error('CloudFile#url requires this.remoteAttr.md5 to be set')
     if (!this.remoteAttr.asset) throw new Error('CloudFile#url requires this.remoteAttr.asset to be set')
 
-    return `https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com/${this.grouping()}/${md5AsFolders(
+    const env = getEnv()
+    return `https://${env.EIVU_BUCKET_NAME}.s3.wasabisys.com/${this.grouping()}/${md5AsFolders(
       this.remoteAttr.md5,
     )}/${this.remoteAttr.asset}`
   }
