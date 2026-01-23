@@ -287,8 +287,8 @@ const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
 
 /**
  * Extracts metadata profile from an associated YAML file
- * Attempts to read and parse a .eivu.yml file with the same name as the input file
- * @param pathToFile - The path to the file (the corresponding .eivu.yml file will be read)
+ * If the path ends with .eivu.yml, reads that file directly. Otherwise, attempts to read a .eivu.yml file with the same name as the input file
+ * @param pathToFile - The path to the file or directly to a .eivu.yml metadata file
  * @returns Promise that resolves to a MetadataProfile, either from the YAML file or an empty profile if the file doesn't exist
  */
 export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataProfile> => {

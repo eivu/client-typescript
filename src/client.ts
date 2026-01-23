@@ -69,6 +69,14 @@ export class Client {
     this.logger = logger
   }
 
+  /**
+   * Static helper method to bulk update cloud files from metadata YAML files in a folder
+   * Creates a new client instance and delegates to the instance method
+   * @param params - Bulk update parameters
+   * @param params.concurrency - Optional number of concurrent updates (default: 3)
+   * @param params.pathToFolder - Path to the folder containing .eivu.yml metadata files
+   * @returns Promise resolving to an array of status messages for each update attempt
+   */
   static async bulkUpdateCloudFiles({concurrency = 3, pathToFolder}: BulkUpdateCloudFilesParams): Promise<string[]> {
     const client = new Client()
     return client.bulkUpdateCloudFiles({concurrency, pathToFolder})
@@ -116,6 +124,15 @@ export class Client {
     return client.uploadFolder({concurrency, metadataList, nsfw, pathToFolder, secured})
   }
 
+  /**
+   * Bulk updates cloud files from metadata YAML files in a folder
+   * Recursively processes .eivu.yml files in the folder with configurable concurrency
+   * Extracts the MD5 hash from each YAML filename and updates the corresponding cloud file
+   * @param params - Bulk update parameters
+   * @param params.concurrency - Optional number of concurrent updates (default: 3)
+   * @param params.pathToFolder - Path to the folder containing .eivu.yml metadata files
+   * @returns Promise resolving to an array of status messages for each update attempt
+   */
   async bulkUpdateCloudFiles({concurrency = 3, pathToFolder}: BulkUpdateCloudFilesParams): Promise<string[]> {
     pathToFolder = validateDirectoryPath(pathToFolder)
 
@@ -135,6 +152,14 @@ export class Client {
     return Promise.all(updatePromises)
   }
 
+  /**
+   * Updates the metadata of a cloud file from a YAML metadata file
+   * Fetches the cloud file by MD5 (extracted from the YAML filename), extracts metadata from the YAML,
+   * filters out null/empty values, and updates the cloud file
+   * @param pathToFile - Path to the .eivu.yml metadata file (must end with .eivu.yml)
+   * @returns Promise resolving to the updated CloudFile instance
+   * @throws Error if the file path doesn't end with .eivu.yml or if the update fails
+   */
   async updateCloudFile(pathToFile: string): Promise<CloudFile> {
     if (!pathToFile.endsWith(METADATA_YML_SUFFIX))
       throw new Error(`Client#updateFile only supports ${METADATA_YML_SUFFIX} metadata files`)
@@ -294,6 +319,15 @@ export class Client {
     await this.logMessage('logs/failure.csv', [new Date().toISOString(), pathToFile, md5, error.message])
   }
 
+  /**
+   * Logs a failed cloud file update attempt to the failure log file
+   * Uses the provided MD5 directly instead of hashing the file (for YAML metadata files)
+   * @param pathToFile - Path to the YAML metadata file that failed to update
+   * @param md5 - The MD5 hash of the cloud file (extracted from the YAML filename)
+   * @param error - The error that occurred during the update
+   * @returns Promise that resolves when the log entry has been written
+   * @private
+   */
   private async logMd5Failure(pathToFile: string, md5: string, error: Error): Promise<void> {
     await this.logMessage('logs/failure.csv', [
       new Date().toISOString(),
@@ -303,6 +337,14 @@ export class Client {
     ])
   }
 
+  /**
+   * Logs a successful cloud file update to the success log file
+   * Uses the provided MD5 directly instead of hashing the file (for YAML metadata files)
+   * @param pathToFile - Path to the YAML metadata file that was successfully updated
+   * @param md5 - The MD5 hash of the cloud file (extracted from the YAML filename)
+   * @returns Promise that resolves when the log entry has been written
+   * @private
+   */
   private async logMd5Success(pathToFile: string, md5: string): Promise<void> {
     await this.logMessage('logs/success.csv', [
       new Date().toISOString(),
@@ -348,6 +390,13 @@ export class Client {
     await this.logMessage('logs/success.csv', [new Date().toISOString(), pathToFile, md5, 'Upload successful'])
   }
 
+  /**
+   * Processes a cloud file update with rate limiting and error handling
+   * Extracts the MD5 from the YAML filename, attempts to update the cloud file, and logs the result
+   * @param pathToFile - Path to the .eivu.yml metadata file to process
+   * @returns Promise resolving to a status message string indicating the update result
+   * @private
+   */
   private async processRateLimitedCloudFileUpdate(pathToFile: string): Promise<string> {
     // Extract MD5 from filename (e.g., "6068BE59B486F912BB432DDA00D8949B.eivu.yml" -> "6068BE59B486F912BB432DDA00D8949B")
     // IMPORTANT: Do NOT hash the YML file contents - the MD5 is the cloud file's identifier, not the YML file's hash
