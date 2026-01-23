@@ -654,6 +654,7 @@ export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<Me
  * Uses clean-deep for the heavy lifting, then removes objects where all values are null
  * @param profile - The metadata profile to filter
  * @returns A filtered metadata profile with null values, empty arrays, and null-only objects removed
+ *          Always returns a valid MetadataProfile object, never null
  */
 export function filterMetadataProfile(profile: MetadataProfile): MetadataProfile {
   // First pass: use clean-deep to remove null values, empty arrays, and empty objects
@@ -667,6 +668,12 @@ export function filterMetadataProfile(profile: MetadataProfile): MetadataProfile
 
   // Second pass: remove objects where all values are null (clean-deep doesn't handle this)
   const result = removeAllNullObjects(cleaned)
+
+  // If all values were filtered out, return an empty profile instead of null
+  // This ensures we always return a valid MetadataProfile object
+  if (result === null) {
+    return EMPTY_METADATA_PROFILE
+  }
 
   return result as MetadataProfile
 }
