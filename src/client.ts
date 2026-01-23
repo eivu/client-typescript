@@ -173,7 +173,10 @@ export class Client {
 
     // Validate file path for existence and security, and get trimmed path
     pathToFile = validateFilePath(pathToFile)
-    const md5 = path.basename(pathToFile, METADATA_YML_SUFFIX)
+    // Normalize basename to lowercase before removing suffix to handle case-insensitive extensions
+    // Then convert MD5 to uppercase to match the format used by generateMd5 and the API
+    const basename = path.basename(pathToFile).toLowerCase()
+    const md5 = basename.slice(0, -METADATA_YML_SUFFIX.length).toUpperCase()
     try {
       const cloudFile = await CloudFile.fetch(md5)
       const dataProfile = await extractInfoFromYml(pathToFile)
@@ -407,7 +410,10 @@ export class Client {
   private async processRateLimitedCloudFileUpdate(pathToFile: string): Promise<string> {
     // Extract MD5 from filename (e.g., "6068BE59B486F912BB432DDA00D8949B.eivu.yml" -> "6068BE59B486F912BB432DDA00D8949B")
     // IMPORTANT: Do NOT hash the YML file contents - the MD5 is the cloud file's identifier, not the YML file's hash
-    const md5 = path.basename(pathToFile, METADATA_YML_SUFFIX)
+    // Normalize basename to lowercase before removing suffix to handle case-insensitive extensions
+    // Then convert MD5 to uppercase to match the format used by generateMd5 and the API
+    const basename = path.basename(pathToFile).toLowerCase()
+    const md5 = basename.slice(0, -METADATA_YML_SUFFIX.length).toUpperCase()
 
     try {
       await this.updateCloudFile(pathToFile)
