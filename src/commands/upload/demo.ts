@@ -26,16 +26,16 @@ const logResponse = (result: unknown) => {
 logResponse(
   await Client.uploadFolder({
     nsfw: true,
-    pathToFolder: 'test/fixtures/samples/secured/numbers/',
+    pathToFolder: 'test/fixtures/samples/secured/',
     secured: true,
   }),
 )
 
-// logResponse(
-//   await client.uploadFile({
-//     pathToFile: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz',
-//   }),
-// )
+logResponse(
+  await Client.uploadFile({
+    pathToFile: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz',
+  }),
+)
 
 // logResponse(
 //   await client.uploadFile({

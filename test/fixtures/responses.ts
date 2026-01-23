@@ -631,6 +631,9 @@ export const THE_PEACEMAKER_01_1967_PARSED_YML = {
     {
       writer: 'Joe Gill',
     },
+    {
+      source_url: 'https://comicbookplus.com/?dlid=70555',
+    },
   ],
   name: 'The Peacemaker',
   path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz',
@@ -829,6 +832,10 @@ export const WEREWOLF_001_1966_PARSED_YML = {
     {tag: 'Werewolf'},
     {writer: 'DJ Arneson'},
     {writer: 'Joe Gill'},
+    {
+      synopsis:
+        'Cover by Bill Fraccio and Tony Tallarico. Story by D. J. Arneson. Art by Sam Glanzman, Bill Fraccio and Tony Tallarico. Not an actual monster, Wiley Wolf is a superspy who uses the code name Werewolf. Presumed dead after a crash, Air Force pilot Wiley is saved by a wolf pack. He begins a new life battling Communists for the CIA, alongside with his pet wolf Thor. Plus a one-pager on wolves with art by Sam Glanzman. Fabled Wolves; Trial By Nature!!; Assignment Top Secret; The First Howl! 32 pages, Full Color. Cover price $0.12.',
+    },
   ],
   name: 'Werewolf #1',
   rating: null,
