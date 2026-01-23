@@ -722,13 +722,7 @@ export const THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER: CloudFileType = {
 
 export const THE_PEACEMAKER_01_1967_COVER_ART_COMPLETE: CloudFileType = {
   ...THE_PEACEMAKER_01_1967_COVER_ART_TRANSFER,
-  metadata: [
-    // {
-    //   id: 1,
-    //   type: 'original_local_path_to_file',
-    //   value: 'test/fixtures/samples/image/The_Peacemaker_01_1967_COVERART.webp',
-    // },
-  ],
+  metadata: [],
   name: 'Cover Art for The Peacemaker',
   state: CloudFileState.COMPLETED,
 }
@@ -812,4 +806,85 @@ export const SPACE_ADVENTURES_033_1960_COVER_ART_COMPLETE: CloudFileType = {
   ],
   name: 'Cover Art for Space Adventures #33',
   state: CloudFileState.COMPLETED,
+}
+
+export const WEREWOLF_001_1966_PARSED_YML = {
+  artists: [],
+  artwork_md5: null,
+  description:
+    "Dell Comics's Werewolf #1 had a cover date of December, 1966. The artist was Talented Tony Tallarico (who also drew Jigsaw for Harvey, The Blue Beetle for Charlton & Lobo (the western) also for Dell Comics), but the writer's identity isn't known, but has been credited to Don Segall (dialog on DC's Creeper, full scripts on Dell's Kona, Monarch of Monster Isle.)\n\nOur superhero was U.S. Air Force Major Wiley Wolf, who crash-landed in the Arctic and, stricken with amnesia, joined a wolf pack. The wolves accepted him, apparently because he nursed one of their wounded members (whom Wiley named Thor) back to health after he'd been wounded in the crash. By the time the CIA rescued him, he'd learned much of their wolf lore, and had formed such an attachment to Thor, the wolf accompanied him back to civilization. \n\nBack in the world, Wiley was equipped with a black stealth costume (which, though only a single molecule thick, protected him from bullets), and went to work as a superhero for the U.S. government. Radio implants in his and Thor's heads enabled the two to communicate without speaking aloud. \n\nLike Dell's other monster superheroes (Dracula & Frankenstein), this one lasted a mere three issues. There were no media spin-offs, no reprints, and no apparent demand for a revival. A bummer to me, I thought it was the best of the three and rather enjoyed it. \n",
+  duration: null,
+  info_url: 'https://beachbumcomics.blogspot.com/2014/08/werewolf-famous-monster-of-filmlands.html',
+  metadata_list: [
+    {character: 'Werewolf'},
+    {character: 'Wiley Wolf'},
+    {cover_artist: 'Bill Fraccio'},
+    {cover_artist: 'Tony Tallarico'},
+    {inker: 'Tony Tallarico'},
+    {penciler: 'Bill Fraccio'},
+    {letterer: 'Ben Oda'},
+    {publisher: 'Dell'},
+    {genre: 'Spy'},
+    {genre: 'Superhero'},
+    {tag: 'Werewolf'},
+    {writer: 'DJ Arneson'},
+    {writer: 'Joe Gill'},
+  ],
+  name: 'Werewolf #1',
+  rating: null,
+  release: EMPTY_RELEASE,
+  year: 1966,
+}
+
+export const WEREWOLF_001_1966_RESERVATION: CloudFileType = {
+  artists: [],
+  artwork_url: null,
+  asset: null,
+  bucket_name: 'eivu-test',
+  bucket_uuid: '889c685a-de30-4ead-9a96-b3784233e1e8',
+  content_type: null,
+  created_at: '2025-09-29T23:32:35.951Z',
+  data_source_id: null,
+  date_aquired_at: null,
+  deletable: false,
+  delicate: false,
+  description: null,
+  duration: null,
+  ext_id: null,
+  filesize: 0,
+  folder_uuid: null,
+  info_url: null,
+  last_viewed_at: null,
+  md5: '6068BE59B486F912BB432DDA00D8949B',
+  metadata: [],
+  name: '6068BE59B486F912BB432DDA00D8949 (reserved)',
+  nsfw: false,
+  num_plays: 0,
+  peepy: false,
+  rating: null,
+  release_pos: null,
+  releases: [],
+  secured: false,
+  shared: true,
+  state: CloudFileState.RESERVED,
+  updated_at: '2025-09-29T23:32:35.951Z',
+  url: 'https://eivu-test.s3.wasabisys.com/archive/60/68/BE/59/B4/86/F9/12/BB/43/2D/DA/00/D8/94/9B/',
+  user_uuid: '0f703c04-b448-455c-8a26-4edc22bf76dd',
+  uuid: '',
+  year: null,
+}
+
+export const WEREWOLF_001_1966_PARTIAL_PROFILE = {
+  description: WEREWOLF_001_1966_PARSED_YML.description,
+  info_url: WEREWOLF_001_1966_PARSED_YML.info_url,
+  metadata_list: WEREWOLF_001_1966_PARSED_YML.metadata_list,
+  name: WEREWOLF_001_1966_PARSED_YML.name,
+  year: WEREWOLF_001_1966_PARSED_YML.year,
+}
+
+export const WEREWOLF_001_1966_COMPLETE: CloudFileType = {
+  ...WEREWOLF_001_1966_RESERVATION,
+  ...WEREWOLF_001_1966_PARTIAL_PROFILE,
+  state: CloudFileState.COMPLETED,
+  url: 'https://eivu-test.s3.wasabisys.com/archive/60/68/BE/59/B4/86/F9/12/BB/43/2D/DA/00/D8/94/9B/Werewolf_001__c2c___Dell_1966_.eivu_compressed.cbr',
 }

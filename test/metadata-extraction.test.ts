@@ -9,12 +9,14 @@ import {
   extractMetadataList,
   extractRating,
   extractYear,
+  filterMetadataProfile,
   generateAcoustidFingerprint,
   generateDataProfile,
   type MetadataPair,
   type MetadataProfile,
   pruneFromMetadataList,
   pruneMetadata,
+  removeAllNullObjects,
   uploadComicMetadataArtwork,
 } from '../src/metadata-extraction'
 import {
@@ -528,6 +530,286 @@ describe('Metadata Extraction', () => {
       expect(coverArtOnlineReq.isDone()).toBeTrue()
       expect(coverArtTransferReq.isDone()).toBeTrue()
       expect(coverArtCompleteReq.isDone()).toBeTrue()
+    })
+  })
+
+  describe('removeAllNullObjects', () => {
+    it('returns null for null input', () => {
+      expect(removeAllNullObjects(null)).toBeNull()
+    })
+
+    it('returns null for undefined input', () => {
+      const value = undefined
+      expect(removeAllNullObjects(value)).toBeNull()
+    })
+
+    it('returns the value for primitive non-null values', () => {
+      expect(removeAllNullObjects(42)).toBe(42)
+      expect(removeAllNullObjects('hello')).toBe('hello')
+      expect(removeAllNullObjects(true)).toBe(true)
+      expect(removeAllNullObjects(false)).toBe(false)
+    })
+
+    it('returns null for empty array', () => {
+      expect(removeAllNullObjects([])).toBeNull()
+    })
+
+    it('returns null for array with only null values', () => {
+      expect(removeAllNullObjects([null, null, null])).toBeNull()
+    })
+
+    it('filters out null values from array', () => {
+      expect(removeAllNullObjects([1, null, 2, null, 3])).toEqual([1, 2, 3])
+    })
+
+    it('returns null for empty object', () => {
+      expect(removeAllNullObjects({})).toBeNull()
+    })
+
+    it('returns null for object with all null values', () => {
+      expect(removeAllNullObjects({a: null, b: null, c: null})).toBeNull()
+    })
+
+    it('removes null values from object', () => {
+      expect(removeAllNullObjects({a: 1, b: null, c: 2, d: null})).toEqual({a: 1, c: 2})
+    })
+
+    it('handles nested objects with null values', () => {
+      const input = {
+        a: 1,
+        b: {x: null, y: null},
+        c: {x: 1, y: null},
+        d: null,
+      }
+      expect(removeAllNullObjects(input)).toEqual({a: 1, c: {x: 1}})
+    })
+
+    it('handles nested arrays with null values', () => {
+      const input = [1, [null, 2, null], null, [3, null]]
+      expect(removeAllNullObjects(input)).toEqual([1, [2], [3]])
+    })
+
+    it('handles complex nested structures', () => {
+      const input = {
+        a: 1,
+        b: {
+          x: null,
+          y: [null, 2, null],
+          z: {p: null, q: 3},
+        },
+        c: null,
+        d: [{a: null}, {b: 1}],
+      }
+      expect(removeAllNullObjects(input)).toEqual({
+        a: 1,
+        b: {
+          y: [2],
+          z: {q: 3},
+        },
+        d: [{b: 1}],
+      })
+    })
+
+    it('handles arrays of objects with null values', () => {
+      const input = [
+        {a: 1, b: null},
+        {a: null, b: null},
+        {a: 2, b: 3},
+      ]
+      expect(removeAllNullObjects(input)).toEqual([{a: 1}, {a: 2, b: 3}])
+    })
+
+    it('handles objects with arrays containing null values', () => {
+      const input = {
+        empty: [null, null],
+        items: [1, null, 2, null, 3],
+        mixed: [{a: 1, b: null}, {a: null, b: null}],
+      }
+      expect(removeAllNullObjects(input)).toEqual({
+        items: [1, 2, 3],
+        mixed: [{a: 1}],
+      })
+    })
+  })
+
+  describe('filterMetadataProfile', () => {
+    it('removes null values from metadata profile', () => {
+      const profile: MetadataProfile = {
+        ...EMPTY_METADATA_PROFILE,
+        artwork_md5: null, // eslint-disable-line camelcase
+        description: null,
+        duration: 120,
+        name: 'Test File',
+        rating: 4.5,
+        year: null,
+      }
+      const result = filterMetadataProfile(profile)
+      expect(result).not.toHaveProperty('artwork_md5')
+      expect(result).not.toHaveProperty('description')
+      expect(result).not.toHaveProperty('year')
+      expect(result.name).toBe('Test File')
+      expect(result.duration).toBe(120)
+      expect(result.rating).toBe(4.5)
+    })
+
+    it('removes empty arrays from metadata profile', () => {
+      const profile: MetadataProfile = {
+        ...EMPTY_METADATA_PROFILE,
+        artists: [],
+        metadata_list: [], // eslint-disable-line camelcase
+        name: 'Test File',
+      }
+      const result = filterMetadataProfile(profile)
+      expect(result).not.toHaveProperty('artists')
+      expect(result).not.toHaveProperty('metadata_list')
+      expect(result.name).toBe('Test File')
+    })
+
+    it('keeps non-empty arrays in metadata profile', () => {
+      const profile: MetadataProfile = {
+        ...EMPTY_METADATA_PROFILE,
+        artists: [{name: 'Artist 1'}],
+        metadata_list: [{tag: 'test'}], // eslint-disable-line camelcase
+        name: 'Test File',
+      }
+      const result = filterMetadataProfile(profile)
+      expect(result.artists).toEqual([{name: 'Artist 1'}])
+      expect(result.metadata_list).toEqual([{tag: 'test'}])
+      expect(result.name).toBe('Test File')
+    })
+
+    it('removes null values from nested release object', () => {
+      const profile: MetadataProfile = {
+        ...EMPTY_METADATA_PROFILE,
+        name: 'Test File',
+        release: {
+          artwork_md5: null, // eslint-disable-line camelcase
+          bundle_pos: null, // eslint-disable-line camelcase
+          name: 'Release Name',
+          position: null,
+          primary_artist_name: null, // eslint-disable-line camelcase
+          year: 2020,
+        },
+      }
+      const result = filterMetadataProfile(profile)
+      expect(result.release).not.toHaveProperty('artwork_md5')
+      expect(result.release).not.toHaveProperty('bundle_pos')
+      expect(result.release).not.toHaveProperty('position')
+      expect(result.release).not.toHaveProperty('primary_artist_name')
+      expect(result.release.name).toBe('Release Name')
+      expect(result.release.year).toBe(2020)
+    })
+
+    it('removes empty release object if all values are null', () => {
+      const profile: MetadataProfile = {
+        ...EMPTY_METADATA_PROFILE,
+        name: 'Test File',
+        release: {
+          artwork_md5: null, // eslint-disable-line camelcase
+          bundle_pos: null, // eslint-disable-line camelcase
+          name: null,
+          position: null,
+          primary_artist_name: null, // eslint-disable-line camelcase
+          year: null,
+        },
+      }
+      const result = filterMetadataProfile(profile)
+      expect(result).not.toHaveProperty('release')
+      expect(result.name).toBe('Test File')
+    })
+
+    it('handles profile with all null values', () => {
+      const profile: MetadataProfile = {
+        artists: [],
+        artwork_md5: null, // eslint-disable-line camelcase
+        description: null,
+        duration: null,
+        info_url: null, // eslint-disable-line camelcase
+        metadata_list: [], // eslint-disable-line camelcase
+        name: null,
+        path_to_file: null, // eslint-disable-line camelcase
+        rating: null,
+        release: {
+          artwork_md5: null, // eslint-disable-line camelcase
+          bundle_pos: null, // eslint-disable-line camelcase
+          name: null,
+          position: null,
+          primary_artist_name: null, // eslint-disable-line camelcase
+          year: null,
+        },
+        year: null,
+      }
+      const result = filterMetadataProfile(profile)
+      // Should return an object with minimal structure (path_to_file might remain as it's required)
+      expect(result).toBeDefined()
+    })
+
+    it('preserves valid values in complex profile', () => {
+      const profile: MetadataProfile = {
+        artists: [{name: 'Artist 1'}, {name: 'Artist 2'}],
+        artwork_md5: 'ABC123', // eslint-disable-line camelcase
+        description: 'Test description',
+        duration: 180,
+        info_url: 12_345, // eslint-disable-line camelcase
+        metadata_list: [{tag: 'test'}, {performer: 'actor'}], // eslint-disable-line camelcase
+        name: 'Test File',
+        path_to_file: '/path/to/file', // eslint-disable-line camelcase
+        rating: 4.75,
+        release: {
+          artwork_md5: 'DEF456', // eslint-disable-line camelcase
+          bundle_pos: 1, // eslint-disable-line camelcase
+          name: 'Release Name',
+          position: 2,
+          primary_artist_name: 'Primary Artist', // eslint-disable-line camelcase
+          year: 2020,
+        },
+        year: 2020,
+      }
+      const result = filterMetadataProfile(profile)
+      expect(result.artists).toEqual([{name: 'Artist 1'}, {name: 'Artist 2'}])
+      expect(result.artwork_md5).toBe('ABC123')
+      expect(result.description).toBe('Test description')
+      expect(result.duration).toBe(180)
+      expect(result.info_url).toBe(12_345)
+      expect(result.metadata_list).toEqual([{tag: 'test'}, {performer: 'actor'}])
+      expect(result.name).toBe('Test File')
+      expect(result.path_to_file).toBe('/path/to/file')
+      expect(result.rating).toBe(4.75)
+      expect(result.release).toEqual({
+        artwork_md5: 'DEF456', // eslint-disable-line camelcase
+        bundle_pos: 1, // eslint-disable-line camelcase
+        name: 'Release Name',
+        position: 2,
+        primary_artist_name: 'Primary Artist', // eslint-disable-line camelcase
+        year: 2020,
+      })
+      expect(result.year).toBe(2020)
+    })
+
+    it('handles empty strings correctly (keeps them)', () => {
+      const profile: MetadataProfile = {
+        ...EMPTY_METADATA_PROFILE,
+        artwork_md5: null, // eslint-disable-line camelcase
+        description: '',
+        name: '',
+      }
+      const result = filterMetadataProfile(profile)
+      expect(result.name).toBe('')
+      expect(result.description).toBe('')
+      expect(result).not.toHaveProperty('artwork_md5')
+    })
+
+    it('removes undefined values from metadata profile', () => {
+      const profile: MetadataProfile = {
+        ...EMPTY_METADATA_PROFILE,
+        artwork_md5: undefined as any, // eslint-disable-line camelcase, @typescript-eslint/no-explicit-any
+        duration: undefined as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        name: 'Test File',
+      }
+      const result = filterMetadataProfile(profile)
+      expect(result).not.toHaveProperty('artwork_md5')
+      expect(result).not.toHaveProperty('duration')
+      expect(result.name).toBe('Test File')
     })
   })
 })

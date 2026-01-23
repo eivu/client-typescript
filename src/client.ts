@@ -1,17 +1,36 @@
 import {CloudFile} from '@src/cloud-file'
+import {METADATA_YML_SUFFIX} from '@src/constants'
 import logger, {type Logger} from '@src/logger'
-import {generateDataProfile, MetadataPair} from '@src/metadata-extraction'
+import {
+  extractInfoFromYml,
+  filterMetadataProfile,
+  generateDataProfile,
+  type MetadataPair,
+} from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
-import {cleansedAssetName, generateMd5, isOnline, validateDirectoryPath, validateFilePath} from '@src/utils'
+import {
+  cleansedAssetName,
+  generateMd5,
+  isEivuYmlFile,
+  isOnline,
+  validateDirectoryPath,
+  validateFilePath,
+} from '@src/utils'
 import * as fastCsv from 'fast-csv'
 import {Glob} from 'glob'
 import * as fsPromise from 'node:fs/promises'
+import path from 'node:path'
 import pLimit from 'p-limit'
 
 type BaseParams = {
   metadataList?: MetadataPair[]
   nsfw?: boolean
   secured?: boolean
+}
+
+type BulkUpdateCloudFilesParams = {
+  concurrency?: number
+  pathToFolder: string
 }
 
 type UploadFileParams = BaseParams & {
@@ -36,7 +55,7 @@ export class Client {
     'gitignore',
     'gitkeep',
     'cue',
-    'eivu.yml',
+    METADATA_YML_SUFFIX.slice(1), // 'eivu.yml' NOT '.eivu.yml'
     'm4p',
     'log',
     'md5',
@@ -54,6 +73,19 @@ export class Client {
 
   constructor() {
     this.logger = logger
+  }
+
+  /**
+   * Static helper method to bulk update cloud files from metadata YAML files in a folder
+   * Creates a new client instance and delegates to the instance method
+   * @param params - Bulk update parameters
+   * @param params.concurrency - Optional number of concurrent updates (default: 3)
+   * @param params.pathToFolder - Path to the folder containing .eivu.yml metadata files
+   * @returns Promise resolving to an array of status messages for each update attempt
+   */
+  static async bulkUpdateCloudFiles({concurrency = 3, pathToFolder}: BulkUpdateCloudFilesParams): Promise<string[]> {
+    const client = new Client()
+    return client.bulkUpdateCloudFiles({concurrency, pathToFolder})
   }
 
   /**
@@ -99,6 +131,63 @@ export class Client {
   }
 
   /**
+   * Bulk updates cloud files from metadata YAML files in a folder
+   * Recursively processes .eivu.yml files in the folder with configurable concurrency
+   * Extracts the MD5 hash from each YAML filename and updates the corresponding cloud file
+   * @param params - Bulk update parameters
+   * @param params.concurrency - Optional number of concurrent updates (default: 3)
+   * @param params.pathToFolder - Path to the folder containing .eivu.yml metadata files
+   * @returns Promise resolving to an array of status messages for each update attempt
+   */
+  async bulkUpdateCloudFiles({concurrency = 3, pathToFolder}: BulkUpdateCloudFilesParams): Promise<string[]> {
+    pathToFolder = validateDirectoryPath(pathToFolder)
+
+    const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
+    const limit = pLimit(concurrency)
+    const updatePromises: Promise<string>[] = []
+    await fsPromise.mkdir('logs', {recursive: true}) // ensure logs directory exists
+
+    for await (const pathToFile of directoryGlob) {
+      if (!isEivuYmlFile(pathToFile)) continue
+
+      this.logger.info(`queueing: ${pathToFile}`)
+      const updatePromise = limit(() => this.processRateLimitedCloudFileUpdate(pathToFile))
+      updatePromises.push(updatePromise)
+    }
+
+    return Promise.all(updatePromises)
+  }
+
+  /**
+   * Updates the metadata of a cloud file from a YAML metadata file
+   * Fetches the cloud file by MD5 (extracted from the YAML filename), extracts metadata from the YAML,
+   * filters out null/empty values, and updates the cloud file
+   * @param pathToFile - Path to the .eivu.yml metadata file (must end with .eivu.yml)
+   * @returns Promise resolving to the updated CloudFile instance
+   * @throws Error if the file path doesn't end with .eivu.yml or if the update fails
+   */
+  async updateCloudFile(pathToFile: string): Promise<CloudFile> {
+    if (!isEivuYmlFile(pathToFile))
+      throw new Error(`Client#updateFile only supports ${METADATA_YML_SUFFIX} metadata files`)
+
+    // Validate file path for existence and security, and get trimmed path
+    pathToFile = validateFilePath(pathToFile)
+    // Normalize basename to lowercase before removing suffix to handle case-insensitive extensions
+    // Then convert MD5 to uppercase to match the format used by generateMd5 and the API
+    const basename = path.basename(pathToFile).toLowerCase()
+    const md5 = basename.slice(0, -METADATA_YML_SUFFIX.length).toUpperCase()
+    try {
+      const cloudFile = await CloudFile.fetch(md5)
+      const dataProfile = await extractInfoFromYml(pathToFile)
+      const filteredProfile = filterMetadataProfile(dataProfile)
+      return cloudFile.updateMetadata(filteredProfile)
+    } catch (error) {
+      this.logger.error({error, md5, pathToFile}, 'Failed to update file metadata')
+      throw error
+    }
+  }
+
+  /**
    * Uploads a file to cloud storage
    * Validates the file, reserves a slot, and transfers the file to S3
    * @param params - Upload parameters
@@ -117,7 +206,7 @@ export class Client {
   }: UploadFileParams): Promise<CloudFile> {
     // Validate file path for existence and security, and get trimmed path
     pathToFile = validateFilePath(pathToFile)
-    
+
     if (await this.isEmptyFile(pathToFile)) {
       throw new Error(`Can not upload empty file: ${pathToFile}`)
     }
@@ -165,7 +254,7 @@ export class Client {
   }: UploadFolderParams): Promise<string[]> {
     // Validate directory path for existence and security, and get trimmed path
     pathToFolder = validateDirectoryPath(pathToFolder)
-    
+
     const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
     const limit = pLimit(concurrency)
     const uploadPromises: Promise<string>[] = []
@@ -176,15 +265,11 @@ export class Client {
       if (Client.SKIPPABLE_FOLDERS.some((folder) => pathToFile.includes(`/${folder}/`))) continue
 
       this.logger.info(`queueing: ${pathToFile}`)
-      // create a new client for each file to avoid state issues
-      // limit(() => this.uploadFile({pathToFile}))
       const uploadPromise = limit(() => this.processRateLimitedUpload({metadataList, nsfw, pathToFile, secured}))
       uploadPromises.push(uploadPromise)
     }
 
     return Promise.all(uploadPromises)
-    // Filter out undefined values (failed uploads that couldn't be fetched)
-    // return results
   }
 
   /**
@@ -197,7 +282,7 @@ export class Client {
   async verifyUpload(pathToFile: string): Promise<boolean> {
     // Validate file path for existence and security, and get trimmed path
     pathToFile = validateFilePath(pathToFile)
-    
+
     const md5 = await generateMd5(pathToFile)
     try {
       const cloudFile = await CloudFile.fetch(md5)
@@ -244,6 +329,41 @@ export class Client {
   }
 
   /**
+   * Logs a failed cloud file update attempt to the failure log file
+   * Uses the provided MD5 directly instead of hashing the file (for YAML metadata files)
+   * @param pathToFile - Path to the YAML metadata file that failed to update
+   * @param md5 - The MD5 hash of the cloud file (extracted from the YAML filename)
+   * @param error - The error that occurred during the update
+   * @returns Promise that resolves when the log entry has been written
+   * @private
+   */
+  private async logMd5Failure(pathToFile: string, md5: string, error: Error): Promise<void> {
+    await this.logMessage('logs/failure.csv', [
+      new Date().toISOString(),
+      pathToFile,
+      md5,
+      `Update Failed: ${error.message}`,
+    ])
+  }
+
+  /**
+   * Logs a successful cloud file update to the success log file
+   * Uses the provided MD5 directly instead of hashing the file (for YAML metadata files)
+   * @param pathToFile - Path to the YAML metadata file that was successfully updated
+   * @param md5 - The MD5 hash of the cloud file (extracted from the YAML filename)
+   * @returns Promise that resolves when the log entry has been written
+   * @private
+   */
+  private async logMd5Success(pathToFile: string, md5: string): Promise<void> {
+    await this.logMessage('logs/success.csv', [
+      new Date().toISOString(),
+      pathToFile,
+      md5,
+      'CloudFile updated successfully',
+    ])
+  }
+
+  /**
    * Writes a log message to a CSV file
    * Appends a new row to the specified CSV log file
    * @param logPath - Path to the log file
@@ -265,6 +385,33 @@ export class Client {
   private async logSuccess(pathToFile: string): Promise<void> {
     const md5 = await generateMd5(pathToFile)
     await this.logMessage('logs/success.csv', [new Date().toISOString(), pathToFile, md5, 'Upload successful'])
+  }
+
+  /**
+   * Processes a cloud file update with rate limiting and error handling
+   * Extracts the MD5 from the YAML filename, attempts to update the cloud file, and logs the result
+   * @param pathToFile - Path to the .eivu.yml metadata file to process
+   * @returns Promise resolving to a status message string indicating the update result
+   * @private
+   */
+  private async processRateLimitedCloudFileUpdate(pathToFile: string): Promise<string> {
+    // Extract MD5 from filename (e.g., "6068BE59B486F912BB432DDA00D8949B.eivu.yml" -> "6068BE59B486F912BB432DDA00D8949B")
+    // IMPORTANT: Do NOT hash the YML file contents - the MD5 is the cloud file's identifier, not the YML file's hash
+    // Normalize basename to lowercase before removing suffix to handle case-insensitive extensions
+    // Then convert MD5 to uppercase to match the format used by generateMd5 and the API
+    const basename = path.basename(pathToFile).toLowerCase()
+    const md5 = basename.slice(0, -METADATA_YML_SUFFIX.length).toUpperCase()
+
+    try {
+      await this.updateCloudFile(pathToFile)
+      await this.logMd5Success(pathToFile, md5)
+      return `${pathToFile}: updated successfully`
+    } catch (error) {
+      // Use logMd5Failure (not logFailure) to pass the extracted MD5 directly
+      // logFailure would incorrectly hash the YML file contents instead of using the cloud file's MD5
+      await this.logMd5Failure(pathToFile, md5, error as Error)
+      return `${pathToFile}: ${(error as Error).message}`
+    }
   }
 
   /**

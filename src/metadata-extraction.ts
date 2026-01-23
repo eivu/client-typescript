@@ -4,6 +4,7 @@ import {
   COVERART_AUDIO_PREFIX,
   COVERART_COMIC_PREFIX,
   COVERART_PREFIX,
+  METADATA_YML_SUFFIX,
   PERFORMER_REGEX,
   RATING_425_REGEX,
   RATING_500_475_REGEX,
@@ -15,7 +16,8 @@ import {
 } from '@src/constants'
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
-import {detectMime, validateFilePath} from '@src/utils'
+import {detectMime, isEivuYmlFile, validateFilePath} from '@src/utils'
+import cleanDeep from 'clean-deep'
 import filter from 'lodash/filter'
 import uniqWith from 'lodash/uniqWith'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
@@ -86,7 +88,7 @@ export const EMPTY_METADATA_PROFILE: MetadataProfile = {
 export const extractAudioInfo = async (pathToFile: string): Promise<MetadataPair[]> => {
   // Validate file path for existence and security, and get trimmed path
   pathToFile = validateFilePath(pathToFile)
-  
+
   const metadata = await parseFile(pathToFile)
   const id3InfoArray: MetadataPair[] = []
   const v2TagsId = metadata.format.tagTypes.find((value) => ['ID3v2.2', 'ID3v2.3', 'ID3v2.4'].includes(value))
@@ -150,7 +152,7 @@ export const extractAudioInfo = async (pathToFile: string): Promise<MetadataPair
 export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> => {
   // Validate file path for existence and security, and get trimmed path
   pathToFile = validateFilePath(pathToFile)
-  
+
   const {mediatype} = detectMime(pathToFile)
   let coverArtMetadata: MetadataPair = {}
   if (mediatype === 'audio') return extractAudioInfo(pathToFile)
@@ -285,18 +287,21 @@ const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
 
 /**
  * Extracts metadata profile from an associated YAML file
- * Attempts to read and parse a .eivu.yml file with the same name as the input file
- * @param pathToFile - The path to the file (the corresponding .eivu.yml file will be read)
+ * If the path ends with .eivu.yml, reads that file directly. Otherwise, attempts to read a .eivu.yml file with the same name as the input file
+ * @param pathToFile - The path to the file or directly to a .eivu.yml metadata file
  * @returns Promise that resolves to a MetadataProfile, either from the YAML file or an empty profile if the file doesn't exist
  */
 export const extractInfoFromYml = async (pathToFile: string): Promise<MetadataProfile> => {
-  const ymlPath = `${pathToFile}.eivu.yml`
+  const isAYml = isEivuYmlFile(pathToFile)
+  const ymlPath = isAYml ? pathToFile : `${pathToFile}${METADATA_YML_SUFFIX}`
   try {
     const file = await fsp.readFile(ymlPath, 'utf8')
     const info = yamlParse(file) as MetadataProfile
-    return {...EMPTY_METADATA_PROFILE, ...info, path_to_file: pathToFile} // eslint-disable-line camelcase
+    return isAYml
+      ? {...EMPTY_METADATA_PROFILE, ...info}
+      : {...EMPTY_METADATA_PROFILE, ...info, path_to_file: pathToFile} // eslint-disable-line camelcase
   } catch {
-    return {...EMPTY_METADATA_PROFILE, path_to_file: pathToFile} // eslint-disable-line camelcase
+    return isAYml ? {...EMPTY_METADATA_PROFILE} : {...EMPTY_METADATA_PROFILE, path_to_file: pathToFile} // eslint-disable-line camelcase
   }
 }
 
@@ -371,7 +376,7 @@ export const extractYear = (input: string): null | number => {
 export const generateAcoustidFingerprint = (pathToFile: string): Promise<AcoustidFingerprint> => {
   // Validate file path for existence and security, and get trimmed path
   pathToFile = validateFilePath(pathToFile)
-  
+
   return new Promise((resolve, reject) => {
     execFile('fpcalc', ['-json', pathToFile], (error, stdout, stderr) => {
       if (error) {
@@ -423,7 +428,7 @@ export const generateDataProfile = async ({
 }): Promise<MetadataProfile> => {
   // Validate file path for existence and security, and get trimmed path
   pathToFile = validateFilePath(pathToFile)
-  
+
   // Extract additional metadata from the filename and merge with provided metadata list
   const fileInfo = await extractInfo(pathToFile)
   const ymlInfo: MetadataProfile = await extractInfoFromYml(pathToFile)
@@ -642,4 +647,71 @@ export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<Me
       }
     }
   }
+}
+
+/**
+ * Filters out null values, empty arrays, and objects where all values are null from a metadata profile
+ * Uses clean-deep for the heavy lifting, then removes objects where all values are null
+ * @param profile - The metadata profile to filter
+ * @returns A filtered metadata profile with null values, empty arrays, and null-only objects removed
+ *          Always returns a valid MetadataProfile object, never null
+ */
+export function filterMetadataProfile(profile: MetadataProfile): MetadataProfile {
+  // First pass: use clean-deep to remove null values, empty arrays, and empty objects
+  const cleaned = cleanDeep(profile, {
+    emptyArrays: true,
+    emptyObjects: true,
+    emptyStrings: false, // Keep empty strings if they exist
+    nullValues: true,
+    undefinedValues: true,
+  })
+
+  // Second pass: remove objects where all values are null (clean-deep doesn't handle this)
+  const result = removeAllNullObjects(cleaned)
+
+  // If all values were filtered out, return an empty profile instead of null
+  // This ensures we always return a valid MetadataProfile object
+  if (result === null) {
+    return EMPTY_METADATA_PROFILE
+  }
+
+  return result as MetadataProfile
+}
+
+/**
+ * Recursively removes objects where all values are null
+ * @param obj - The object or value to process
+ * @returns The cleaned object with all-null objects removed, or null if the object itself is all null
+ */
+export function removeAllNullObjects(obj: unknown): unknown {
+  if (obj === null || obj === undefined) {
+    return null
+  }
+
+  if (Array.isArray(obj)) {
+    const filtered = obj.map((item) => removeAllNullObjects(item)).filter((item) => item !== null)
+
+    return filtered.length > 0 ? filtered : null
+  }
+
+  if (obj && typeof obj === 'object') {
+    const entries = Object.entries(obj as Record<string, unknown>)
+      .map(([key, value]) => [key, removeAllNullObjects(value)])
+      .filter(([, value]) => value !== null)
+
+    if (entries.length === 0) {
+      return null
+    }
+
+    const result = Object.fromEntries(entries)
+
+    // Check if all remaining values are null
+    if (Object.values(result).every((v) => v === null)) {
+      return null
+    }
+
+    return result
+  }
+
+  return obj
 }
