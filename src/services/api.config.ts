@@ -18,4 +18,15 @@ const api = axios.create({
   },
 })
 
+export const check = axios.create({
+  baseURL: env.EIVU_UPLOAD_SERVER_HOST + '/api/upload/v1/',
+  headers: {
+    Authorization: 'Token ' + env.EIVU_USER_TOKEN,
+    'Content-Type': 'application/json',
+  },
+  params: {
+    keyFormat: 'camel_lower',
+  },
+})
+
 export default api
