@@ -57,31 +57,40 @@ export class CloudFile {
   /**
    * Attempts to reserve a file, or fetches it if already exists (based on MD5)
    * @param params - Configuration object
+   * @param params.md5 - MD5 hash of the file
    * @param params.nsfw - Whether the file contains NSFW content
    * @param params.pathToFile - Path to the local file
    * @param params.secured - Whether the file should be secured/private
    * @returns A CloudFile instance, either newly reserved or fetched if it already exists
    */
   static async fetchOrReserveBy({
+    md5,
     nsfw = false,
     pathToFile,
     secured = false,
   }: {
+    md5?: string
     nsfw?: boolean
-    pathToFile: string
+    pathToFile?: string
     secured?: boolean
   }): Promise<CloudFile> {
-    // Validate file path for existence and security, and get trimmed path
-    pathToFile = validateFilePath(pathToFile)
-    
+    if (!md5 && !pathToFile) throw new Error('CloudFile#fetchOrReserveBy requires either md5 or pathToFile to be set')
+    if (md5 && pathToFile)
+      throw new Error('CloudFile#fetchOrReserveBy requires only one of md5 or pathToFile to be set')
+    if (pathToFile) {
+      // Validate file path for existence and security, and get trimmed path
+      pathToFile = validateFilePath(pathToFile)
+      md5 = await generateMd5(pathToFile)
+    }
+
     try {
-      return await CloudFile.reserve({nsfw, pathToFile, secured})
+      return await CloudFile.reserve({md5, nsfw, pathToFile, secured})
     } catch (error) {
       // a file already exists with the same MD5 hash
       if ((error as AxiosError).response?.status === 422) {
-        const md5 = await generateMd5(pathToFile)
+        md5 = md5 || (await generateMd5(pathToFile as string))
         const cloudFile = await CloudFile.fetch(md5)
-        cloudFile.localPathToFile = pathToFile
+        if (pathToFile) cloudFile.localPathToFile = pathToFile
         return cloudFile
       }
 
@@ -110,10 +119,9 @@ export class CloudFile {
     secured?: boolean
   }): Promise<CloudFile> {
     if (!md5 && !pathToFile) throw new Error('CloudFile#reserve requires either md5 or pathToFile to be set')
-    if (md5 && pathToFile) throw new Error('CloudFile#reserve requires only one of md5 or pathToFile to be set')
-    if (pathToFile){       
-      pathToFile = validateFilePath(pathToFile)  // Validate file path for existence and security, and get trimmed path
-      md5 = await generateMd5(pathToFile)
+    if (pathToFile) {
+      pathToFile = validateFilePath(pathToFile) // Validate file path for existence and security, and get trimmed path
+      md5 = md5 || (await generateMd5(pathToFile))
     }
 
     const payload = {nsfw, secured}
