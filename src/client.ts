@@ -9,9 +9,11 @@ import {
   type MetadataPair,
 } from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
+import {check} from '@src/services/api.config'
 import {
   cleansedAssetName,
   generateMd5,
+  generateMd5OfString,
   isEivuYmlFile,
   isOnline,
   validateDirectoryPath,
@@ -271,6 +273,59 @@ export class Client {
     }
 
     return Promise.all(uploadPromises)
+  }
+
+  async uploadRemoteFile({
+    downloadUrl,
+    metadataList = [],
+    nsfw = false,
+    secured = false,
+    sourceUrl,
+  }: {
+    downloadUrl: string
+    metadataList?: MetadataPair[]
+    nsfw?: boolean
+    secured?: boolean
+    sourceUrl: string
+  }): Promise<void> {
+    const assetLogger = this.logger.child({downloadUrl})
+
+    // Verify downloadUrl is reachable
+    const isDownloadUrlOnline = await isOnline(downloadUrl, undefined, assetLogger)
+    if (!isDownloadUrlOnline.isOnline) throw new Error(`Download URL is not reachable: ${downloadUrl}`)
+
+    // Verify sourceUrl is reachable
+    const isSourceUrlOnline = await isOnline(sourceUrl, undefined, assetLogger)
+    if (!isSourceUrlOnline.isOnline) throw new Error(`Source URL is not reachable: ${sourceUrl}`)
+
+    // Verify no cloud file exists with the same sourceUrl
+    const checkResponse = await check.get('/metadata/check', {
+      params: {
+        key: 'source_url',
+        value: sourceUrl,
+      },
+    })
+    const {exists, md5} = checkResponse.data
+
+    if (exists) throw new Error(`CloudFile with md5 ${md5} already exists with the same Source URL: ${sourceUrl}`)
+
+    const sourceUrlMd5 = await generateMd5OfString(sourceUrl)
+    assetLogger.info(`Reserving remote upload for URL: ${downloadUrl}`)
+    assetLogger.info(`Fetching/Reserving: ${sourceUrl}`)
+    let cloudFile = await CloudFile.fetchOrReserveBy({md5: sourceUrlMd5, nsfw, secured})
+    await this.processRemoteTransfer({downloadUrl, assetLogger, cloudFile})
+
+    const dataProfile = await generateDataProfile({metadataList, pathToFile})
+
+    if (cloudFile.transfered()) {
+      assetLogger.info('Completing')
+      cloudFile = await cloudFile.complete(dataProfile)
+    } else {
+      assetLogger.info('Updating/Skipping')
+      cloudFile = await cloudFile.updateMetadata(dataProfile)
+    }
+
+    return cloudFile
   }
 
   /**
