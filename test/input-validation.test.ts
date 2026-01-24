@@ -89,7 +89,9 @@ describe('Input Validation for File Operations', () => {
   describe('Client.verifyUpload', () => {
     it('should throw error for null pathToFile', async () => {
       const client = new Client()
-      await expect(client.verifyUpload(null as unknown as string)).rejects.toThrow('File path must be a non-empty string')
+      await expect(client.verifyUpload(null as unknown as string)).rejects.toThrow(
+        'File path must be a non-empty string',
+      )
     })
 
     it('should throw error for non-existent file', async () => {
@@ -104,9 +106,15 @@ describe('Input Validation for File Operations', () => {
   })
 
   describe('CloudFile.reserve', () => {
-    it('should throw error for null pathToFile', async () => {
-      await expect(CloudFile.reserve({pathToFile: null as unknown as string})).rejects.toThrow(
-        'File path must be a non-empty string',
+    it('should throw error when both md5 and pathToFile are not provided', async () => {
+      await expect(CloudFile.reserve({})).rejects.toThrow(
+        'CloudFile#reserve requires either md5 or pathToFile to be set',
+      )
+    })
+
+    it('should throw error when both md5 and pathToFile are provided', async () => {
+      await expect(CloudFile.reserve({md5: '1234567890', pathToFile: '/path/to/file.txt'})).rejects.toThrow(
+        'CloudFile#reserve requires only one of md5 or pathToFile to be set',
       )
     })
 

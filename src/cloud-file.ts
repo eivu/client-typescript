@@ -92,24 +92,30 @@ export class CloudFile {
   /**
    * Reserves a new cloud file slot on the server
    * @param params - Configuration object
+   * @param params.md5 - MD5 hash of the file
    * @param params.nsfw - Whether the file contains NSFW content
    * @param params.pathToFile - Path to the local file
    * @param params.secured - Whether the file should be secured/private
    * @returns A CloudFile instance in the reserved state
    */
   static async reserve({
+    md5,
     nsfw = false,
     pathToFile,
     secured = false,
   }: {
+    md5?: string
     nsfw?: boolean
-    pathToFile: string
+    pathToFile?: string
     secured?: boolean
   }): Promise<CloudFile> {
-    // Validate file path for existence and security, and get trimmed path
-    pathToFile = validateFilePath(pathToFile)
-    
-    const md5 = await generateMd5(pathToFile)
+    if (!md5 && !pathToFile) throw new Error('CloudFile#reserve requires either md5 or pathToFile to be set')
+    if (md5 && pathToFile) throw new Error('CloudFile#reserve requires only one of md5 or pathToFile to be set')
+    if (pathToFile){       
+      pathToFile = validateFilePath(pathToFile)  // Validate file path for existence and security, and get trimmed path
+      md5 = await generateMd5(pathToFile)
+    }
+
     const payload = {nsfw, secured}
     const {data: responseData} = await api.post(`/cloud_files/${md5}/reserve`, payload)
     const data: CloudFileType = responseData
