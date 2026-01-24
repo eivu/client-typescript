@@ -167,6 +167,9 @@ export async function generateMd5(pathToFile: string): Promise<string> {
   })
 }
 
+export const generateMd5OfString = (data: string): string =>
+  crypto.createHash('md5').update(data).digest('hex').toUpperCase()
+
 export const isEivuYmlFile = (pathToFile: string): boolean => pathToFile.toLowerCase().endsWith(METADATA_YML_SUFFIX)
 
 /**

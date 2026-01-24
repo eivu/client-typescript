@@ -1,6 +1,6 @@
 import {describe, expect, it} from '@jest/globals'
 
-import {cleansedAssetName, generateMd5, isEivuYmlFile, md5AsFolders} from '../src/utils'
+import {cleansedAssetName, generateMd5, generateMd5OfString, isEivuYmlFile, md5AsFolders} from '../src/utils'
 
 describe('Utils', () => {
   describe('cleansedAssetName', () => {
@@ -109,6 +109,15 @@ describe('Utils', () => {
       // Verify that the trimmed path works, not the whitespace version
       const md5FromTrimmed = await generateMd5(pathToFile)
       expect(md5).toBe(md5FromTrimmed)
+    })
+  })
+
+  describe('generateMd5OfString', () => {
+    it('should generate correct MD5 hash for a given string', () => {
+      const inputString = 'Hello, World!'
+      const expectedMd5 = '65A8E27D8879283831B664BD8B7F0AD4' // Precomputed MD5 hash
+      const md5 = generateMd5OfString(inputString)
+      expect(md5).toBe(expectedMd5)
     })
   })
 })
