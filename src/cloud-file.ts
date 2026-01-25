@@ -157,7 +157,8 @@ export class CloudFile {
       return 'secured'
     }
 
-    if (this.resourceType && ['audio', 'image', 'video'].includes(this.resourceType)) return this.resourceType
+    if (this.resourceType && ['audio', 'image', 'staging', 'video'].includes(this.resourceType))
+      return this.resourceType
 
     return 'archive'
   }

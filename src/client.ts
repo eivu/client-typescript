@@ -504,6 +504,33 @@ export class Client {
     }
   }
 
+  private async processRemoteTransfer({downloadUrl, assetLogger, cloudFile}: {downloadUrl: string, assetLogger: Logger, cloudFile: CloudFile}): Promise<CloudFile> {
+    if (!cloudFile.reserved()) {
+      assetLogger.info(
+        `CloudFile#processRemoteTransfer requires CloudFile to be in reserved state: found ${cloudFile.remoteAttr.state}`,
+      )
+      return cloudFile
+    }
+
+    cloudFile.resourceType = 'staging'
+
+    const env = getEnv()
+    const s3Config: S3UploaderConfig = {
+      accessKeyId: env.EIVU_ACCESS_KEY_ID,
+      bucketName: env.EIVU_BUCKET_NAME,
+      endpoint: env.EIVU_ENDPOINT,
+      region: env.EIVU_REGION,
+      secretAccessKey: env.EIVU_SECRET_ACCESS_KEY,
+    }
+
+    const s3Uploader = new S3Uploader({assetLogger, cloudFile, s3Config})
+    if (!(await s3Uploader.putRemoteFile(downloadUrl))) {
+      throw new Error(`Failed to upload remote file to S3: ${downloadUrl}`)
+    }
+
+    return cloudFile
+  }
+
   /**
    * Processes the transfer of a file to S3 cloud storage
    * Uploads the file to S3, verifies it's online, and updates the CloudFile state
