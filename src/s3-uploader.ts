@@ -3,6 +3,7 @@ import {Credentials} from '@aws-sdk/types'
 import {CloudFile} from '@src/cloud-file'
 import {type Logger} from '@src/logger'
 import {md5AsFolders} from '@src/utils'
+import axios from 'axios'
 import {readFile} from 'node:fs/promises'
 /**
  * Error messages for S3 transfer failures
@@ -120,6 +121,68 @@ export class S3Uploader {
           `Error from S3 while uploading object to ${this.s3Config.bucketName}.  ${error.name}: ${error.message}`,
         )
       } else {
+        throw error
+      }
+    }
+
+    return false
+  }
+
+  /**
+   * Downloads a file from a remote URL and uploads it directly to S3 cloud storage
+   * Streams the file directly from the URL to S3 without buffering in memory
+   * Sets the asset name to "asset.test" and logs upload progress
+   * @param downloadUrl - The URL to download the file from
+   * @returns True if upload successful and MD5 validation passes, false otherwise
+   */
+  async putRemoteFile(downloadUrl: string): Promise<boolean> {
+    const credentials: Credentials = {
+      accessKeyId: this.s3Config.accessKeyId,
+      secretAccessKey: this.s3Config.secretAccessKey,
+    }
+    const s3Config = {
+      credentials,
+      endpoint: this.s3Config.endpoint,
+      region: this.s3Config.region,
+    }
+
+    const s3Client = new S3Client(s3Config)
+    
+    // Set the asset name to "asset.test"
+    this.cloudFile.remoteAttr.asset = 'asset.test'
+    const remotePathToFile = this.generateRemotePath()
+
+    this.assetLogger.info(
+      `Streaming from URL: ${downloadUrl} -> Uploading to S3: https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
+    )
+
+    try {
+      // Stream the file directly from the URL to S3 without buffering in memory
+      const response = await axios.get(downloadUrl, {
+        responseType: 'stream',
+      })
+
+      const putObjectCommand = new PutObjectCommand({
+        ACL: 'public-read',
+        Body: response.data,
+        Bucket: this.s3Config.bucketName,
+        Key: remotePathToFile,
+      })
+
+      const s3Response: PutObjectCommandOutput = await s3Client.send(putObjectCommand)
+      this.assetLogger.info(
+        `Completed upload: ${downloadUrl} -> https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
+      )
+      return this.validateRemoteMd5(s3Response)
+    } catch (error) {
+      if (error instanceof S3ServiceException && error.name === 'EntityTooLarge') {
+        this.assetLogger.error(TransferErrorMessages.ENTITY_TOO_LARGE)
+      } else if (error instanceof S3ServiceException) {
+        this.assetLogger.error(
+          `Error from S3 while uploading object to ${this.s3Config.bucketName}.  ${error.name}: ${error.message}`,
+        )
+      } else {
+        this.assetLogger.error(`Error downloading file from ${downloadUrl}: ${error instanceof Error ? error.message : String(error)}`)
         throw error
       }
     }
