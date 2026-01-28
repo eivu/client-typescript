@@ -216,6 +216,13 @@ export const isOnline = async (
   }
 }
 
+export const logResponse = (result: unknown) => {
+  console.log('====================')
+  console.log('Upload Result:')
+  console.dir(result)
+  console.log('====================')
+}
+
 /**
  * Detects the MIME type of a file based on its extension
  * @param pathToFile - The path to the file
