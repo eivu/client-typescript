@@ -45,6 +45,12 @@ type UploadFolderParams = BaseParams & {
   pathToFolder: string
 }
 
+type UploadRemoteFileParams = BaseParams & {
+  assetFilename: string
+  downloadUrl: string
+  sourceUrl?: string
+}
+
 /**
  * Client for managing file uploads to the cloud storage service
  * Handles file validation, reservation, transfer, and status tracking
@@ -131,6 +137,18 @@ export class Client {
   }: UploadFolderParams): Promise<string[]> {
     const client = new Client()
     return client.uploadFolder({concurrency, metadataList, nsfw, pathToFolder, secured})
+  }
+
+  static async uploadRemoteFile({
+    assetFilename,
+    downloadUrl,
+    metadataList = [],
+    nsfw = false,
+    secured = false,
+    sourceUrl,
+  }: UploadRemoteFileParams): Promise<void> {
+    const client = new Client()
+    return client.uploadRemoteFile({assetFilename, downloadUrl, metadataList, nsfw, secured, sourceUrl})
   }
 
   /**
@@ -276,27 +294,26 @@ export class Client {
   }
 
   async uploadRemoteFile({
+    assetFilename,
     downloadUrl,
     metadataList = [],
     nsfw = false,
     secured = false,
     sourceUrl,
-  }: {
-    downloadUrl: string
-    metadataList?: MetadataPair[]
-    nsfw?: boolean
-    secured?: boolean
-    sourceUrl: string
-  }): Promise<void> {
+  }: UploadRemoteFileParams): Promise<void> {
     const assetLogger = this.logger.child({downloadUrl})
+    // use downloadUrl as sourceUrl if sourceUrl is not provided
+    sourceUrl = sourceUrl || downloadUrl
 
     // Verify downloadUrl is reachable
     const isDownloadUrlOnline = await isOnline(downloadUrl, undefined, assetLogger)
     if (!isDownloadUrlOnline.isOnline) throw new Error(`Download URL is not reachable: ${downloadUrl}`)
 
-    // Verify sourceUrl is reachable
-    const isSourceUrlOnline = await isOnline(sourceUrl, undefined, assetLogger)
-    if (!isSourceUrlOnline.isOnline) throw new Error(`Source URL is not reachable: ${sourceUrl}`)
+    if (sourceUrl !== downloadUrl) {
+      // Verify sourceUrl is reachable
+      const isSourceUrlOnline = await isOnline(sourceUrl, undefined, assetLogger)
+      if (!isSourceUrlOnline.isOnline) throw new Error(`Source URL is not reachable: ${sourceUrl}`)
+    }
 
     // Verify no cloud file exists with the same sourceUrl
     const checkResponse = await check.get('/metadata/check', {
@@ -313,19 +330,19 @@ export class Client {
     assetLogger.info(`Reserving remote upload for URL: ${downloadUrl}`)
     assetLogger.info(`Fetching/Reserving: ${sourceUrl}`)
     let cloudFile = await CloudFile.fetchOrReserveBy({md5: sourceUrlMd5, nsfw, secured})
-    await this.processRemoteTransfer({downloadUrl, assetLogger, cloudFile})
+    await this.processRemoteTransfer({assetFilename, assetLogger, cloudFile, downloadUrl})
 
-    const dataProfile = await generateDataProfile({metadataList, pathToFile})
+    // const dataProfile = await generateDataProfile({metadataList, pathToFile})
 
-    if (cloudFile.transfered()) {
-      assetLogger.info('Completing')
-      cloudFile = await cloudFile.complete(dataProfile)
-    } else {
-      assetLogger.info('Updating/Skipping')
-      cloudFile = await cloudFile.updateMetadata(dataProfile)
-    }
+    // if (cloudFile.transfered()) {
+    //   assetLogger.info('Completing')
+    //   cloudFile = await cloudFile.complete(dataProfile)
+    // } else {
+    //   assetLogger.info('Updating/Skipping')
+    //   cloudFile = await cloudFile.updateMetadata(dataProfile)
+    // }
 
-    return cloudFile
+    // return cloudFile
   }
 
   /**
@@ -504,15 +521,23 @@ export class Client {
     }
   }
 
-  private async processRemoteTransfer({downloadUrl, assetLogger, cloudFile}: {downloadUrl: string, assetLogger: Logger, cloudFile: CloudFile}): Promise<CloudFile> {
+  private async processRemoteTransfer({
+    assetFilename,
+    assetLogger,
+    cloudFile,
+    downloadUrl,
+  }: {
+    assetFilename: string
+    assetLogger: Logger
+    cloudFile: CloudFile
+    downloadUrl: string
+  }): Promise<CloudFile> {
     if (!cloudFile.reserved()) {
       assetLogger.info(
         `CloudFile#processRemoteTransfer requires CloudFile to be in reserved state: found ${cloudFile.remoteAttr.state}`,
       )
       return cloudFile
     }
-
-    cloudFile.resourceType = 'staging'
 
     const env = getEnv()
     const s3Config: S3UploaderConfig = {
@@ -524,7 +549,7 @@ export class Client {
     }
 
     const s3Uploader = new S3Uploader({assetLogger, cloudFile, s3Config})
-    if (!(await s3Uploader.putRemoteFile(downloadUrl))) {
+    if (!(await s3Uploader.putRemoteFile({asset: assetFilename, downloadUrl}))) {
       throw new Error(`Failed to upload remote file to S3: ${downloadUrl}`)
     }
 

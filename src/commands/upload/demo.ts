@@ -1,11 +1,6 @@
 import {Client} from '@src/client'
-// import {uploadComicMetadataArtwork} from '@src/metadata-extraction'
-const logResponse = (result: unknown) => {
-  console.log('====================')
-  console.log('Upload Result:')
-  console.dir(result)
-  console.log('====================')
-}
+import {logResponse} from '@src/utils'
+/*
 
 // // const pathToFile = 'test/fixtures/samples/image/ai overlords.jpg'
 // // let pathToFile
@@ -56,3 +51,10 @@ logResponse(
 )
 
 logResponse(await Client.bulkUpdateCloudFiles({pathToFolder: 'test/fixtures/samples/updates'}))
+*/
+
+await Client.uploadRemoteFile({
+  assetFilename: 'FO4_boxart.png',
+  downloadUrl: 'https://fallout.bethesda.net/_static-fallout/images/overview-art-lg.png',
+  sourceUrl: 'https://fallout.bethesda.net/_static-fallout/images/overview-art-lg.png',
+})

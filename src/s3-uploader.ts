@@ -135,7 +135,7 @@ export class S3Uploader {
    * @param downloadUrl - The URL to download the file from
    * @returns True if upload successful and MD5 validation passes, false otherwise
    */
-  async putRemoteFile(downloadUrl: string): Promise<boolean> {
+  async putRemoteFile({asset, downloadUrl}: {asset: string; downloadUrl: string}): Promise<boolean> {
     const credentials: Credentials = {
       accessKeyId: this.s3Config.accessKeyId,
       secretAccessKey: this.s3Config.secretAccessKey,
@@ -147,13 +147,15 @@ export class S3Uploader {
     }
 
     const s3Client = new S3Client(s3Config)
-    
-    // Set the asset name to "asset.test"
-    this.cloudFile.remoteAttr.asset = 'asset.test'
+
+    // Set resourceType to 'staging' for remote uploads
+    this.cloudFile.resourceType = 'staging'
+    // Set the asset name to the provided assetFilename
+    this.cloudFile.remoteAttr.asset = asset
     const remotePathToFile = this.generateRemotePath()
 
     this.assetLogger.info(
-      `Streaming from URL: ${downloadUrl} -> Uploading to S3: https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
+      `Streaming data from URL: ${downloadUrl} -> Staging Upload to S3: https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
     )
 
     try {
@@ -171,8 +173,9 @@ export class S3Uploader {
 
       const s3Response: PutObjectCommandOutput = await s3Client.send(putObjectCommand)
       this.assetLogger.info(
-        `Completed upload: ${downloadUrl} -> https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
+        `Staged upload: ${downloadUrl} -> https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
       )
+      console.dir(s3Response)
       return this.validateRemoteMd5(s3Response)
     } catch (error) {
       if (error instanceof S3ServiceException && error.name === 'EntityTooLarge') {
@@ -182,7 +185,9 @@ export class S3Uploader {
           `Error from S3 while uploading object to ${this.s3Config.bucketName}.  ${error.name}: ${error.message}`,
         )
       } else {
-        this.assetLogger.error(`Error downloading file from ${downloadUrl}: ${error instanceof Error ? error.message : String(error)}`)
+        this.assetLogger.error(
+          `Error downloading file from ${downloadUrl}: ${error instanceof Error ? error.message : String(error)}`,
+        )
         throw error
       }
     }
