@@ -1,12 +1,11 @@
 import {PutObjectCommand, type PutObjectCommandOutput, S3Client, S3ServiceException} from '@aws-sdk/client-s3'
+import {Upload} from '@aws-sdk/lib-storage'
 import {Credentials} from '@aws-sdk/types'
 import {CloudFile} from '@src/cloud-file'
 import {type Logger} from '@src/logger'
 import {md5AsFolders} from '@src/utils'
 import axios from 'axios'
-import {Buffer} from 'node:buffer'
 import {readFile} from 'node:fs/promises'
-import {Readable} from 'node:stream'
 /**
  * Error messages for S3 transfer failures
  */
@@ -131,8 +130,8 @@ export class S3Uploader {
   }
 
   /**
-   * Downloads a file from a remote URL and uploads it directly to S3 cloud storage
-   * Streams the file from the URL to S3, buffering in memory only if content-length is unavailable
+   * Downloads a file from a remote URL and streams it directly to S3 cloud storage
+   * Uses multipart upload to stream efficiently without buffering the entire file in memory
    * Sets the asset name to the provided asset and logs upload progress
    * @param params - Parameters for remote file upload
    * @param params.asset - The asset filename to use
@@ -164,43 +163,23 @@ export class S3Uploader {
     )
 
     try {
-      // Stream the file directly from the URL to S3
+      // Stream the file directly from the URL to S3 using multipart upload
+      // This handles chunking automatically and doesn't require buffering the entire file in memory
       const response = await axios.get(downloadUrl, {
         responseType: 'stream',
       })
 
-      // Extract content-length from response headers if available
-      const contentLength = response.headers['content-length']
-        ? Number.parseInt(response.headers['content-length'], 10)
-        : undefined
-
-      let body: Buffer | Readable
-      let finalContentLength: number | undefined = contentLength
-
-      // If content-length is not available, buffer the stream to avoid chunked encoding issues
-      // This is similar to how putLocalFile handles files - buffers support AWS SDK retry behavior
-      if (contentLength === undefined) {
-        const chunks: Buffer[] = []
-
-        for await (const chunk of response.data) {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-        }
-
-        body = Buffer.concat(chunks)
-        finalContentLength = body.length
-      } else {
-        body = response.data
-      }
-
-      const putObjectCommand = new PutObjectCommand({
-        ACL: 'public-read',
-        Body: body,
-        Bucket: this.s3Config.bucketName,
-        ContentLength: finalContentLength,
-        Key: stagingRemotePath,
+      const upload = new Upload({
+        client: s3Client,
+        params: {
+          ACL: 'public-read',
+          Body: response.data,
+          Bucket: this.s3Config.bucketName,
+          Key: stagingRemotePath,
+        },
       })
 
-      const s3Response: PutObjectCommandOutput = await s3Client.send(putObjectCommand)
+      const s3Response = await upload.done()
       this.assetLogger.info(
         `Staged upload: ${downloadUrl} -> https://${this.s3Config.bucketName}.s3.wasabisys.com/${stagingRemotePath}`,
       )
@@ -210,8 +189,17 @@ export class S3Uploader {
         throw new Error(`Failed to upload remote file to s3: ${downloadUrl}`)
 
       const md5 = s3Response.ETag?.replaceAll(/"/g, '')?.toUpperCase()
+      if (!md5) throw new Error(`Failed to get MD5 from S3 ETag: ${s3Response.ETag}`)
+
       console.dir(s3Response)
       console.log(`MD5 from S3 ETag: ${md5}`)
+      this.assetLogger.info(`Changing MD5 from staging(${stagingMd5}) to final(${md5})`)
+
+      this.cloudFile.remoteAttr.md5 = md5
+      const remotePath = this.generateRemotePath()
+
+      console.log(`Remote path: ${remotePath}`)
+
       // response.$metadata.httpStatusCode === 200 && response.ETag
 
       return this.validateRemoteMd5(s3Response)
