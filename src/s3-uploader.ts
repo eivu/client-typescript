@@ -156,10 +156,11 @@ export class S3Uploader {
     this.cloudFile.resourceType = 'staging'
     // Set the asset name to the provided assetFilename
     this.cloudFile.remoteAttr.asset = asset
-    const remotePathToFile = this.generateRemotePath()
+    const stagingRemotePath = this.generateRemotePath()
+    const stagingMd5 = this.cloudFile.remoteAttr.md5
 
     this.assetLogger.info(
-      `Streaming data from URL: ${downloadUrl} -> Staging Upload to S3: https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
+      `Streaming data from URL: ${downloadUrl} -> Staging Upload to S3: https://${this.s3Config.bucketName}.s3.wasabisys.com/${stagingRemotePath}`,
     )
 
     try {
@@ -196,14 +197,23 @@ export class S3Uploader {
         Body: body,
         Bucket: this.s3Config.bucketName,
         ContentLength: finalContentLength,
-        Key: remotePathToFile,
+        Key: stagingRemotePath,
       })
 
       const s3Response: PutObjectCommandOutput = await s3Client.send(putObjectCommand)
       this.assetLogger.info(
-        `Staged upload: ${downloadUrl} -> https://${this.s3Config.bucketName}.s3.wasabisys.com/${remotePathToFile}`,
+        `Staged upload: ${downloadUrl} -> https://${this.s3Config.bucketName}.s3.wasabisys.com/${stagingRemotePath}`,
       )
       console.dir(s3Response)
+
+      if (s3Response.$metadata.httpStatusCode !== 200)
+        throw new Error(`Failed to upload remote file to s3: ${downloadUrl}`)
+
+      const md5 = s3Response.ETag?.replaceAll(/"/g, '')?.toUpperCase()
+      console.dir(s3Response)
+      console.log(`MD5 from S3 ETag: ${md5}`)
+      // response.$metadata.httpStatusCode === 200 && response.ETag
+
       return this.validateRemoteMd5(s3Response)
     } catch (error) {
       if (error instanceof S3ServiceException && error.name === 'EntityTooLarge') {
