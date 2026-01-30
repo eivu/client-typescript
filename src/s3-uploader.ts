@@ -1,4 +1,11 @@
-import {PutObjectCommand, type PutObjectCommandOutput, S3Client, S3ServiceException} from '@aws-sdk/client-s3'
+import {
+  PutObjectCommand,
+  type PutObjectCommandOutput,
+  S3Client,
+  S3ServiceException,
+  CopyObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3'
 import {Upload} from '@aws-sdk/lib-storage'
 import {Credentials} from '@aws-sdk/types'
 import {CloudFile} from '@src/cloud-file'
@@ -180,10 +187,7 @@ export class S3Uploader {
       })
 
       const s3Response = await upload.done()
-      this.assetLogger.info(
-        `Staged upload: ${downloadUrl} -> https://${this.s3Config.bucketName}.s3.wasabisys.com/${stagingRemotePath}`,
-      )
-      console.dir(s3Response)
+      this.assetLogger.info(`Staged upload: ${downloadUrl} -> ${this.s3BaseUrl(stagingRemotePath)}`)
 
       if (s3Response.$metadata.httpStatusCode !== 200)
         throw new Error(`Failed to upload remote file to s3: ${downloadUrl}`)
@@ -191,18 +195,38 @@ export class S3Uploader {
       const md5 = s3Response.ETag?.replaceAll(/"/g, '')?.toUpperCase()
       if (!md5) throw new Error(`Failed to get MD5 from S3 ETag: ${s3Response.ETag}`)
 
-      console.dir(s3Response)
-      console.log(`MD5 from S3 ETag: ${md5}`)
+      this.assetLogger.info(`Fetched MD5 from S3 ETag: ${md5}`)
       this.assetLogger.info(`Changing MD5 from staging(${stagingMd5}) to final(${md5})`)
 
       this.cloudFile.remoteAttr.md5 = md5
+      this.cloudFile.localPathToFile = asset
+      await this.cloudFile.identifyContentType()
+
       const remotePath = this.generateRemotePath()
 
-      console.log(`Remote path: ${remotePath}`)
+      this.assetLogger.info(`Identified content type for final asset upload: ${this.cloudFile.remoteAttr.content_type}`)
 
-      // response.$metadata.httpStatusCode === 200 && response.ETag
+      // move the file from staging to final
+      const moveCommand = new CopyObjectCommand({
+        ACL: 'public-read',
+        Bucket: this.s3Config.bucketName,
+        CopySource: `${this.s3Config.bucketName}/${stagingRemotePath}`,
+        Key: remotePath,
+      })
+      await s3Client.send(moveCommand)
 
-      return this.validateRemoteMd5(s3Response)
+      const deleteCommand = new DeleteObjectCommand({
+        Bucket: this.s3Config.bucketName,
+        Key: stagingRemotePath,
+      })
+      await s3Client.send(deleteCommand)
+
+      this.assetLogger.info(`Deleted staging file: ${stagingRemotePath}`)
+      this.assetLogger.info(
+        `Moved file from staging to final: ${this.s3BaseUrl(stagingRemotePath)} -> ${this.s3BaseUrl(remotePath)}`,
+      )
+
+      return true
     } catch (error) {
       if (error instanceof S3ServiceException && error.name === 'EntityTooLarge') {
         this.assetLogger.error(TransferErrorMessages.ENTITY_TOO_LARGE)
@@ -230,5 +254,9 @@ export class S3Uploader {
     return (
       response.$metadata.httpStatusCode === 200 && response.ETag === `"${this.cloudFile.remoteAttr.md5.toLowerCase()}"`
     )
+  }
+
+  private s3BaseUrl(asset: string) {
+    return `https://${this.s3Config.bucketName}.s3.wasabisys.com/${asset}`
   }
 }

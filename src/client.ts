@@ -330,6 +330,7 @@ export class Client {
     assetLogger.info(`Reserving remote upload for URL: ${downloadUrl}`)
     assetLogger.info(`Fetching/Reserving: ${sourceUrl}`)
     let cloudFile = await CloudFile.fetchOrReserveBy({md5: sourceUrlMd5, nsfw, secured})
+    cloudFile.remoteAttr.asset = assetFilename
     await this.processRemoteTransfer({assetFilename, assetLogger, cloudFile, downloadUrl})
 
     // const dataProfile = await generateDataProfile({metadataList, pathToFile})
