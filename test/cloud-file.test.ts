@@ -194,15 +194,15 @@ describe('CloudFile', () => {
     })
   })
 
-  describe('transfered', () => {
+  describe('transferred', () => {
     it('returns true if the CloudFile state is transferred', () => {
       const cloudFile = new CloudFile({remoteAttr: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.TRANSFERRED}})
-      expect(cloudFile.transfered()).toBe(true)
+      expect(cloudFile.transferred()).toBe(true)
     })
 
     it('returns false if the CloudFile state is not transferred', () => {
       const cloudFile = new CloudFile({remoteAttr: {...AI_OVERLORDS_RESERVATION, state: CloudFileState.RESERVED}})
-      expect(cloudFile.transfered()).toBe(false)
+      expect(cloudFile.transferred()).toBe(false)
     })
   })
 

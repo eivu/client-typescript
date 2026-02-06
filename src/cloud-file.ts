@@ -221,7 +221,7 @@ export class CloudFile {
    * Checks if the cloud file is in the transferred state
    * @returns True if the file has been transferred to cloud storage
    */
-  transfered(): boolean {
+  transferred(): boolean {
     return this.remoteAttr.state === CloudFileState.TRANSFERRED
   }
 

@@ -1,7 +1,7 @@
 /**
  * Cloud file state type
  */
-type State = 'completed' | 'reserved' | 'transfered'
+type State = 'completed' | 'reserved' | 'transferred'
 
 /**
  * Type definition for cloud file attributes

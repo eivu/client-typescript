@@ -243,7 +243,7 @@ export class Client {
 
     const dataProfile = await generateDataProfile({metadataList, pathToFile})
 
-    if (cloudFile.transfered()) {
+    if (cloudFile.transferred()) {
       assetLogger.info('Completing')
       cloudFile = await cloudFile.complete(dataProfile)
     } else {
@@ -335,7 +335,7 @@ export class Client {
 
     // const dataProfile = await generateDataProfile({metadataList, pathToFile})
 
-    // if (cloudFile.transfered()) {
+    // if (cloudFile.transferred()) {
     //   assetLogger.info('Completing')
     //   cloudFile = await cloudFile.complete(dataProfile)
     // } else {
