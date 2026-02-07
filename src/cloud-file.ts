@@ -147,6 +147,15 @@ export class CloudFile {
     return this.remoteAttr.state === CloudFileState.COMPLETED
   }
 
+  async delete(): Promise<boolean> {
+    const result = await api.delete(`/cloud_files/${this.remoteAttr.md5}`)
+    if (result.status !== 204) {
+      throw new Error(`Failed to delete cloud file: ${this.remoteAttr.md5}`)
+    }
+
+    return true
+  }
+
   /**
    * Determines the grouping/category for the cloud file based on its attributes
    * Files are grouped as 'secured', by resource type (audio/image/video), or 'archive'

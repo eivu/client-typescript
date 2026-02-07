@@ -226,6 +226,12 @@ export class S3Uploader {
         `Moved file from staging to final: ${this.s3BaseUrl(stagingRemotePath)} -> ${this.s3BaseUrl(remotePath)}`,
       )
 
+      const stagingFile = CloudFile.fetch(stagingMd5)
+      const deleteResult = await stagingFile.delete()
+      if (!deleteResult) {
+        throw new Error(`Failed to delete staging file: ${stagingMd5}`)
+      }
+
       return true
     } catch (error) {
       if (error instanceof S3ServiceException && error.name === 'EntityTooLarge') {
