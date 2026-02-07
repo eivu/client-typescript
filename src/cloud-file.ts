@@ -235,13 +235,13 @@ export class CloudFile {
   }
 
   async updateOrFetch(md5: string): Promise<CloudFile> {
-    const {asset} = this.remoteAttr
+    const {asset, filesize} = this.remoteAttr
     try {
       return await this.update(md5)
     } catch (error) {
       if ((error as AxiosError) && error.response?.status === 409) {
         const cloudFile = await CloudFile.fetch(md5)
-        this.remoteAttr = {...cloudFile.remoteAttr, asset}
+        this.remoteAttr = {...cloudFile.remoteAttr, asset, filesize}
         return this
       }
 

@@ -307,6 +307,7 @@ export class Client {
 
     // Verify downloadUrl is reachable
     const isDownloadUrlOnline = await isOnline(downloadUrl, undefined, assetLogger)
+    const filesize = isDownloadUrlOnline.remoteFilesize
     if (!isDownloadUrlOnline.isOnline) throw new Error(`Download URL is not reachable: ${downloadUrl}`)
 
     if (sourceUrl !== downloadUrl) {
@@ -329,10 +330,12 @@ export class Client {
     const sourceUrlMd5 = await generateMd5OfString(sourceUrl)
     assetLogger.info(`Reserving remote upload for URL: ${downloadUrl}`)
     assetLogger.info(`Fetching/Reserving: ${sourceUrl}`)
-    let cloudFile = await CloudFile.fetchOrReserveBy({md5: sourceUrlMd5, nsfw, secured})
+    const cloudFile = await CloudFile.fetchOrReserveBy({md5: sourceUrlMd5, nsfw, secured})
     cloudFile.remoteAttr.asset = assetFilename
+    cloudFile.remoteAttr.filesize = filesize
     await this.processRemoteTransfer({assetFilename, assetLogger, cloudFile, downloadUrl})
 
+    console.dir(cloudFile)
     // const dataProfile = await generateDataProfile({metadataList, pathToFile})
 
     // if (cloudFile.transferred()) {
@@ -554,7 +557,17 @@ export class Client {
       throw new Error(`Failed to upload remote file to S3: ${downloadUrl}`)
     }
 
-    return cloudFile
+    const {asset, filesize} = cloudFile.remoteAttr
+    const onlineCheck = await isOnline(cloudFile.url(), filesize as number, assetLogger)
+    if (onlineCheck.isOnline) {
+      return cloudFile.transfer({asset: asset as string, filesize: filesize as number})
+    }
+
+    await cloudFile.reset() // set state back to reserved
+    const remoteFilesizeStr = onlineCheck.remoteFilesize === null ? 'unknown' : String(onlineCheck.remoteFilesize)
+    throw new Error(
+      `File ${cloudFile.remoteAttr.md5}:${asset} is offline/filesize mismatch. expected size: ${filesize} got: ${remoteFilesizeStr}`,
+    )
   }
 
   /**
