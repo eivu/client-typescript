@@ -155,7 +155,7 @@ export class S3Uploader {
       endpoint: this.s3Config.endpoint,
       region: this.s3Config.region,
     }
-
+    let md5: string | undefined
     const s3Client = new S3Client(s3Config)
 
     // Set resourceType to 'staging' for remote uploads
@@ -192,13 +192,13 @@ export class S3Uploader {
       if (s3Response.$metadata.httpStatusCode !== 200)
         throw new Error(`Failed to upload remote file to s3: ${downloadUrl}`)
 
-      const md5 = s3Response.ETag?.replaceAll(/"/g, '')?.toUpperCase()
+      md5 = s3Response.ETag?.replaceAll(/"/g, '')?.toUpperCase()
       if (!md5) throw new Error(`Failed to get MD5 from S3 ETag: ${s3Response.ETag}`)
 
       this.assetLogger.info(`Fetched MD5 from S3 ETag: ${md5}`)
       this.assetLogger.info(`Changing MD5 from staging(${stagingMd5}) to final(${md5})`)
 
-      this.cloudFile.remoteAttr.md5 = md5
+      await this.cloudFile.updateOrFetch(md5)
       this.cloudFile.localPathToFile = asset
       await this.cloudFile.identifyContentType()
 

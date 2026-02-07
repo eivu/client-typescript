@@ -234,6 +234,21 @@ export class CloudFile {
     return this.updateData({action: 'update_metadata', dataProfile})
   }
 
+  async updateOrFetch(md5: string): Promise<CloudFile> {
+    const {asset} = this.remoteAttr
+    try {
+      return await this.update(md5)
+    } catch (error) {
+      if ((error as AxiosError) && error.response?.status === 409) {
+        const cloudFile = await CloudFile.fetch(md5)
+        this.remoteAttr = {...cloudFile.remoteAttr, asset}
+        return this
+      }
+
+      throw error
+    }
+  }
+
   /**
    * Generates the public URL for accessing the cloud file
    * @returns The full URL to the file in cloud storage
@@ -275,6 +290,13 @@ export class CloudFile {
         this.stateHistory = []
       }
     }
+  }
+
+  private async update(md5: string): Promise<CloudFile> {
+    const {data} = await api.patch(`/cloud_files/${this.remoteAttr.md5}`, {target_md5: md5})
+    this.remoteAttr = data
+    this.stateHistory = [CloudFileState.RESERVED]
+    return this
   }
 
   /**
