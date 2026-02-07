@@ -4,7 +4,7 @@ import {type MetadataProfile} from '@src/metadata-extraction'
 import api from '@src/services/api.config'
 import {CloudFileState, type CloudFileType} from '@src/types/cloud-file-type'
 import {detectMime, generateMd5, md5AsFolders, validateFilePath} from '@src/utils'
-import {type AxiosError} from 'axios'
+import {isAxiosError} from 'axios'
 
 import {getEnv} from './env'
 
@@ -87,7 +87,7 @@ export class CloudFile {
       return await CloudFile.reserve({md5, nsfw, pathToFile, secured})
     } catch (error) {
       // a file already exists with the same MD5 hash
-      if ((error as AxiosError).response?.status === 422) {
+      if (isAxiosError(error) && error.response?.status === 422) {
         md5 = md5 || (await generateMd5(pathToFile as string))
         const cloudFile = await CloudFile.fetch(md5)
         if (pathToFile) cloudFile.localPathToFile = pathToFile
@@ -222,7 +222,10 @@ export class CloudFile {
    * @returns True if the file has been transferred to cloud storage
    */
   transferred(): boolean {
-    return this.remoteAttr.state === CloudFileState.TRANSFERRED
+    // Handle both spellings for backward compatibility with server
+    return (
+      this.remoteAttr.state === CloudFileState.TRANSFERRED || this.remoteAttr.state === ('transfered' as CloudFileState)
+    )
   }
 
   /**
@@ -239,7 +242,7 @@ export class CloudFile {
     try {
       return await this.update(md5)
     } catch (error) {
-      if ((error as AxiosError) && error.response?.status === 409) {
+      if (isAxiosError(error) && error.response?.status === 409) {
         const cloudFile = await CloudFile.fetch(md5)
         this.remoteAttr = {...cloudFile.remoteAttr, asset, filesize}
         return this
@@ -293,8 +296,9 @@ export class CloudFile {
   }
 
   private async update(md5: string): Promise<CloudFile> {
+    const {asset, filesize} = this.remoteAttr
     const {data} = await api.patch(`/cloud_files/${this.remoteAttr.md5}`, {target_md5: md5})
-    this.remoteAttr = data
+    this.remoteAttr = {...data, asset, filesize}
     this.stateHistory = [CloudFileState.RESERVED]
     return this
   }

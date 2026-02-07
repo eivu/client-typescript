@@ -560,7 +560,12 @@ export class Client {
     const {asset, filesize} = cloudFile.remoteAttr
     const onlineCheck = await isOnline(cloudFile.url(), filesize as number, assetLogger)
     if (onlineCheck.isOnline) {
-      return cloudFile.transfer({asset: asset as string, filesize: filesize as number})
+      if (cloudFile.reserved()) {
+        return cloudFile.transfer({asset: asset as string, filesize: filesize as number})
+      }
+
+      assetLogger.info('CloudFile already transferred/completed skipping transfer step...')
+      return cloudFile
     }
 
     await cloudFile.reset() // set state back to reserved
