@@ -242,7 +242,7 @@ export class S3Uploader {
         )
       } else {
         this.assetLogger.error(
-          `Error downloading file from ${downloadUrl}: ${error instanceof Error ? error.message : String(error)}`,
+          `Error processing the remote download from ${downloadUrl}: ${error instanceof Error ? error.message : String(error)}`,
         )
         throw error
       }
