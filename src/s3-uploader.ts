@@ -11,7 +11,7 @@ import {Credentials} from '@aws-sdk/types'
 import {CloudFile} from '@src/cloud-file'
 import {type Logger} from '@src/logger'
 import {md5AsFolders} from '@src/utils'
-import axios from 'axios'
+import axios, {isAxiosError} from 'axios'
 import {readFile} from 'node:fs/promises'
 /**
  * Error messages for S3 transfer failures
@@ -226,10 +226,27 @@ export class S3Uploader {
         `Moved file from staging to final: ${this.s3BaseUrl(stagingRemotePath)} -> ${this.s3BaseUrl(remotePath)}`,
       )
 
-      const stagingFile = CloudFile.fetch(stagingMd5)
-      const deleteResult = await stagingFile.delete()
-      if (!deleteResult) {
-        throw new Error(`Failed to delete staging file: ${stagingMd5}`)
+      // Clean up staging CloudFile record if it exists (happens on subsequent runs)
+      // On first run, the staging record was updated to the final MD5 via PATCH
+      // On subsequent runs, a new staging record is created and the final one is fetched, leaving the staging orphaned
+      if (stagingMd5 !== md5) {
+        try {
+          const stagingFile = await CloudFile.fetch(stagingMd5)
+          await stagingFile.delete()
+          this.assetLogger.info(`Deleted staging CloudFile record: ${stagingMd5}`)
+        } catch (error) {
+          // 404 is expected on first run when the staging record was updated (not duplicated)
+          if (isAxiosError(error) && error.response?.status === 404) {
+            this.assetLogger.info(
+              `Staging CloudFile record ${stagingMd5} not found (already updated to ${md5} on first run)`,
+            )
+          } else {
+            // Log but don't fail the entire operation for cleanup errors
+            this.assetLogger.error(
+              `Failed to delete staging CloudFile record ${stagingMd5}: ${error instanceof Error ? error.message : String(error)}`,
+            )
+          }
+        }
       }
 
       return true

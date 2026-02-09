@@ -254,6 +254,7 @@ export class CloudFile {
       if (isAxiosError(error) && error.response?.status === 409) {
         const cloudFile = await CloudFile.fetch(md5)
         this.remoteAttr = {...cloudFile.remoteAttr, asset, filesize}
+        this.inferStateHistory()
         return this
       }
 
@@ -293,6 +294,9 @@ export class CloudFile {
         break
       }
 
+      // Grouped cases for backward compatibility - both spellings map to same state
+      // eslint-disable-next-line perfectionist/sort-switch-case
+      case 'transfered' as CloudFileState:
       case CloudFileState.TRANSFERRED: {
         this.stateHistory = [CloudFileState.RESERVED, CloudFileState.TRANSFERRED]
         break
