@@ -147,7 +147,7 @@ export class Client {
     nsfw = false,
     secured = false,
     sourceUrl,
-  }: UploadRemoteFileParams): Promise<void> {
+  }: UploadRemoteFileParams): Promise<CloudFile> {
     const client = new Client()
     return client.uploadRemoteFile({assetFilename, downloadUrl, metadataList, nsfw, secured, sourceUrl})
   }
@@ -303,6 +303,7 @@ export class Client {
     sourceUrl,
   }: UploadRemoteFileParams): Promise<CloudFile> {
     const assetLogger = this.logger.child({downloadUrl})
+    let cloudFile: CloudFile
     // use downloadUrl as sourceUrl if sourceUrl is not provided
     sourceUrl = sourceUrl || downloadUrl
 
@@ -326,16 +327,17 @@ export class Client {
     })
     const {exists, md5} = checkResponse.data
     console.dir(checkResponse.data, {depth: null})
-    if (exists) throw new Error(`CloudFile with md5 ${md5} already exists with the same Source URL: ${sourceUrl}`)
-
-    const sourceUrlMd5 = await generateMd5OfString(sourceUrl)
-    assetLogger.info(`Reserving remote upload for URL: ${downloadUrl}`)
-    assetLogger.info(`Fetching/Reserving: ${sourceUrl}`)
-    let cloudFile = await CloudFile.fetchOrReserveBy({md5: sourceUrlMd5, nsfw, secured})
-    cloudFile.remoteAttr.asset = assetFilename
-    cloudFile.remoteAttr.filesize = filesize
-    await this.processRemoteTransfer({assetFilename, assetLogger, cloudFile, downloadUrl})
-
+    if (exists) {
+      cloudFile = await CloudFile.fetch(md5)
+    } else {
+      const sourceUrlMd5 = await generateMd5OfString(sourceUrl)
+      assetLogger.info(`Reserving remote upload for URL: ${downloadUrl}`)
+      assetLogger.info(`Fetching/Reserving: ${sourceUrl}`)
+      cloudFile = await CloudFile.fetchOrReserveBy({md5: sourceUrlMd5, nsfw, secured})
+      cloudFile.remoteAttr.asset = assetFilename
+      cloudFile.remoteAttr.filesize = filesize
+      await this.processRemoteTransfer({assetFilename, assetLogger, cloudFile, downloadUrl})
+    }
     metadataList.push({source_url: sourceUrl} as MetadataPair) // eslint-disable-line camelcase
     const dataProfile = {metadata_list: metadataList} as MetadataProfile // eslint-disable-line camelcase
 

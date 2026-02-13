@@ -53,8 +53,10 @@ logResponse(
 logResponse(await Client.bulkUpdateCloudFiles({pathToFolder: 'test/fixtures/samples/updates'}))
 */
 
-await Client.uploadRemoteFile({
-  assetFilename: 'FO4_boxart.png',
-  downloadUrl: 'https://fallout.bethesda.net/_static-fallout/images/overview-art-lg.png',
-  sourceUrl: 'https://fallout.bethesda.net/_static-fallout/images/overview-art-lg.png',
-})
+logResponse(
+  await Client.uploadRemoteFile({
+    assetFilename: 'FO4_boxart.png',
+    downloadUrl: 'https://fallout.bethesda.net/_static-fallout/images/overview-art-lg.png',
+    sourceUrl: 'https://fallout.bethesda.net/_static-fallout/images/overview-art-lg.png',
+  }),
+)
