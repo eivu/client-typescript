@@ -47,7 +47,7 @@ export type MetadataProfile = {
   artwork_md5?: null | string
   description?: null | string
   duration?: null | number
-  info_url?: null | number
+  info_url?: null | string
   metadata_list: MetadataPair[]
   name?: null | string
   path_to_file: null | string
