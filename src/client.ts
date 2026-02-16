@@ -6,8 +6,8 @@ import {
   extractInfoFromYml,
   filterMetadataProfile,
   generateDataProfile,
-  MetadataProfile,
   type MetadataPair,
+  type MetadataProfile,
 } from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
 import {check} from '@src/services/api.config'
@@ -49,6 +49,7 @@ type UploadFolderParams = BaseParams & {
 type UploadRemoteFileParams = BaseParams & {
   assetFilename: string
   downloadUrl: string
+  metadataProfile?: MetadataProfile
   sourceUrl?: string
 }
 
@@ -143,13 +144,13 @@ export class Client {
   static async uploadRemoteFile({
     assetFilename,
     downloadUrl,
-    metadataList = [],
+    metadataProfile = {metadata_list: [] as MetadataPair[]} as MetadataProfile, // eslint-disable-line camelcase
     nsfw = false,
     secured = false,
     sourceUrl,
   }: UploadRemoteFileParams): Promise<CloudFile> {
     const client = new Client()
-    return client.uploadRemoteFile({assetFilename, downloadUrl, metadataList, nsfw, secured, sourceUrl})
+    return client.uploadRemoteFile({assetFilename, downloadUrl, metadataProfile, nsfw, secured, sourceUrl})
   }
 
   /**
@@ -297,7 +298,7 @@ export class Client {
   async uploadRemoteFile({
     assetFilename,
     downloadUrl,
-    metadataList = [],
+    metadataProfile = {metadata_list: [] as MetadataPair[]} as MetadataProfile, // eslint-disable-line camelcase
     nsfw = false,
     secured = false,
     sourceUrl,
@@ -338,15 +339,15 @@ export class Client {
       cloudFile.remoteAttr.filesize = filesize
       await this.processRemoteTransfer({assetFilename, assetLogger, cloudFile, downloadUrl})
     }
-    metadataList.push({source_url: sourceUrl} as MetadataPair) // eslint-disable-line camelcase
-    const dataProfile = {metadata_list: metadataList} as MetadataProfile // eslint-disable-line camelcase
+
+    metadataProfile.metadata_list.push({source_url: sourceUrl} as MetadataPair) // eslint-disable-line camelcase
 
     if (cloudFile.transferred()) {
       assetLogger.info('Completing')
-      cloudFile = await cloudFile.complete(dataProfile)
+      cloudFile = await cloudFile.complete(metadataProfile)
     } else {
       assetLogger.info('Updating/Skipping')
-      cloudFile = await cloudFile.updateMetadata(dataProfile)
+      cloudFile = await cloudFile.updateMetadata(metadataProfile)
     }
 
     return cloudFile
