@@ -3,6 +3,7 @@ import {METADATA_YML_SUFFIX} from '@src/constants'
 import {getEnv} from '@src/env'
 import logger, {type Logger} from '@src/logger'
 import {
+  EMPTY_METADATA_PROFILE,
   extractInfoFromYml,
   filterMetadataProfile,
   generateDataProfile,
@@ -144,7 +145,7 @@ export class Client {
   static async uploadRemoteFile({
     assetFilename,
     downloadUrl,
-    metadataProfile = {metadata_list: [] as MetadataPair[]} as MetadataProfile, // eslint-disable-line camelcase
+    metadataProfile = EMPTY_METADATA_PROFILE,
     nsfw = false,
     secured = false,
     sourceUrl,
@@ -298,7 +299,7 @@ export class Client {
   async uploadRemoteFile({
     assetFilename,
     downloadUrl,
-    metadataProfile = {metadata_list: [] as MetadataPair[]} as MetadataProfile, // eslint-disable-line camelcase
+    metadataProfile = EMPTY_METADATA_PROFILE,
     nsfw = false,
     secured = false,
     sourceUrl,
@@ -341,13 +342,14 @@ export class Client {
     }
 
     metadataProfile.metadata_list.push({source_url: sourceUrl} as MetadataPair) // eslint-disable-line camelcase
+    const filteredProfile = filterMetadataProfile(metadataProfile)
 
     if (cloudFile.transferred()) {
       assetLogger.info('Completing')
-      cloudFile = await cloudFile.complete(metadataProfile)
+      cloudFile = await cloudFile.complete(filteredProfile)
     } else {
       assetLogger.info('Updating/Skipping')
-      cloudFile = await cloudFile.updateMetadata(metadataProfile)
+      cloudFile = await cloudFile.updateMetadata(filteredProfile)
     }
 
     return cloudFile
