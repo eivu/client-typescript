@@ -311,6 +311,8 @@ export class Client {
   }: UploadRemoteFileParams): Promise<CloudFile> {
     // Derive assetFilename from the last path segment of downloadUrl when not provided
     assetFilename = assetFilename || path.basename(new URL(downloadUrl).pathname)
+    if (!assetFilename) throw new Error(`Asset filename is required: ${assetFilename}`)
+
     const assetLogger = this.logger.child({downloadUrl})
     let cloudFile: CloudFile
     // use downloadUrl as sourceUrl if sourceUrl is not provided
