@@ -48,7 +48,7 @@ type UploadFolderParams = BaseParams & {
 }
 
 type UploadRemoteFileParams = BaseParams & {
-  assetFilename: string
+  assetFilename?: string
   downloadUrl: string
   metadataProfile?: MetadataProfile
   sourceUrl?: string
@@ -309,6 +309,8 @@ export class Client {
     secured = false,
     sourceUrl,
   }: UploadRemoteFileParams): Promise<CloudFile> {
+    // Derive assetFilename from the last path segment of downloadUrl when not provided
+    assetFilename = assetFilename || path.basename(new URL(downloadUrl).pathname)
     const assetLogger = this.logger.child({downloadUrl})
     let cloudFile: CloudFile
     // use downloadUrl as sourceUrl if sourceUrl is not provided
