@@ -350,8 +350,9 @@ export class Client {
       await this.processRemoteTransfer({assetFilename, assetLogger, cloudFile, downloadUrl})
     }
 
-    metadataProfile.metadata_list.push({source_url: sourceUrl} as MetadataPair) // eslint-disable-line camelcase
-    const filteredProfile = filterMetadataProfile(metadataProfile)
+    const metadataList = [...metadataProfile.metadata_list]
+    if (sourceUrl) metadataList.push({source_url: sourceUrl} as MetadataPair) // eslint-disable-line camelcase
+    const filteredProfile = filterMetadataProfile({...metadataProfile, metadata_list: metadataList}) // eslint-disable-line camelcase
 
     if (cloudFile.transferred()) {
       assetLogger.info('Completing')
@@ -524,12 +525,13 @@ export class Client {
 
   private async processRateLimitedRemoteUpload(params: UploadRemoteFileParams): Promise<string> {
     const url = params.sourceUrl || params.downloadUrl
+    const md5 = generateMd5OfString(url)
     try {
-      await this.uploadRemoteFile(params)
-      await this.logSuccess(url)
+      const cloudFile = await this.uploadRemoteFile(params)
+      await this.logMd5Success(url, cloudFile.remoteAttr.md5)
       return `${url}: uploaded successfully`
     } catch (error) {
-      await this.logFailure(url, error as Error)
+      await this.logMd5Failure(url, md5, error as Error)
       return `${url}: ${(error as Error).message}`
     }
   }
