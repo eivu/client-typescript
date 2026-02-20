@@ -154,6 +154,11 @@ export class Client {
     return client.uploadRemoteFile({assetFilename, downloadUrl, metadataProfile, nsfw, secured, sourceUrl})
   }
 
+  static async uploadRemoteQueue(pathToJson: string, concurrency = 3): Promise<string[]> {
+    const client = new Client()
+    return client.uploadRemoteQueue(pathToJson, concurrency)
+  }
+
   /**
    * Bulk updates cloud files from metadata YAML files in a folder
    * Recursively processes .eivu.yml files in the folder with configurable concurrency
@@ -355,6 +360,22 @@ export class Client {
     return cloudFile
   }
 
+  async uploadRemoteQueue(pathToJson: string, concurrency = 3): Promise<string[]> {
+    pathToJson = validateFilePath(pathToJson)
+    const fileContent = await fsPromise.readFile(pathToJson, 'utf8')
+    const uploadPromises: Promise<string>[] = []
+    const limit = pLimit(concurrency)
+    const lines = fileContent.split(/\r?\n/)
+    for (const line of lines) {
+      const params = JSON.parse(line)
+      this.logger.info(`queueing: ${params.source_url || params.downloadUrl}`)
+      const uploadPromise = limit(() => this.processRateLimitedRemoteUpload(params))
+      uploadPromises.push(uploadPromise)
+    }
+
+    return Promise.all(uploadPromises)
+  }
+
   /**
    * Verifies if a file has been successfully uploaded and completed
    * Checks the file's MD5 hash against the cloud storage service
@@ -494,6 +515,18 @@ export class Client {
       // logFailure would incorrectly hash the YML file contents instead of using the cloud file's MD5
       await this.logMd5Failure(pathToFile, md5, error as Error)
       return `${pathToFile}: ${(error as Error).message}`
+    }
+  }
+
+  private async processRateLimitedRemoteUpload(params: UploadRemoteFileParams): Promise<string> {
+    const url = params.sourceUrl || params.downloadUrl
+    try {
+      await this.uploadRemoteFile(params)
+      await this.logSuccess(url)
+      return `${url}: uploaded successfully`
+    } catch (error) {
+      await this.logFailure(url, error as Error)
+      return `${url}: ${(error as Error).message}`
     }
   }
 
