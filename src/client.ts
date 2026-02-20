@@ -337,7 +337,7 @@ export class Client {
       },
     })
     const {exists, md5} = checkResponse.data
-    console.dir(checkResponse.data, {depth: null})
+    this.logger.info({exists, md5}, 'check metadata response')
     if (exists) {
       cloudFile = await CloudFile.fetch(md5)
     } else {
