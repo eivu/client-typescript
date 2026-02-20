@@ -699,8 +699,8 @@ describe('Metadata Extraction', () => {
       expect(result.release).not.toHaveProperty('bundle_pos')
       expect(result.release).not.toHaveProperty('position')
       expect(result.release).not.toHaveProperty('primary_artist_name')
-      expect(result.release.name).toBe('Release Name')
-      expect(result.release.year).toBe(2020)
+      expect(result.release!.name).toBe('Release Name')
+      expect(result.release!.year).toBe(2020)
     })
 
     it('removes empty release object if all values are null', () => {
