@@ -29,4 +29,15 @@ export const check = axios.create({
   },
 })
 
+const econnRefusedInterceptor = (error: unknown) => {
+  if (axios.isAxiosError(error) && error.code === 'ECONNREFUSED') {
+    throw new Error(`EIVU OFFLINE: ${env.EIVU_UPLOAD_SERVER_HOST} is unreachable. is it online?`)
+  }
+
+  throw error
+}
+
+api.interceptors.response.use(undefined, econnRefusedInterceptor)
+check.interceptors.response.use(undefined, econnRefusedInterceptor)
+
 export default api
