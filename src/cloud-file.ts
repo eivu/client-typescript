@@ -4,7 +4,7 @@ import {type MetadataProfile} from '@src/metadata-extraction'
 import api from '@src/services/api.config'
 import {CloudFileState, type CloudFileType} from '@src/types/cloud-file-type'
 import {detectMime, generateMd5, md5AsFolders, validateFilePath} from '@src/utils'
-import {type AxiosError} from 'axios'
+import {isAxiosError} from 'axios'
 
 import {getEnv} from './env'
 
@@ -57,31 +57,40 @@ export class CloudFile {
   /**
    * Attempts to reserve a file, or fetches it if already exists (based on MD5)
    * @param params - Configuration object
+   * @param params.md5 - MD5 hash of the file
    * @param params.nsfw - Whether the file contains NSFW content
    * @param params.pathToFile - Path to the local file
    * @param params.secured - Whether the file should be secured/private
    * @returns A CloudFile instance, either newly reserved or fetched if it already exists
    */
   static async fetchOrReserveBy({
+    md5,
     nsfw = false,
     pathToFile,
     secured = false,
   }: {
+    md5?: string
     nsfw?: boolean
-    pathToFile: string
+    pathToFile?: string
     secured?: boolean
   }): Promise<CloudFile> {
-    // Validate file path for existence and security, and get trimmed path
-    pathToFile = validateFilePath(pathToFile)
-    
+    if (!md5 && !pathToFile) throw new Error('CloudFile#fetchOrReserveBy requires either md5 or pathToFile to be set')
+    if (md5 && pathToFile)
+      throw new Error('CloudFile#fetchOrReserveBy requires only one of md5 or pathToFile to be set')
+    if (pathToFile) {
+      // Validate file path for existence and security, and get trimmed path
+      pathToFile = validateFilePath(pathToFile)
+      md5 = await generateMd5(pathToFile)
+    }
+
     try {
-      return await CloudFile.reserve({nsfw, pathToFile, secured})
+      return await CloudFile.reserve({md5, nsfw, pathToFile, secured})
     } catch (error) {
       // a file already exists with the same MD5 hash
-      if ((error as AxiosError).response?.status === 422) {
-        const md5 = await generateMd5(pathToFile)
+      if (isAxiosError(error) && error.response?.status === 422) {
+        md5 = md5 || (await generateMd5(pathToFile as string))
         const cloudFile = await CloudFile.fetch(md5)
-        cloudFile.localPathToFile = pathToFile
+        if (pathToFile) cloudFile.localPathToFile = pathToFile
         return cloudFile
       }
 
@@ -92,24 +101,29 @@ export class CloudFile {
   /**
    * Reserves a new cloud file slot on the server
    * @param params - Configuration object
+   * @param params.md5 - MD5 hash of the file
    * @param params.nsfw - Whether the file contains NSFW content
    * @param params.pathToFile - Path to the local file
    * @param params.secured - Whether the file should be secured/private
    * @returns A CloudFile instance in the reserved state
    */
   static async reserve({
+    md5,
     nsfw = false,
     pathToFile,
     secured = false,
   }: {
+    md5?: string
     nsfw?: boolean
-    pathToFile: string
+    pathToFile?: string
     secured?: boolean
   }): Promise<CloudFile> {
-    // Validate file path for existence and security, and get trimmed path
-    pathToFile = validateFilePath(pathToFile)
-    
-    const md5 = await generateMd5(pathToFile)
+    if (!md5 && !pathToFile) throw new Error('CloudFile#reserve requires either md5 or pathToFile to be set')
+    if (pathToFile) {
+      pathToFile = validateFilePath(pathToFile) // Validate file path for existence and security, and get trimmed path
+      md5 = md5 || (await generateMd5(pathToFile))
+    }
+
     const payload = {nsfw, secured}
     const {data: responseData} = await api.post(`/cloud_files/${md5}/reserve`, payload)
     const data: CloudFileType = responseData
@@ -133,6 +147,15 @@ export class CloudFile {
     return this.remoteAttr.state === CloudFileState.COMPLETED
   }
 
+  async delete(): Promise<boolean> {
+    const result = await api.delete(`/cloud_files/${this.remoteAttr.md5}`)
+    if (result.status !== 204) {
+      throw new Error(`Failed to delete cloud file: ${this.remoteAttr.md5}`)
+    }
+
+    return true
+  }
+
   /**
    * Determines the grouping/category for the cloud file based on its attributes
    * Files are grouped as 'secured', by resource type (audio/image/video), or 'archive'
@@ -143,7 +166,8 @@ export class CloudFile {
       return 'secured'
     }
 
-    if (this.resourceType && ['audio', 'image', 'video'].includes(this.resourceType)) return this.resourceType
+    if (this.resourceType && ['audio', 'image', 'staging', 'video'].includes(this.resourceType))
+      return this.resourceType
 
     return 'archive'
   }
@@ -206,8 +230,11 @@ export class CloudFile {
    * Checks if the cloud file is in the transferred state
    * @returns True if the file has been transferred to cloud storage
    */
-  transfered(): boolean {
-    return this.remoteAttr.state === CloudFileState.TRANSFERRED
+  transferred(): boolean {
+    // Handle both spellings for backward compatibility with server
+    return (
+      this.remoteAttr.state === CloudFileState.TRANSFERRED || this.remoteAttr.state === ('transfered' as CloudFileState)
+    )
   }
 
   /**
@@ -217,6 +244,22 @@ export class CloudFile {
    */
   async updateMetadata(dataProfile: MetadataProfile): Promise<CloudFile> {
     return this.updateData({action: 'update_metadata', dataProfile})
+  }
+
+  async updateOrFetch(md5: string): Promise<CloudFile> {
+    const {asset, filesize} = this.remoteAttr
+    try {
+      return await this.update(md5)
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 409) {
+        const cloudFile = await CloudFile.fetch(md5)
+        this.remoteAttr = {...cloudFile.remoteAttr, asset, filesize}
+        this.inferStateHistory()
+        return this
+      }
+
+      throw error
+    }
   }
 
   /**
@@ -251,6 +294,9 @@ export class CloudFile {
         break
       }
 
+      // Grouped cases for backward compatibility - both spellings map to same state
+      // eslint-disable-next-line perfectionist/sort-switch-case
+      case 'transfered' as CloudFileState:
       case CloudFileState.TRANSFERRED: {
         this.stateHistory = [CloudFileState.RESERVED, CloudFileState.TRANSFERRED]
         break
@@ -260,6 +306,14 @@ export class CloudFile {
         this.stateHistory = []
       }
     }
+  }
+
+  private async update(md5: string): Promise<CloudFile> {
+    const {asset, filesize} = this.remoteAttr
+    const {data} = await api.patch(`/cloud_files/${this.remoteAttr.md5}`, {target_md5: md5})
+    this.remoteAttr = {...data, asset, filesize}
+    this.stateHistory = [CloudFileState.RESERVED]
+    return this
   }
 
   /**

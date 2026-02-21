@@ -6,7 +6,7 @@ import {MetadataPair} from '@src/metadata-extraction'
 export enum CloudFileState {
   COMPLETED = 'completed',
   RESERVED = 'reserved',
-  TRANSFERRED = 'transfered',
+  TRANSFERRED = 'transferred',
 }
 
 /**

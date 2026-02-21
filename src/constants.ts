@@ -168,6 +168,7 @@ export const METADATA_YML_SUFFIX = '.eivu.yml'
  * Uses the OS-specific temp directory (e.g., /tmp on Linux, /var/folders on macOS, %TEMP% on Windows)
  * Resolves symlinks to ensure compatibility with temp file paths returned by the tmp library
  */
+// fs.mkdtemp()
 export const TEMP_FOLDER_ROOT = (() => {
   try {
     // Resolve symlinks (e.g., /var/folders -> /private/var/folders on macOS)

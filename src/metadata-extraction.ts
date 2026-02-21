@@ -43,16 +43,16 @@ export type MetadataPair = Record<string, number | string>
  * Metadata profile containing extracted file information and tags
  */
 export type MetadataProfile = {
-  artists: Artist[]
+  artists?: Artist[]
   artwork_md5?: null | string
   description?: null | string
   duration?: null | number
-  info_url?: null | number
+  info_url?: null | string
   metadata_list: MetadataPair[]
   name?: null | string
-  path_to_file: null | string
-  rating: null | number
-  release: Release
+  path_to_file?: null | string
+  rating?: null | number
+  release?: null | Release
   year?: null | number
 }
 

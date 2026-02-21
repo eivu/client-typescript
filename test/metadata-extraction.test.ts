@@ -623,7 +623,10 @@ describe('Metadata Extraction', () => {
       const input = {
         empty: [null, null],
         items: [1, null, 2, null, 3],
-        mixed: [{a: 1, b: null}, {a: null, b: null}],
+        mixed: [
+          {a: 1, b: null},
+          {a: null, b: null},
+        ],
       }
       expect(removeAllNullObjects(input)).toEqual({
         items: [1, 2, 3],
@@ -696,8 +699,8 @@ describe('Metadata Extraction', () => {
       expect(result.release).not.toHaveProperty('bundle_pos')
       expect(result.release).not.toHaveProperty('position')
       expect(result.release).not.toHaveProperty('primary_artist_name')
-      expect(result.release.name).toBe('Release Name')
-      expect(result.release.year).toBe(2020)
+      expect(result.release!.name).toBe('Release Name')
+      expect(result.release!.year).toBe(2020)
     })
 
     it('removes empty release object if all values are null', () => {
@@ -750,7 +753,7 @@ describe('Metadata Extraction', () => {
         artwork_md5: 'ABC123', // eslint-disable-line camelcase
         description: 'Test description',
         duration: 180,
-        info_url: 12_345, // eslint-disable-line camelcase
+        info_url: 'https://example.com', // eslint-disable-line camelcase
         metadata_list: [{tag: 'test'}, {performer: 'actor'}], // eslint-disable-line camelcase
         name: 'Test File',
         path_to_file: '/path/to/file', // eslint-disable-line camelcase
@@ -770,7 +773,7 @@ describe('Metadata Extraction', () => {
       expect(result.artwork_md5).toBe('ABC123')
       expect(result.description).toBe('Test description')
       expect(result.duration).toBe(180)
-      expect(result.info_url).toBe(12_345)
+      expect(result.info_url).toBe('https://example.com')
       expect(result.metadata_list).toEqual([{tag: 'test'}, {performer: 'actor'}])
       expect(result.name).toBe('Test File')
       expect(result.path_to_file).toBe('/path/to/file')

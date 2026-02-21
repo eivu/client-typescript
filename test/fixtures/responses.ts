@@ -631,6 +631,9 @@ export const THE_PEACEMAKER_01_1967_PARSED_YML = {
     {
       writer: 'Joe Gill',
     },
+    {
+      source_url: 'https://comicbookplus.com/?dlid=70555',
+    },
   ],
   name: 'The Peacemaker',
   path_to_file: 'test/fixtures/samples/comics/The_Peacemaker_01_1967.eivu_compressed.cbz',
@@ -829,6 +832,10 @@ export const WEREWOLF_001_1966_PARSED_YML = {
     {tag: 'Werewolf'},
     {writer: 'DJ Arneson'},
     {writer: 'Joe Gill'},
+    {
+      synopsis:
+        'Cover by Bill Fraccio and Tony Tallarico. Story by D. J. Arneson. Art by Sam Glanzman, Bill Fraccio and Tony Tallarico. Not an actual monster, Wiley Wolf is a superspy who uses the code name Werewolf. Presumed dead after a crash, Air Force pilot Wiley is saved by a wolf pack. He begins a new life battling Communists for the CIA, alongside with his pet wolf Thor. Plus a one-pager on wolves with art by Sam Glanzman. Fabled Wolves; Trial By Nature!!; Assignment Top Secret; The First Howl! 32 pages, Full Color. Cover price $0.12.',
+    },
   ],
   name: 'Werewolf #1',
   rating: null,
@@ -887,4 +894,113 @@ export const WEREWOLF_001_1966_COMPLETE: CloudFileType = {
   ...WEREWOLF_001_1966_PARTIAL_PROFILE,
   state: CloudFileState.COMPLETED,
   url: 'https://eivu-test.s3.wasabisys.com/archive/60/68/BE/59/B4/86/F9/12/BB/43/2D/DA/00/D8/94/9B/Werewolf_001__c2c___Dell_1966_.eivu_compressed.cbr',
+}
+
+// ========================
+// Remote Upload Fixtures
+// ========================
+
+export const REMOTE_DOWNLOAD_URL = 'https://cdn.example.com/files/sample-video.mp4'
+export const REMOTE_SOURCE_URL = 'https://www.example.com/videos/sample-video'
+export const REMOTE_ASSET_FILENAME = 'sample-video.mp4'
+export const REMOTE_FILESIZE = 1_024_000
+
+// md5 of REMOTE_DOWNLOAD_URL (used as staging MD5 when sourceUrl === downloadUrl)
+export const REMOTE_STAGING_MD5 = 'B4B2D6BD2D1F4D6B6ACCA5C8B0399BFF'
+// md5 of REMOTE_SOURCE_URL (used as staging MD5 when sourceUrl differs from downloadUrl)
+export const REMOTE_DIFFERENT_SOURCE_STAGING_MD5 = 'D9BF0DA0D7F91AC9C9EE441114041DFE'
+// actual file content MD5 returned by S3 ETag
+export const REMOTE_REAL_MD5 = 'A9F3B2C1D4E5F6071829304A5B6C7D8E'
+
+export const METADATA_CHECK_NOT_FOUND = {exists: false, md5: null}
+export const METADATA_CHECK_FOUND = {exists: true, md5: REMOTE_REAL_MD5}
+
+export const REMOTE_VIDEO_STAGING_RESERVATION: CloudFileType = {
+  artists: [],
+  artwork_url: null,
+  asset: null,
+  bucket_name: 'eivu-test',
+  bucket_uuid: '889c685a-de30-4ead-9a96-b3784233e1e8',
+  content_type: null,
+  created_at: '2025-11-01T10:00:00.000Z',
+  data_source_id: null,
+  date_aquired_at: null,
+  deletable: false,
+  delicate: false,
+  description: null,
+  duration: null,
+  ext_id: null,
+  filesize: 0,
+  folder_uuid: null,
+  info_url: null,
+  last_viewed_at: null,
+  md5: REMOTE_STAGING_MD5,
+  metadata: [],
+  name: `${REMOTE_STAGING_MD5} (reserved)`,
+  nsfw: false,
+  num_plays: 0,
+  peepy: false,
+  rating: null,
+  release_pos: null,
+  releases: [],
+  secured: false,
+  shared: true,
+  state: CloudFileState.RESERVED,
+  updated_at: '2025-11-01T10:00:00.000Z',
+  url: `https://eivu-test.s3.wasabisys.com/staging/B4/B2/D6/BD/2D/1F/4D/6B/6A/CC/A5/C8/B0/39/9B/FF/`,
+  user_uuid: '0f703c04-b448-455c-8a26-4edc22bf76dd',
+  uuid: '',
+  year: null,
+}
+
+export const REMOTE_VIDEO_PATCHED_RESERVATION: CloudFileType = {
+  ...REMOTE_VIDEO_STAGING_RESERVATION,
+  md5: REMOTE_REAL_MD5,
+  name: `${REMOTE_REAL_MD5} (reserved)`,
+  url: `https://eivu-test.s3.wasabisys.com/staging/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/`,
+}
+
+export const REMOTE_VIDEO_TRANSFER: CloudFileType = {
+  ...REMOTE_VIDEO_PATCHED_RESERVATION,
+  asset: REMOTE_ASSET_FILENAME,
+  content_type: 'application/mp4',
+  filesize: REMOTE_FILESIZE,
+  state: CloudFileState.TRANSFERRED,
+}
+
+export const REMOTE_VIDEO_COMPLETE: CloudFileType = {
+  ...REMOTE_VIDEO_TRANSFER,
+  metadata: [{id: 3001, type: 'source_url', value: REMOTE_DOWNLOAD_URL}],
+  name: REMOTE_ASSET_FILENAME,
+  state: CloudFileState.COMPLETED,
+  url: `https://eivu-test.s3.wasabisys.com/archive/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${REMOTE_ASSET_FILENAME}`,
+}
+
+export const REMOTE_VIDEO_COMPLETE_WITH_METADATA: CloudFileType = {
+  ...REMOTE_VIDEO_COMPLETE,
+  description: 'A sample video for testing',
+  metadata: [
+    {id: 3001, type: 'source_url', value: REMOTE_DOWNLOAD_URL},
+    {id: 3002, type: 'tag', value: 'eivu-testing'},
+  ],
+  name: 'Sample Video',
+  year: 2024,
+}
+
+export const REMOTE_VIDEO_S3_UPLOAD_RESPONSE = {
+  $metadata: {httpStatusCode: 200},
+  ETag: `"${REMOTE_REAL_MD5.toLowerCase()}"`,
+}
+
+// Reservation using REMOTE_DIFFERENT_SOURCE_STAGING_MD5 (when sourceUrl differs from downloadUrl)
+export const REMOTE_VIDEO_DIFFERENT_SOURCE_STAGING_RESERVATION: CloudFileType = {
+  ...REMOTE_VIDEO_STAGING_RESERVATION,
+  md5: REMOTE_DIFFERENT_SOURCE_STAGING_MD5,
+  name: `${REMOTE_DIFFERENT_SOURCE_STAGING_MD5} (reserved)`,
+  url: `https://eivu-test.s3.wasabisys.com/staging/D9/BF/0D/A0/D7/F9/1A/C9/C9/EE/44/11/14/04/1D/FE/`,
+}
+
+export const REMOTE_VIDEO_COMPLETE_WITH_SOURCE_URL: CloudFileType = {
+  ...REMOTE_VIDEO_COMPLETE,
+  metadata: [{id: 3001, type: 'source_url', value: REMOTE_SOURCE_URL}],
 }

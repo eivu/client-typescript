@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, {isAxiosError} from 'axios'
 
 import {getEnv} from '../env'
 
@@ -17,5 +17,27 @@ const api = axios.create({
     keyFormat: 'camel_lower',
   },
 })
+
+export const check = axios.create({
+  baseURL: env.EIVU_UPLOAD_SERVER_HOST + '/api/upload/v1/',
+  headers: {
+    Authorization: 'Token ' + env.EIVU_USER_TOKEN,
+    'Content-Type': 'application/json',
+  },
+  params: {
+    keyFormat: 'camel_lower',
+  },
+})
+
+const econnRefusedInterceptor = (error: unknown) => {
+  if (isAxiosError(error) && error.code === 'ECONNREFUSED') {
+    throw new Error(`EIVU OFFLINE: ${env.EIVU_UPLOAD_SERVER_HOST} is unreachable. is it online?`)
+  }
+
+  throw error
+}
+
+api.interceptors.response.use(undefined, econnRefusedInterceptor)
+check.interceptors.response.use(undefined, econnRefusedInterceptor)
 
 export default api

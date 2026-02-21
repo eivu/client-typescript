@@ -1,8 +1,17 @@
-import {PutObjectCommand, type PutObjectCommandOutput, S3Client, S3ServiceException} from '@aws-sdk/client-s3'
+import {
+  CopyObjectCommand,
+  DeleteObjectCommand,
+  PutObjectCommand,
+  type PutObjectCommandOutput,
+  S3Client,
+  S3ServiceException,
+} from '@aws-sdk/client-s3'
+import {Upload} from '@aws-sdk/lib-storage'
 import {Credentials} from '@aws-sdk/types'
 import {CloudFile} from '@src/cloud-file'
 import {type Logger} from '@src/logger'
 import {md5AsFolders} from '@src/utils'
+import axios, {isAxiosError} from 'axios'
 import {readFile} from 'node:fs/promises'
 /**
  * Error messages for S3 transfer failures
@@ -128,6 +137,138 @@ export class S3Uploader {
   }
 
   /**
+   * Downloads a file from a remote URL and streams it directly to S3 cloud storage
+   * Uses multipart upload to stream efficiently without buffering the entire file in memory
+   * Sets the asset name to the provided asset and logs upload progress
+   * @param params - Parameters for remote file upload
+   * @param params.asset - The asset filename to use
+   * @param params.downloadUrl - The URL to download the file from
+   * @returns True if upload successful and MD5 validation passes, false otherwise
+   */
+  async putRemoteFile({asset, downloadUrl}: {asset: string; downloadUrl: string}): Promise<boolean> {
+    const credentials: Credentials = {
+      accessKeyId: this.s3Config.accessKeyId,
+      secretAccessKey: this.s3Config.secretAccessKey,
+    }
+    const s3Config = {
+      credentials,
+      endpoint: this.s3Config.endpoint,
+      region: this.s3Config.region,
+    }
+    let md5: string | undefined
+    const s3Client = new S3Client(s3Config)
+
+    // Set resourceType to 'staging' for remote uploads
+    this.cloudFile.resourceType = 'staging'
+    // Set the asset name to the provided assetFilename
+    this.cloudFile.remoteAttr.asset = asset
+    const stagingRemotePath = this.generateRemotePath()
+    const stagingMd5 = this.cloudFile.remoteAttr.md5
+
+    this.assetLogger.info(
+      `Streaming data from URL: ${downloadUrl} -> Staging Upload to S3: https://${this.s3Config.bucketName}.s3.wasabisys.com/${stagingRemotePath}`,
+    )
+
+    try {
+      // Stream the file directly from the URL to S3 using multipart upload
+      // This handles chunking automatically and doesn't require buffering the entire file in memory
+      const response = await axios.get(downloadUrl, {
+        responseType: 'stream',
+      })
+
+      const upload = new Upload({
+        client: s3Client,
+        params: {
+          ACL: 'public-read',
+          Body: response.data,
+          Bucket: this.s3Config.bucketName,
+          Key: stagingRemotePath,
+        },
+      })
+
+      const s3Response = await upload.done()
+      this.assetLogger.info(`Staged upload: ${downloadUrl} -> ${this.s3BaseUrl(stagingRemotePath)}`)
+
+      if (s3Response.$metadata.httpStatusCode !== 200)
+        throw new Error(`Failed to upload remote file to s3: ${downloadUrl}`)
+
+      md5 = s3Response.ETag?.replaceAll(/"/g, '')?.toUpperCase()
+      if (!md5) throw new Error(`Failed to get MD5 from S3 ETag: ${s3Response.ETag}`)
+
+      this.assetLogger.info(`Fetched MD5 from S3 ETag: ${md5}`)
+      this.assetLogger.info(`Changing MD5 from staging(${stagingMd5}) to final(${md5})`)
+
+      await this.cloudFile.updateOrFetch(md5)
+      this.cloudFile.localPathToFile = asset
+      await this.cloudFile.identifyContentType()
+
+      const remotePath = this.generateRemotePath()
+
+      this.assetLogger.info(`Identified content type for final asset upload: ${this.cloudFile.remoteAttr.content_type}`)
+
+      // move the file from staging to final
+      const moveCommand = new CopyObjectCommand({
+        ACL: 'public-read',
+        Bucket: this.s3Config.bucketName,
+        CopySource: `${this.s3Config.bucketName}/${stagingRemotePath}`,
+        Key: remotePath,
+      })
+      await s3Client.send(moveCommand)
+
+      const deleteCommand = new DeleteObjectCommand({
+        Bucket: this.s3Config.bucketName,
+        Key: stagingRemotePath,
+      })
+      await s3Client.send(deleteCommand)
+
+      this.assetLogger.info(`Deleted staging file: ${stagingRemotePath}`)
+      this.assetLogger.info(
+        `Moved file from staging to final: ${this.s3BaseUrl(stagingRemotePath)} -> ${this.s3BaseUrl(remotePath)}`,
+      )
+
+      // Clean up staging CloudFile record if it exists (happens on subsequent runs)
+      // On first run, the staging record was updated to the final MD5 via PATCH
+      // On subsequent runs, a new staging record is created and the final one is fetched, leaving the staging orphaned
+      if (stagingMd5 !== md5) {
+        try {
+          const stagingFile = await CloudFile.fetch(stagingMd5)
+          await stagingFile.delete()
+          this.assetLogger.info(`Deleted staging CloudFile record: ${stagingMd5}`)
+        } catch (error) {
+          // 404 is expected on first run when the staging record was updated (not duplicated)
+          if (isAxiosError(error) && error.response?.status === 404) {
+            this.assetLogger.info(
+              `Staging CloudFile record ${stagingMd5} not found (already updated to ${md5} on first run)`,
+            )
+          } else {
+            // Log but don't fail the entire operation for cleanup errors
+            this.assetLogger.error(
+              `Failed to delete staging CloudFile record ${stagingMd5}: ${error instanceof Error ? error.message : String(error)}`,
+            )
+          }
+        }
+      }
+
+      return true
+    } catch (error) {
+      if (error instanceof S3ServiceException && error.name === 'EntityTooLarge') {
+        this.assetLogger.error(TransferErrorMessages.ENTITY_TOO_LARGE)
+      } else if (error instanceof S3ServiceException) {
+        this.assetLogger.error(
+          `Error from S3 while uploading object to ${this.s3Config.bucketName}.  ${error.name}: ${error.message}`,
+        )
+      } else {
+        this.assetLogger.error(
+          `Error processing the remote download from ${downloadUrl}: ${error instanceof Error ? error.message : String(error)}`,
+        )
+        throw error
+      }
+    }
+
+    return false
+  }
+
+  /**
    * Validates that the remote file's MD5 hash matches the local file
    * @param response - The S3 PutObject response
    * @returns True if MD5 hashes match and status is 200
@@ -136,5 +277,9 @@ export class S3Uploader {
     return (
       response.$metadata.httpStatusCode === 200 && response.ETag === `"${this.cloudFile.remoteAttr.md5.toLowerCase()}"`
     )
+  }
+
+  private s3BaseUrl(asset: string) {
+    return `https://${this.s3Config.bucketName}.s3.wasabisys.com/${asset}`
   }
 }

@@ -3,15 +3,19 @@ import {METADATA_YML_SUFFIX} from '@src/constants'
 import {getEnv} from '@src/env'
 import logger, {type Logger} from '@src/logger'
 import {
+  EMPTY_METADATA_PROFILE,
   extractInfoFromYml,
   filterMetadataProfile,
   generateDataProfile,
   type MetadataPair,
+  type MetadataProfile,
 } from '@src/metadata-extraction'
 import {S3Uploader, S3UploaderConfig} from '@src/s3-uploader'
+import {check} from '@src/services/api.config'
 import {
   cleansedAssetName,
   generateMd5,
+  generateMd5OfString,
   isEivuYmlFile,
   isOnline,
   validateDirectoryPath,
@@ -41,6 +45,13 @@ type UploadFileParams = BaseParams & {
 type UploadFolderParams = BaseParams & {
   concurrency?: number
   pathToFolder: string
+}
+
+type UploadRemoteFileParams = BaseParams & {
+  assetFilename?: string
+  downloadUrl: string
+  metadataProfile?: MetadataProfile
+  sourceUrl?: string
 }
 
 /**
@@ -129,6 +140,23 @@ export class Client {
   }: UploadFolderParams): Promise<string[]> {
     const client = new Client()
     return client.uploadFolder({concurrency, metadataList, nsfw, pathToFolder, secured})
+  }
+
+  static async uploadRemoteFile({
+    assetFilename,
+    downloadUrl,
+    metadataProfile = EMPTY_METADATA_PROFILE,
+    nsfw = false,
+    secured = false,
+    sourceUrl,
+  }: UploadRemoteFileParams): Promise<CloudFile> {
+    const client = new Client()
+    return client.uploadRemoteFile({assetFilename, downloadUrl, metadataProfile, nsfw, secured, sourceUrl})
+  }
+
+  static async uploadRemoteQueue(pathToJson: string, concurrency = 3): Promise<string[]> {
+    const client = new Client()
+    return client.uploadRemoteQueue(pathToJson, concurrency)
   }
 
   /**
@@ -223,7 +251,7 @@ export class Client {
 
     const dataProfile = await generateDataProfile({metadataList, pathToFile})
 
-    if (cloudFile.transfered()) {
+    if (cloudFile.transferred()) {
       assetLogger.info('Completing')
       cloudFile = await cloudFile.complete(dataProfile)
     } else {
@@ -267,6 +295,86 @@ export class Client {
 
       this.logger.info(`queueing: ${pathToFile}`)
       const uploadPromise = limit(() => this.processRateLimitedUpload({metadataList, nsfw, pathToFile, secured}))
+      uploadPromises.push(uploadPromise)
+    }
+
+    return Promise.all(uploadPromises)
+  }
+
+  async uploadRemoteFile({
+    assetFilename,
+    downloadUrl,
+    metadataProfile = EMPTY_METADATA_PROFILE,
+    nsfw = false,
+    secured = false,
+    sourceUrl,
+  }: UploadRemoteFileParams): Promise<CloudFile> {
+    // Derive assetFilename from the last path segment of downloadUrl when not provided
+    assetFilename = assetFilename || path.basename(new URL(downloadUrl).pathname)
+    if (!assetFilename) throw new Error(`Asset filename is required: ${assetFilename}`)
+
+    const assetLogger = this.logger.child({downloadUrl})
+    let cloudFile: CloudFile
+    // use downloadUrl as sourceUrl if sourceUrl is not provided
+    sourceUrl = sourceUrl || downloadUrl
+
+    // Verify downloadUrl is reachable
+    const isDownloadUrlOnline = await isOnline(downloadUrl, undefined, assetLogger)
+    const filesize = isDownloadUrlOnline.remoteFilesize
+    if (!isDownloadUrlOnline.isOnline) throw new Error(`Download URL is not reachable: ${downloadUrl}`)
+
+    if (sourceUrl !== downloadUrl) {
+      // Verify sourceUrl is reachable
+      const isSourceUrlOnline = await isOnline(sourceUrl, undefined, assetLogger)
+      if (!isSourceUrlOnline.isOnline) throw new Error(`Source URL is not reachable: ${sourceUrl}`)
+    }
+
+    // Verify no cloud file exists with the same sourceUrl
+    const checkResponse = await check.get('/metadata/check', {
+      params: {
+        key: 'source_url',
+        value: sourceUrl,
+      },
+    })
+    const {exists, md5} = checkResponse.data
+    this.logger.info({exists, md5}, 'check metadata response')
+    if (exists) {
+      cloudFile = await CloudFile.fetch(md5)
+    } else {
+      const sourceUrlMd5 = await generateMd5OfString(sourceUrl)
+      assetLogger.info(`Reserving remote upload for URL: ${downloadUrl}`)
+      assetLogger.info(`Fetching/Reserving: ${sourceUrl}`)
+      cloudFile = await CloudFile.fetchOrReserveBy({md5: sourceUrlMd5, nsfw, secured})
+      cloudFile.remoteAttr.asset = assetFilename
+      cloudFile.remoteAttr.filesize = filesize
+      await this.processRemoteTransfer({assetFilename, assetLogger, cloudFile, downloadUrl})
+    }
+
+    const metadataList = [...metadataProfile.metadata_list]
+    if (sourceUrl) metadataList.push({source_url: sourceUrl} as MetadataPair) // eslint-disable-line camelcase
+    const filteredProfile = filterMetadataProfile({...metadataProfile, metadata_list: metadataList}) // eslint-disable-line camelcase
+
+    if (cloudFile.transferred()) {
+      assetLogger.info('Completing')
+      cloudFile = await cloudFile.complete(filteredProfile)
+    } else {
+      assetLogger.info('Updating/Skipping')
+      cloudFile = await cloudFile.updateMetadata(filteredProfile)
+    }
+
+    return cloudFile
+  }
+
+  async uploadRemoteQueue(pathToJson: string, concurrency = 3): Promise<string[]> {
+    pathToJson = validateFilePath(pathToJson)
+    const fileContent = await fsPromise.readFile(pathToJson, 'utf8')
+    const uploadPromises: Promise<string>[] = []
+    const limit = pLimit(concurrency)
+    const lines = fileContent.split(/\r?\n/).filter((line) => line.trim() !== '')
+    for (const line of lines) {
+      const params = JSON.parse(line)
+      this.logger.info(`queueing: ${params.sourceUrl || params.downloadUrl}`)
+      const uploadPromise = limit(() => this.processRateLimitedRemoteUpload(params))
       uploadPromises.push(uploadPromise)
     }
 
@@ -415,6 +523,19 @@ export class Client {
     }
   }
 
+  private async processRateLimitedRemoteUpload(params: UploadRemoteFileParams): Promise<string> {
+    const url = params.sourceUrl || params.downloadUrl
+    const md5 = generateMd5OfString(url)
+    try {
+      const cloudFile = await this.uploadRemoteFile(params)
+      await this.logMd5Success(url, cloudFile.remoteAttr.md5)
+      return `${url}: uploaded successfully`
+    } catch (error) {
+      await this.logMd5Failure(url, md5, error as Error)
+      return `${url}: ${(error as Error).message}`
+    }
+  }
+
   /**
    * Processes an upload with rate limiting and error handling
    * Attempts to upload a file, verifies the upload, and logs the result
@@ -447,6 +568,57 @@ export class Client {
       await this.logFailure(pathToFile, error as Error)
       return `${pathToFile}: ${(error as Error).message}`
     }
+  }
+
+  private async processRemoteTransfer({
+    assetFilename,
+    assetLogger,
+    cloudFile,
+    downloadUrl,
+  }: {
+    assetFilename: string
+    assetLogger: Logger
+    cloudFile: CloudFile
+    downloadUrl: string
+  }): Promise<CloudFile> {
+    if (!cloudFile.reserved()) {
+      assetLogger.info(
+        `CloudFile#processRemoteTransfer requires CloudFile to be in reserved state: found ${cloudFile.remoteAttr.state}`,
+      )
+      return cloudFile
+    }
+
+    const env = getEnv()
+    const s3Config: S3UploaderConfig = {
+      accessKeyId: env.EIVU_ACCESS_KEY_ID,
+      bucketName: env.EIVU_BUCKET_NAME,
+      endpoint: env.EIVU_ENDPOINT,
+      region: env.EIVU_REGION,
+      secretAccessKey: env.EIVU_SECRET_ACCESS_KEY,
+    }
+
+    const s3Uploader = new S3Uploader({assetLogger, cloudFile, s3Config})
+    if (!(await s3Uploader.putRemoteFile({asset: assetFilename, downloadUrl}))) {
+      throw new Error(`Failed to upload remote file to S3: ${downloadUrl}`)
+    }
+
+    const {asset, filesize} = cloudFile.remoteAttr
+    const onlineCheck = await isOnline(cloudFile.url(), filesize ?? undefined, assetLogger)
+    if (onlineCheck.isOnline) {
+      if (cloudFile.reserved()) {
+        const resolvedFilesize = filesize ?? onlineCheck.remoteFilesize
+        return cloudFile.transfer({asset: asset as string, filesize: resolvedFilesize as number})
+      }
+
+      assetLogger.info('CloudFile already transferred/completed skipping transfer step...')
+      return cloudFile
+    }
+
+    await cloudFile.reset() // set state back to reserved
+    const remoteFilesizeStr = onlineCheck.remoteFilesize === null ? 'unknown' : String(onlineCheck.remoteFilesize)
+    throw new Error(
+      `File ${cloudFile.remoteAttr.md5}:${asset} is offline/filesize mismatch. expected size: ${filesize} got: ${remoteFilesizeStr}`,
+    )
   }
 
   /**

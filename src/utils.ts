@@ -167,6 +167,9 @@ export async function generateMd5(pathToFile: string): Promise<string> {
   })
 }
 
+export const generateMd5OfString = (data: string): string =>
+  crypto.createHash('md5').update(data).digest('hex').toUpperCase()
+
 export const isEivuYmlFile = (pathToFile: string): boolean => pathToFile.toLowerCase().endsWith(METADATA_YML_SUFFIX)
 
 /**
@@ -194,9 +197,29 @@ export const isOnline = async (
   if (!uri) return {isOnline: false, remoteFilesize: null}
   onlineLogger = onlineLogger ?? logger
   try {
-    const response = await axios.head(uri)
-    const headerOk = response.status === 200
-    const remoteFilesizeHeader = response.headers['content-length']
+    let response: import('axios').AxiosResponse
+    try {
+      response = await axios.head(uri)
+    } catch (headError: unknown) {
+      const isAxios403 =
+        headError instanceof Error &&
+        'response' in headError &&
+        (headError as {response?: {status?: number}}).response?.status === 403
+      if (!isAxios403) throw headError
+      // Some servers reject HEAD requests; fall back to GET with minimal download
+      onlineLogger.warn({uri}, 'HEAD returned 403, retrying with GET')
+      response = await axios.get(uri, {
+        headers: {Range: 'bytes=0-0'},
+        responseType: 'stream',
+        validateStatus: () => true,
+      })
+      response.data?.destroy?.()
+    }
+
+    // A 403 on the GET fallback still means the server is reachable
+    const headerOk = [200, 206, 403].includes(response.status)
+    const remoteFilesizeHeader =
+      response.headers['content-length'] ?? response.headers['content-range']?.split('/')?.pop()
     const remoteFilesize = remoteFilesizeHeader ? Number.parseInt(remoteFilesizeHeader, 10) : Number.NaN
     const actualRemoteFilesize = Number.isNaN(remoteFilesize) ? null : remoteFilesize
 
@@ -208,9 +231,15 @@ export const isOnline = async (
     return {isOnline: headerOk && filesizeOk, remoteFilesize: actualRemoteFilesize}
   } catch (error) {
     onlineLogger.error({error, localFilesize, uri}, 'isOnline check failed')
-    // If the request fails, treat as not online
     return {isOnline: false, remoteFilesize: null}
   }
+}
+
+export const logResponse = (result: unknown) => {
+  console.log('====================')
+  console.log('Upload Result:')
+  console.dir(result)
+  console.log('====================')
 }
 
 /**
