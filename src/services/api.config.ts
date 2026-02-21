@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, {isAxiosError} from 'axios'
 
 import {getEnv} from '../env'
 
@@ -30,7 +30,7 @@ export const check = axios.create({
 })
 
 const econnRefusedInterceptor = (error: unknown) => {
-  if (axios.isAxiosError(error) && error.code === 'ECONNREFUSED') {
+  if (isAxiosError(error) && error.code === 'ECONNREFUSED') {
     throw new Error(`EIVU OFFLINE: ${env.EIVU_UPLOAD_SERVER_HOST} is unreachable. is it online?`)
   }
 
