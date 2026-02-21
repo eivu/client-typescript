@@ -370,7 +370,7 @@ export class Client {
     const fileContent = await fsPromise.readFile(pathToJson, 'utf8')
     const uploadPromises: Promise<string>[] = []
     const limit = pLimit(concurrency)
-    const lines = fileContent.split(/\r?\n/)
+    const lines = fileContent.split(/\r?\n/).filter((line) => line.trim() !== '')
     for (const line of lines) {
       const params = JSON.parse(line)
       this.logger.info(`queueing: ${params.source_url || params.downloadUrl}`)
@@ -603,10 +603,11 @@ export class Client {
     }
 
     const {asset, filesize} = cloudFile.remoteAttr
-    const onlineCheck = await isOnline(cloudFile.url(), filesize as number, assetLogger)
+    const onlineCheck = await isOnline(cloudFile.url(), filesize ?? undefined, assetLogger)
     if (onlineCheck.isOnline) {
       if (cloudFile.reserved()) {
-        return cloudFile.transfer({asset: asset as string, filesize: filesize as number})
+        const resolvedFilesize = filesize ?? onlineCheck.remoteFilesize
+        return cloudFile.transfer({asset: asset as string, filesize: resolvedFilesize as number})
       }
 
       assetLogger.info('CloudFile already transferred/completed skipping transfer step...')
