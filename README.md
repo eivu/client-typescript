@@ -7,16 +7,15 @@ TS Upload Client for Eivu
 [![Downloads/week](https://img.shields.io/npm/dw/eivu-upload-client.svg)](https://npmjs.org/package/eivu-upload-client)
 
 <!-- toc -->
-
-- [eivu-upload-client](#eivu-upload-client)
-- [Usage](#usage)
-- [Commands](#commands)
+* [eivu-upload-client](#eivu-upload-client)
+* [Usage](#usage)
+* [Commands](#commands)
+* [Eivu Metadata YAML Files](#eivu-metadata-yaml-files)
 <!-- tocstop -->
 
 # Usage
 
 <!-- usage -->
-
 ```sh-session
 $ npm install -g eivu-upload-client
 $ eivu-upload COMMAND
@@ -28,24 +27,22 @@ USAGE
   $ eivu-upload COMMAND
 ...
 ```
-
 <!-- usagestop -->
 
 # Commands
 
 <!-- commands -->
-
-- [`eivu-upload help [COMMAND]`](#eivu-upload-help-command)
-- [`eivu-upload plugins`](#eivu-upload-plugins)
-- [`eivu-upload plugins add PLUGIN`](#eivu-upload-plugins-add-plugin)
-- [`eivu-upload plugins:inspect PLUGIN...`](#eivu-upload-pluginsinspect-plugin)
-- [`eivu-upload plugins install PLUGIN`](#eivu-upload-plugins-install-plugin)
-- [`eivu-upload plugins link PATH`](#eivu-upload-plugins-link-path)
-- [`eivu-upload plugins remove [PLUGIN]`](#eivu-upload-plugins-remove-plugin)
-- [`eivu-upload plugins reset`](#eivu-upload-plugins-reset)
-- [`eivu-upload plugins uninstall [PLUGIN]`](#eivu-upload-plugins-uninstall-plugin)
-- [`eivu-upload plugins unlink [PLUGIN]`](#eivu-upload-plugins-unlink-plugin)
-- [`eivu-upload plugins update`](#eivu-upload-plugins-update)
+* [`eivu-upload help [COMMAND]`](#eivu-upload-help-command)
+* [`eivu-upload plugins`](#eivu-upload-plugins)
+* [`eivu-upload plugins add PLUGIN`](#eivu-upload-plugins-add-plugin)
+* [`eivu-upload plugins:inspect PLUGIN...`](#eivu-upload-pluginsinspect-plugin)
+* [`eivu-upload plugins install PLUGIN`](#eivu-upload-plugins-install-plugin)
+* [`eivu-upload plugins link PATH`](#eivu-upload-plugins-link-path)
+* [`eivu-upload plugins remove [PLUGIN]`](#eivu-upload-plugins-remove-plugin)
+* [`eivu-upload plugins reset`](#eivu-upload-plugins-reset)
+* [`eivu-upload plugins uninstall [PLUGIN]`](#eivu-upload-plugins-uninstall-plugin)
+* [`eivu-upload plugins unlink [PLUGIN]`](#eivu-upload-plugins-unlink-plugin)
+* [`eivu-upload plugins update`](#eivu-upload-plugins-update)
 
 ## `eivu-upload help [COMMAND]`
 
@@ -356,7 +353,6 @@ DESCRIPTION
 ```
 
 _See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/update.ts)_
-
 <!-- commandsstop -->
 
 # Eivu Metadata YAML Files
