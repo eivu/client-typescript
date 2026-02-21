@@ -373,7 +373,7 @@ export class Client {
     const lines = fileContent.split(/\r?\n/).filter((line) => line.trim() !== '')
     for (const line of lines) {
       const params = JSON.parse(line)
-      this.logger.info(`queueing: ${params.source_url || params.downloadUrl}`)
+      this.logger.info(`queueing: ${params.sourceUrl || params.downloadUrl}`)
       const uploadPromise = limit(() => this.processRateLimitedRemoteUpload(params))
       uploadPromises.push(uploadPromise)
     }
