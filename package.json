@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "author": "Robert Jenkins",
   "bin": {
-    "eivu-upload": "./bin/run.js"
+    "eivu": "./bin/run.js"
   },
   "bugs": "https://github.com/eivu/client-typescript/issues",
   "dependencies": {
@@ -73,8 +73,8 @@
   "main": "dist/index.js",
   "type": "module",
   "oclif": {
-    "bin": "eivu-upload",
-    "dirname": "eivu-upload",
+    "bin": "eivu",
+    "dirname": "eivu",
     "commands": "./dist/commands",
     "plugins": [
       "@oclif/plugin-help",

@@ -19,13 +19,13 @@ TS Upload Client for Eivu
 
 ```sh-session
 $ npm install -g eivu-upload-client
-$ eivu-upload COMMAND
+$ eivu COMMAND
 running command...
-$ eivu-upload (--version)
+$ eivu (--version)
 eivu-upload-client/0.0.0 linux-x64 node-v18.20.8
-$ eivu-upload --help [COMMAND]
+$ eivu --help [COMMAND]
 USAGE
-  $ eivu-upload COMMAND
+  $ eivu COMMAND
 ...
 ```
 
@@ -35,25 +35,25 @@ USAGE
 
 <!-- commands -->
 
-- [`eivu-upload help [COMMAND]`](#eivu-upload-help-command)
-- [`eivu-upload plugins`](#eivu-upload-plugins)
-- [`eivu-upload plugins add PLUGIN`](#eivu-upload-plugins-add-plugin)
-- [`eivu-upload plugins:inspect PLUGIN...`](#eivu-upload-pluginsinspect-plugin)
-- [`eivu-upload plugins install PLUGIN`](#eivu-upload-plugins-install-plugin)
-- [`eivu-upload plugins link PATH`](#eivu-upload-plugins-link-path)
-- [`eivu-upload plugins remove [PLUGIN]`](#eivu-upload-plugins-remove-plugin)
-- [`eivu-upload plugins reset`](#eivu-upload-plugins-reset)
-- [`eivu-upload plugins uninstall [PLUGIN]`](#eivu-upload-plugins-uninstall-plugin)
-- [`eivu-upload plugins unlink [PLUGIN]`](#eivu-upload-plugins-unlink-plugin)
-- [`eivu-upload plugins update`](#eivu-upload-plugins-update)
+- [`eivu help [COMMAND]`](#eivu-help-command)
+- [`eivu plugins`](#eivu-plugins)
+- [`eivu plugins add PLUGIN`](#eivu-plugins-add-plugin)
+- [`eivu plugins:inspect PLUGIN...`](#eivu-pluginsinspect-plugin)
+- [`eivu plugins install PLUGIN`](#eivu-plugins-install-plugin)
+- [`eivu plugins link PATH`](#eivu-plugins-link-path)
+- [`eivu plugins remove [PLUGIN]`](#eivu-plugins-remove-plugin)
+- [`eivu plugins reset`](#eivu-plugins-reset)
+- [`eivu plugins uninstall [PLUGIN]`](#eivu-plugins-uninstall-plugin)
+- [`eivu plugins unlink [PLUGIN]`](#eivu-plugins-unlink-plugin)
+- [`eivu plugins update`](#eivu-plugins-update)
 
-## `eivu-upload help [COMMAND]`
+## `eivu help [COMMAND]`
 
-Display help for eivu-upload.
+Display help for eivu.
 
 ```
 USAGE
-  $ eivu-upload help [COMMAND...] [-n]
+  $ eivu help [COMMAND...] [-n]
 
 ARGUMENTS
   COMMAND...  Command to show help for.
@@ -62,18 +62,18 @@ FLAGS
   -n, --nested-commands  Include all nested commands in the output.
 
 DESCRIPTION
-  Display help for eivu-upload.
+  Display help for eivu.
 ```
 
 _See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v6.2.33/src/commands/help.ts)_
 
-## `eivu-upload plugins`
+## `eivu plugins`
 
 List installed plugins.
 
 ```
 USAGE
-  $ eivu-upload plugins [--json] [--core]
+  $ eivu plugins [--json] [--core]
 
 FLAGS
   --core  Show core plugins.
@@ -85,18 +85,18 @@ DESCRIPTION
   List installed plugins.
 
 EXAMPLES
-  $ eivu-upload plugins
+  $ eivu plugins
 ```
 
 _See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/index.ts)_
 
-## `eivu-upload plugins add PLUGIN`
+## `eivu plugins add PLUGIN`
 
-Installs a plugin into eivu-upload.
+Installs a plugin into eivu.
 
 ```
 USAGE
-  $ eivu-upload plugins add PLUGIN... [--json] [-f] [-h] [-s | -v]
+  $ eivu plugins add PLUGIN... [--json] [-f] [-h] [-s | -v]
 
 ARGUMENTS
   PLUGIN...  Plugin to install.
@@ -111,39 +111,39 @@ GLOBAL FLAGS
   --json  Format output as json.
 
 DESCRIPTION
-  Installs a plugin into eivu-upload.
+  Installs a plugin into eivu.
 
   Uses npm to install plugins.
 
   Installation of a user-installed plugin will override a core plugin.
 
-  Use the EIVU_UPLOAD_NPM_LOG_LEVEL environment variable to set the npm loglevel.
-  Use the EIVU_UPLOAD_NPM_REGISTRY environment variable to set the npm registry.
+  Use the EIVU_NPM_LOG_LEVEL environment variable to set the npm loglevel.
+  Use the EIVU_NPM_REGISTRY environment variable to set the npm registry.
 
 ALIASES
-  $ eivu-upload plugins add
+  $ eivu plugins add
 
 EXAMPLES
   Install a plugin from npm registry.
 
-    $ eivu-upload plugins add myplugin
+    $ eivu plugins add myplugin
 
   Install a plugin from a github url.
 
-    $ eivu-upload plugins add https://github.com/someuser/someplugin
+    $ eivu plugins add https://github.com/someuser/someplugin
 
   Install a plugin from a github slug.
 
-    $ eivu-upload plugins add someuser/someplugin
+    $ eivu plugins add someuser/someplugin
 ```
 
-## `eivu-upload plugins:inspect PLUGIN...`
+## `eivu plugins:inspect PLUGIN...`
 
 Displays installation properties of a plugin.
 
 ```
 USAGE
-  $ eivu-upload plugins inspect PLUGIN...
+  $ eivu plugins inspect PLUGIN...
 
 ARGUMENTS
   PLUGIN...  [default: .] Plugin to inspect.
@@ -159,18 +159,18 @@ DESCRIPTION
   Displays installation properties of a plugin.
 
 EXAMPLES
-  $ eivu-upload plugins inspect myplugin
+  $ eivu plugins inspect myplugin
 ```
 
 _See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/inspect.ts)_
 
-## `eivu-upload plugins install PLUGIN`
+## `eivu plugins install PLUGIN`
 
-Installs a plugin into eivu-upload.
+Installs a plugin into eivu.
 
 ```
 USAGE
-  $ eivu-upload plugins install PLUGIN... [--json] [-f] [-h] [-s | -v]
+  $ eivu plugins install PLUGIN... [--json] [-f] [-h] [-s | -v]
 
 ARGUMENTS
   PLUGIN...  Plugin to install.
@@ -185,41 +185,41 @@ GLOBAL FLAGS
   --json  Format output as json.
 
 DESCRIPTION
-  Installs a plugin into eivu-upload.
+  Installs a plugin into eivu.
 
   Uses npm to install plugins.
 
   Installation of a user-installed plugin will override a core plugin.
 
-  Use the EIVU_UPLOAD_NPM_LOG_LEVEL environment variable to set the npm loglevel.
-  Use the EIVU_UPLOAD_NPM_REGISTRY environment variable to set the npm registry.
+  Use the EIVU_NPM_LOG_LEVEL environment variable to set the npm loglevel.
+  Use the EIVU_NPM_REGISTRY environment variable to set the npm registry.
 
 ALIASES
-  $ eivu-upload plugins add
+  $ eivu plugins add
 
 EXAMPLES
   Install a plugin from npm registry.
 
-    $ eivu-upload plugins install myplugin
+    $ eivu plugins install myplugin
 
   Install a plugin from a github url.
 
-    $ eivu-upload plugins install https://github.com/someuser/someplugin
+    $ eivu plugins install https://github.com/someuser/someplugin
 
   Install a plugin from a github slug.
 
-    $ eivu-upload plugins install someuser/someplugin
+    $ eivu plugins install someuser/someplugin
 ```
 
 _See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/install.ts)_
 
-## `eivu-upload plugins link PATH`
+## `eivu plugins link PATH`
 
 Links a plugin into the CLI for development.
 
 ```
 USAGE
-  $ eivu-upload plugins link PATH [-h] [--install] [-v]
+  $ eivu plugins link PATH [-h] [--install] [-v]
 
 ARGUMENTS
   PATH  [default: .] path to plugin
@@ -239,18 +239,18 @@ DESCRIPTION
 
 
 EXAMPLES
-  $ eivu-upload plugins link myplugin
+  $ eivu plugins link myplugin
 ```
 
 _See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/link.ts)_
 
-## `eivu-upload plugins remove [PLUGIN]`
+## `eivu plugins remove [PLUGIN]`
 
 Removes a plugin from the CLI.
 
 ```
 USAGE
-  $ eivu-upload plugins remove [PLUGIN...] [-h] [-v]
+  $ eivu plugins remove [PLUGIN...] [-h] [-v]
 
 ARGUMENTS
   PLUGIN...  plugin to uninstall
@@ -263,20 +263,20 @@ DESCRIPTION
   Removes a plugin from the CLI.
 
 ALIASES
-  $ eivu-upload plugins unlink
-  $ eivu-upload plugins remove
+  $ eivu plugins unlink
+  $ eivu plugins remove
 
 EXAMPLES
-  $ eivu-upload plugins remove myplugin
+  $ eivu plugins remove myplugin
 ```
 
-## `eivu-upload plugins reset`
+## `eivu plugins reset`
 
 Remove all user-installed and linked plugins.
 
 ```
 USAGE
-  $ eivu-upload plugins reset [--hard] [--reinstall]
+  $ eivu plugins reset [--hard] [--reinstall]
 
 FLAGS
   --hard       Delete node_modules and package manager related files in addition to uninstalling plugins.
@@ -285,13 +285,13 @@ FLAGS
 
 _See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/reset.ts)_
 
-## `eivu-upload plugins uninstall [PLUGIN]`
+## `eivu plugins uninstall [PLUGIN]`
 
 Removes a plugin from the CLI.
 
 ```
 USAGE
-  $ eivu-upload plugins uninstall [PLUGIN...] [-h] [-v]
+  $ eivu plugins uninstall [PLUGIN...] [-h] [-v]
 
 ARGUMENTS
   PLUGIN...  plugin to uninstall
@@ -304,22 +304,22 @@ DESCRIPTION
   Removes a plugin from the CLI.
 
 ALIASES
-  $ eivu-upload plugins unlink
-  $ eivu-upload plugins remove
+  $ eivu plugins unlink
+  $ eivu plugins remove
 
 EXAMPLES
-  $ eivu-upload plugins uninstall myplugin
+  $ eivu plugins uninstall myplugin
 ```
 
 _See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/uninstall.ts)_
 
-## `eivu-upload plugins unlink [PLUGIN]`
+## `eivu plugins unlink [PLUGIN]`
 
 Removes a plugin from the CLI.
 
 ```
 USAGE
-  $ eivu-upload plugins unlink [PLUGIN...] [-h] [-v]
+  $ eivu plugins unlink [PLUGIN...] [-h] [-v]
 
 ARGUMENTS
   PLUGIN...  plugin to uninstall
@@ -332,20 +332,20 @@ DESCRIPTION
   Removes a plugin from the CLI.
 
 ALIASES
-  $ eivu-upload plugins unlink
-  $ eivu-upload plugins remove
+  $ eivu plugins unlink
+  $ eivu plugins remove
 
 EXAMPLES
-  $ eivu-upload plugins unlink myplugin
+  $ eivu plugins unlink myplugin
 ```
 
-## `eivu-upload plugins update`
+## `eivu plugins update`
 
 Update installed plugins.
 
 ```
 USAGE
-  $ eivu-upload plugins update [-h] [-v]
+  $ eivu plugins update [-h] [-v]
 
 FLAGS
   -h, --help     Show CLI help.
@@ -493,7 +493,7 @@ The metadata will automatically be included when you upload `my-video.mp4`.
 Use the bulk update command to update multiple cloud files from a folder of `.eivu.yml` files:
 
 ```bash
-eivu-upload bulk-update --path /path/to/metadata/folder
+eivu bulk-update --path /path/to/metadata/folder
 ```
 
 This is useful for updating metadata on files that have already been uploaded to the cloud.
