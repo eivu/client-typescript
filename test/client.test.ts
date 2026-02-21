@@ -1,5 +1,6 @@
 import {describe, expect, it, jest} from '@jest/globals'
 import nock from 'nock'
+import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import tmp from 'tmp'
 
@@ -33,7 +34,6 @@ import {
   REMOTE_STAGING_MD5,
   REMOTE_VIDEO_COMPLETE,
   REMOTE_VIDEO_COMPLETE_WITH_METADATA,
-  REMOTE_VIDEO_COMPLETE_WITH_SOURCE_URL,
   REMOTE_VIDEO_DIFFERENT_SOURCE_STAGING_RESERVATION,
   REMOTE_VIDEO_PATCHED_RESERVATION,
   REMOTE_VIDEO_S3_UPLOAD_RESPONSE,
@@ -666,18 +666,15 @@ describe('Client', () => {
         .query({keyFormat: 'camel_lower'})
         .reply(200, REMOTE_VIDEO_TRANSFER)
 
-      let completeReq: nock.Interceptor | nock.Scope
-      if (completeBody) {
-        completeReq = nock(SERVER_HOST)
-          .post(`${URL_BUCKET_PREFIX}/cloud_files/${REMOTE_REAL_MD5}/complete`, completeBody)
-          .query({keyFormat: 'camel_lower'})
-          .reply(200, completeResponse)
-      } else {
-        completeReq = nock(SERVER_HOST)
-          .post(`${URL_BUCKET_PREFIX}/cloud_files/${REMOTE_REAL_MD5}/complete`)
-          .query({keyFormat: 'camel_lower'})
-          .reply(200, completeResponse)
-      }
+      const completeReq = completeBody
+        ? nock(SERVER_HOST)
+            .post(`${URL_BUCKET_PREFIX}/cloud_files/${REMOTE_REAL_MD5}/complete`, completeBody)
+            .query({keyFormat: 'camel_lower'})
+            .reply(200, completeResponse)
+        : nock(SERVER_HOST)
+            .post(`${URL_BUCKET_PREFIX}/cloud_files/${REMOTE_REAL_MD5}/complete`)
+            .query({keyFormat: 'camel_lower'})
+            .reply(200, completeResponse)
 
       return {
         cleanupStagingReq,
@@ -1035,9 +1032,8 @@ describe('Client', () => {
 
       // For each entry, mock the full flow but let the errors be handled by processRateLimitedRemoteUpload
       for (const url of [downloadUrl1, downloadUrl2]) {
-        const origin = new URL(url).origin
-        const pathname = new URL(url).pathname
-        const md5 = require('node:crypto').createHash('md5').update(url).digest('hex').toUpperCase()
+        const {origin, pathname} = new URL(url)
+        const md5 = crypto.createHash('md5').update(url).digest('hex').toUpperCase()
 
         nock(origin)
           .head(pathname)
@@ -1120,7 +1116,7 @@ describe('Client', () => {
       mockUploadDone.mockResolvedValue(REMOTE_VIDEO_S3_UPLOAD_RESPONSE)
       mockSend.mockResolvedValue({})
 
-      const md5Good = require('node:crypto').createHash('md5').update(downloadUrl1).digest('hex').toUpperCase()
+      const md5Good = crypto.createHash('md5').update(downloadUrl1).digest('hex').toUpperCase()
       const assetGood = 'good-video.mp4'
 
       nock('https://cdn.example.com')

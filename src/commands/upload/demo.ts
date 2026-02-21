@@ -1,6 +1,4 @@
-/* eslint-disable camelcase */
 import {Client} from '@src/client'
-import {type MetadataProfile} from '@src/metadata-extraction'
 import {logResponse} from '@src/utils'
 /*
 
