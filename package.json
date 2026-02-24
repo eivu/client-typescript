@@ -55,6 +55,7 @@
     "shx": "^0.3.3",
     "ts-jest": "^29.4.4",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5"
   },
   "engines": {
@@ -89,7 +90,7 @@
   },
   "repository": "eivu/client-typescript",
   "scripts": {
-    "build": "shx rm -rf dist && tsc -b",
+    "build": "shx rm -rf dist && tsc -b && tsc-alias",
     "lint": "eslint",
     "postpack": "shx rm -f oclif.manifest.json",
     "posttest": "npm run lint",
