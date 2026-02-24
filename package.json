@@ -90,7 +90,7 @@
   },
   "repository": "eivu/client-typescript",
   "scripts": {
-    "build": "shx rm -rf dist && tsc -b && tsc-alias",
+    "build": "shx rm -rf dist tsconfig.tsbuildinfo && tsc -b && tsc-alias --resolve-full-paths",
     "lint": "eslint",
     "postpack": "shx rm -f oclif.manifest.json",
     "posttest": "npm run lint",
