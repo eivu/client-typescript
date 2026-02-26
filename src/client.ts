@@ -245,6 +245,7 @@ export class Client {
     const assetLogger = this.logger.child({asset, md5})
 
     assetLogger.info(`Fetching/Reserving: ${asset}`)
+    assetLogger.info({nsfw, secured}, 'Metadata for reservation')
     let cloudFile = await CloudFile.fetchOrReserveBy({nsfw, pathToFile, secured})
     cloudFile.remoteAttr.asset = asset
     await this.processTransfer({asset, assetLogger, cloudFile})
@@ -344,6 +345,7 @@ export class Client {
       const sourceUrlMd5 = await generateMd5OfString(sourceUrl)
       assetLogger.info(`Reserving remote upload for URL: ${downloadUrl}`)
       assetLogger.info(`Fetching/Reserving: ${sourceUrl}`)
+      assetLogger.info({nsfw, secured}, 'Metadata for reservation')
       cloudFile = await CloudFile.fetchOrReserveBy({md5: sourceUrlMd5, nsfw, secured})
       cloudFile.remoteAttr.asset = assetFilename
       cloudFile.remoteAttr.filesize = filesize
