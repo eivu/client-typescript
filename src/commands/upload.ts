@@ -1,6 +1,6 @@
 import {Args, Command, Flags} from '@oclif/core'
 import {Client} from '@src/client'
-import {isOnline} from '@src/utils'
+import {isOnline, IsOnlineResult} from '@src/utils'
 import * as fs from 'node:fs'
 
 export default class Upload extends Command {
@@ -33,7 +33,13 @@ export default class Upload extends Command {
       secured: securedValue,
     }
 
-    const onlineCheck = await isOnline(path)
+    let onlineCheck: IsOnlineResult
+    try {
+      onlineCheck = await isOnline(path)
+    } catch {
+      onlineCheck = {isOnline: false, remoteFilesize: null}
+    }
+
     if (onlineCheck.isOnline) {
       Client.uploadRemoteFile({
         assetFilename: filenameValue,
@@ -43,9 +49,15 @@ export default class Upload extends Command {
     } else if (fs.existsSync(path)) {
       const stats = fs.statSync(path)
       if (stats.isFile()) {
-        this.log(`Path is a file: ${path}`)
+        Client.uploadFile({
+          pathToFile: path,
+          ...defaultArguments,
+        })
       } else if (stats.isDirectory()) {
-        this.log(`Path is a folder: ${path}`)
+        Client.uploadFolder({
+          pathToFolder: path,
+          ...defaultArguments,
+        })
       }
     } else {
       this.log(`A valid resource could not be found: ${path}`)
