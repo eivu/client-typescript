@@ -33,20 +33,7 @@ export default class Upload extends Command {
       secured: securedValue,
     }
 
-    let onlineCheck: IsOnlineResult
-    try {
-      onlineCheck = await isOnline(path)
-    } catch {
-      onlineCheck = {isOnline: false, remoteFilesize: null}
-    }
-
-    if (onlineCheck.isOnline) {
-      Client.uploadRemoteFile({
-        assetFilename: filenameValue,
-        downloadUrl: path,
-        ...defaultArguments,
-      })
-    } else if (fs.existsSync(path)) {
+    if (fs.existsSync(path)) {
       const stats = fs.statSync(path)
       if (stats.isFile()) {
         Client.uploadFile({
@@ -60,7 +47,22 @@ export default class Upload extends Command {
         })
       }
     } else {
-      this.log(`A valid resource could not be found: ${path}`)
+      let onlineCheck: IsOnlineResult
+      try {
+        onlineCheck = await isOnline(path)
+      } catch {
+        onlineCheck = {isOnline: false, remoteFilesize: null}
+      }
+
+      if (onlineCheck.isOnline) {
+        Client.uploadRemoteFile({
+          assetFilename: filenameValue,
+          downloadUrl: path,
+          ...defaultArguments,
+        })
+      } else {
+        this.log(`A valid resource could not be found: ${path}`)
+      }
     }
 
     // this.log('Upload command executed successfully.')
