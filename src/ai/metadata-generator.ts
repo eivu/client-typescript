@@ -10,6 +10,12 @@ import * as fs from 'node:fs'
 import {promises as fsp} from 'node:fs'
 import path from 'node:path'
 
+/**
+ * Factory that creates the appropriate agent instance for the given type.
+ * @param type - Agent provider ('claude' | 'gemini' | 'openai')
+ * @param options - Options passed to the agent constructor
+ * @returns A BaseAgent instance
+ */
 function createAgent(type: AgentType, options: MetadataGeneratorOptions): BaseAgent {
   switch (type) {
     case 'claude': {
@@ -30,16 +36,31 @@ function createAgent(type: AgentType, options: MetadataGeneratorOptions): BaseAg
   }
 }
 
+/**
+ * Generates .eivu.yml metadata files for media files using an AI agent (Claude, Gemini, or OpenAI).
+ * Can process multiple files, skip existing metadata when overwrite is false, and write results in parallel.
+ */
 export class MetadataGenerator {
+  /** When false, files that already have a .eivu.yml are skipped. */
   readonly overwrite: boolean
-private agent: BaseAgent
+  private agent: BaseAgent
 
+  /**
+   * Creates a MetadataGenerator with the given options.
+   * @param options - Agent type, overwrite flag, API key, model, skill content/path, etc. (default: { agent: 'claude', overwrite: false })
+   */
   constructor(options: MetadataGeneratorOptions = {}) {
     const agentType = options.agent ?? 'claude'
     this.overwrite = options.overwrite ?? false
     this.agent = createAgent(agentType, options)
   }
 
+  /**
+   * Static helper to generate metadata for files without instantiating a generator.
+   * @param filePaths - Array of paths to media files
+   * @param options - Optional MetadataGeneratorOptions (agent, overwrite, apiKey, etc.)
+   * @returns Promise resolving to an array of GenerationResult (one per file)
+   */
   static async generate(
     filePaths: string[],
     options?: MetadataGeneratorOptions,
@@ -56,6 +77,12 @@ private agent: BaseAgent
     return `${String(index).padStart(5, '0')}-${basename}`.slice(0, 64)
   }
 
+  /**
+   * Generates .eivu.yml metadata for the given file paths.
+   * Skips files that already have metadata when overwrite is false; otherwise runs the agent and writes results.
+   * @param filePaths - Array of paths to media files (e.g. .cbr, .mp3, .mp4)
+   * @returns Promise resolving to an array of GenerationResult (success, skipped, or error per file)
+   */
   async generate(filePaths: string[]): Promise<GenerationResult[]> {
     if (filePaths.length === 0) return []
 

@@ -8,6 +8,10 @@ const GEMINI_DEFAULTS = {
   pollIntervalMs: 30_000,
 } as const
 
+/**
+ * Agent implementation for Google Gemini. processRequests is not yet implemented;
+ * use ClaudeAgent or implement the Gemini batch API integration.
+ */
 export class GeminiAgent extends BaseAgent {
   constructor(options: AgentOptions = {}) {
     super(options, GEMINI_DEFAULTS)

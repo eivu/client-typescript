@@ -1,5 +1,6 @@
 import type {AgentOptions, AgentRequest, AgentResult, BatchProgress} from '@src/ai/types'
 
+/** Default values for agent configuration (maxTokens, model, pollIntervalMs). */
 export type AgentDefaults = {
   maxTokens: number
   model: string
@@ -22,17 +23,31 @@ export function extractYamlFromResponse(content: Array<{text?: string; type: str
   return text.trim()
 }
 
+/**
+ * Builds the user message sent to the agent for a given file path (filename only, no path).
+ * @param filePath - Full path to the file
+ * @returns Message string asking the agent to create an eivu file for the filename
+ */
 export function buildUserMessage(filePath: string): string {
   const filename = filePath.split('/').pop() ?? filePath
   return `Using this runtime, please create an eivu file for ${filename}`
 }
 
+/**
+ * Base class for AI agents that process metadata generation requests.
+ * Subclasses implement processRequests and may override defaults.
+ */
 export abstract class BaseAgent {
   readonly maxTokens: number
   readonly model: string
   protected onProgress?: (progress: BatchProgress) => void
-readonly pollIntervalMs: number
+  readonly pollIntervalMs: number
 
+  /**
+   * Creates a base agent with options merged over defaults.
+   * @param options - Agent options (API key, model, tokens, etc.)
+   * @param defaults - Default values when options omit fields
+   */
   constructor(options: AgentOptions, defaults: AgentDefaults) {
     this.maxTokens = options.maxTokens ?? defaults.maxTokens
     this.model = options.model ?? defaults.model
@@ -46,6 +61,7 @@ readonly pollIntervalMs: number
    */
   abstract processRequests(requests: AgentRequest[]): Promise<AgentResult[]>
 
+  /** Returns a promise that resolves after the given number of milliseconds. */
   protected sleep(ms: number): Promise<void> {
     return new Promise((resolve) => {
       setTimeout(resolve, ms)

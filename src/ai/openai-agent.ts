@@ -8,6 +8,10 @@ const OPENAI_DEFAULTS = {
   pollIntervalMs: 30_000,
 } as const
 
+/**
+ * Agent implementation for OpenAI. processRequests is not yet implemented;
+ * use ClaudeAgent or implement the OpenAI batch API integration.
+ */
 export class OpenAIAgent extends BaseAgent {
   constructor(options: AgentOptions = {}) {
     super(options, OPENAI_DEFAULTS)

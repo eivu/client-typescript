@@ -15,12 +15,17 @@ const CLAUDE_DEFAULTS = {
 
 const DEFAULT_SKILL_PATH = path.join('src', 'ai', 'prompts', 'claude', 'EIVU_METADATA_SKILL_v7_16_1_RUNTIME.md')
 
+/** System prompt block with optional cache control for Anthropic API. */
 type CachedTextBlock = {
   cache_control: {type: 'ephemeral'}
   text: string
   type: 'text'
 }
 
+/**
+ * Agent implementation using Anthropic's Claude API (Messages Batches).
+ * Loads the EIVU metadata skill from a file or skillContent and processes requests in batches.
+ */
 export class ClaudeAgent extends BaseAgent {
   private client: Anthropic
   private systemPromptBlocks: CachedTextBlock[]
