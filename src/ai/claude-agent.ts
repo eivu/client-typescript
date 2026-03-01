@@ -43,6 +43,7 @@ export class ClaudeAgent extends BaseAgent {
 
     this.systemPromptBlocks = [
       {
+        // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
         cache_control: {type: 'ephemeral' as const},
         text: skillContent,
         type: 'text' as const,
@@ -73,6 +74,7 @@ export class ClaudeAgent extends BaseAgent {
         logger.info({batch: batchNum, of: totalBatches}, 'Processing batch chunk')
       }
 
+      // eslint-disable-next-line no-await-in-loop -- batches must be processed sequentially
       const batchResults = await this.submitAndPollBatch(chunk)
       results.push(...batchResults)
     }
@@ -110,7 +112,9 @@ export class ClaudeAgent extends BaseAgent {
     let status = await this.client.messages.batches.retrieve(batchId)
 
     while (status.processing_status === 'in_progress') {
+      // eslint-disable-next-line no-await-in-loop -- polling must be sequential
       await this.sleep(this.pollIntervalMs)
+      // eslint-disable-next-line no-await-in-loop -- polling must be sequential
       status = await this.client.messages.batches.retrieve(batchId)
 
       const counts = status.request_counts
@@ -142,8 +146,10 @@ export class ClaudeAgent extends BaseAgent {
 
   private async submitAndPollBatch(requests: AgentRequest[]): Promise<AgentResult[]> {
     const batchRequests = requests.map((req) => ({
+      // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
       custom_id: req.customId,
       params: {
+        // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
         max_tokens: this.maxTokens,
         messages: [{content: req.userMessage, role: 'user' as const}],
         model: this.model,

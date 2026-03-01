@@ -112,7 +112,7 @@ private agent: BaseAgent
     agentResults: Array<{customId: string; error?: string; status: string; yaml?: string}>,
     idToFilePath: Map<string, {filePath: string; outputPath: string}>,
   ): Promise<GenerationResult[]> {
-    const results: GenerationResult[] = []
+    const resultPromises: Promise<GenerationResult>[] = []
 
     for (const result of agentResults) {
       const mapping = idToFilePath.get(result.customId)
@@ -124,20 +124,26 @@ private agent: BaseAgent
       const {filePath, outputPath} = mapping
 
       if (result.status === 'success' && result.yaml) {
-        try {
-          await fsp.writeFile(outputPath, result.yaml + '\n', 'utf-8')
-          results.push({filePath, outputPath, status: 'success', yaml: result.yaml})
-          logger.info({outputPath}, 'Wrote .eivu.yml file')
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          results.push({error: `Failed to write file: ${message}`, filePath, outputPath, status: 'error'})
-          logger.error({error: message, outputPath}, 'Failed to write .eivu.yml file')
-        }
+        resultPromises.push(
+          (async (): Promise<GenerationResult> => {
+            try {
+              await fsp.writeFile(outputPath, result.yaml + '\n', 'utf8')
+              logger.info({outputPath}, 'Wrote .eivu.yml file')
+              return {filePath, outputPath, status: 'success', yaml: result.yaml}
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error)
+              logger.error({error: message, outputPath}, 'Failed to write .eivu.yml file')
+              return {error: `Failed to write file: ${message}`, filePath, outputPath, status: 'error'}
+            }
+          })(),
+        )
       } else {
-        results.push({error: result.error ?? 'Unknown error', filePath, outputPath, status: 'error'})
+        resultPromises.push(
+          Promise.resolve({error: result.error ?? 'Unknown error', filePath, outputPath, status: 'error'}),
+        )
       }
     }
 
-    return results
+    return Promise.all(resultPromises)
   }
 }

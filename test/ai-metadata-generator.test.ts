@@ -11,7 +11,8 @@ import path from 'node:path'
 
 const MINIMAL_SKILL_CONTENT = '# EIVU Metadata Runtime v7.16.1\nMinimal test content'
 
-describe('shared helpers', () => {
+describe('AI metadata', () => {
+  describe('shared helpers', () => {
   describe('buildUserMessage', () => {
     it('includes the basename of the file path', () => {
       const msg = buildUserMessage('/Users/jinx/queue/Space_Adventures_033.eivu_compressed.cbr')
@@ -87,9 +88,9 @@ describe('shared helpers', () => {
       expect(extractYamlFromResponse([])).toBe('')
     })
   })
-})
+  })
 
-describe('MetadataGenerator', () => {
+  describe('MetadataGenerator', () => {
   describe('constructor', () => {
     it('defaults to claude agent', () => {
       const generator = new MetadataGenerator({
@@ -180,9 +181,9 @@ describe('MetadataGenerator', () => {
       expect(expectedOutput).toBe('/Users/jinx/queue/video.mp4.eivu.yml')
     })
   })
-})
+  })
 
-describe('ClaudeAgent', () => {
+  describe('ClaudeAgent', () => {
   it('accepts skillContent directly', () => {
     const agent = new ClaudeAgent({
       apiKey: 'test-key',
@@ -215,9 +216,9 @@ describe('ClaudeAgent', () => {
         }),
     ).toThrow('EIVU metadata skill file not found')
   })
-})
+  })
 
-describe('OpenAIAgent', () => {
+  describe('OpenAIAgent', () => {
   it('constructs with default model', () => {
     const agent = new OpenAIAgent({apiKey: 'test-key'})
     expect(agent.model).toBe('gpt-4o')
@@ -227,9 +228,9 @@ describe('OpenAIAgent', () => {
     const agent = new OpenAIAgent({apiKey: 'test-key'})
     await expect(agent.processRequests([])).rejects.toThrow('not yet implemented')
   })
-})
+  })
 
-describe('GeminiAgent', () => {
+  describe('GeminiAgent', () => {
   it('constructs with default model', () => {
     const agent = new GeminiAgent({apiKey: 'test-key'})
     expect(agent.model).toBe('gemini-2.0-flash')
@@ -238,5 +239,6 @@ describe('GeminiAgent', () => {
   it('throws not implemented on processRequests', async () => {
     const agent = new GeminiAgent({apiKey: 'test-key'})
     await expect(agent.processRequests([])).rejects.toThrow('not yet implemented')
+  })
   })
 })

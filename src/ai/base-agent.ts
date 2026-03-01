@@ -47,6 +47,8 @@ readonly pollIntervalMs: number
   abstract processRequests(requests: AgentRequest[]): Promise<AgentResult[]>
 
   protected sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms))
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms)
+    })
   }
 }
