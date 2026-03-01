@@ -1,8 +1,9 @@
+import type {AgentRequest, AgentType, GenerationResult, MetadataGeneratorOptions} from '@src/ai/types'
+
 import {type BaseAgent, buildUserMessage} from '@src/ai/base-agent'
 import {ClaudeAgent} from '@src/ai/claude-agent'
 import {GeminiAgent} from '@src/ai/gemini-agent'
 import {OpenAIAgent} from '@src/ai/openai-agent'
-import type {AgentRequest, AgentType, GenerationResult, MetadataGeneratorOptions} from '@src/ai/types'
 import {METADATA_YML_SUFFIX} from '@src/constants'
 import logger from '@src/logger'
 import * as fs from 'node:fs'
@@ -15,12 +16,12 @@ function createAgent(type: AgentType, options: MetadataGeneratorOptions): BaseAg
       return new ClaudeAgent(options)
     }
 
-    case 'openai': {
-      return new OpenAIAgent(options)
-    }
-
     case 'gemini': {
       return new GeminiAgent(options)
+    }
+
+    case 'openai': {
+      return new OpenAIAgent(options)
     }
 
     default: {
@@ -31,8 +32,7 @@ function createAgent(type: AgentType, options: MetadataGeneratorOptions): BaseAg
 
 export class MetadataGenerator {
   readonly overwrite: boolean
-
-  private agent: BaseAgent
+private agent: BaseAgent
 
   constructor(options: MetadataGeneratorOptions = {}) {
     const agentType = options.agent ?? 'claude'
@@ -46,6 +46,14 @@ export class MetadataGenerator {
   ): Promise<GenerationResult[]> {
     const generator = new MetadataGenerator(options)
     return generator.generate(filePaths)
+  }
+
+  private static filePathToCustomId(filePath: string, index: number): string {
+    const basename = path
+      .basename(filePath)
+      .replaceAll(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 50)
+    return `${String(index).padStart(5, '0')}-${basename}`.slice(0, 64)
   }
 
   async generate(filePaths: string[]): Promise<GenerationResult[]> {
@@ -84,8 +92,7 @@ export class MetadataGenerator {
     const requests: Array<AgentRequest & {outputPath: string}> = []
     const skippedResults: GenerationResult[] = []
 
-    for (let i = 0; i < filePaths.length; i++) {
-      const filePath = filePaths[i]
+    for (const [i, filePath] of filePaths.entries()) {
       const outputPath = `${filePath}${METADATA_YML_SUFFIX}`
 
       if (!this.overwrite && fs.existsSync(outputPath)) {
@@ -121,8 +128,8 @@ export class MetadataGenerator {
           await fsp.writeFile(outputPath, result.yaml + '\n', 'utf-8')
           results.push({filePath, outputPath, status: 'success', yaml: result.yaml})
           logger.info({outputPath}, 'Wrote .eivu.yml file')
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
           results.push({error: `Failed to write file: ${message}`, filePath, outputPath, status: 'error'})
           logger.error({error: message, outputPath}, 'Failed to write .eivu.yml file')
         }
@@ -132,13 +139,5 @@ export class MetadataGenerator {
     }
 
     return results
-  }
-
-  private static filePathToCustomId(filePath: string, index: number): string {
-    const basename = path
-      .basename(filePath)
-      .replace(/[^a-zA-Z0-9_-]/g, '_')
-      .slice(0, 50)
-    return `${String(index).padStart(5, '0')}-${basename}`.slice(0, 64)
   }
 }

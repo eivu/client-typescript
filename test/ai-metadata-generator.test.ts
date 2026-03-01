@@ -43,43 +43,43 @@ describe('shared helpers', () => {
 
   describe('extractYamlFromResponse', () => {
     it('extracts plain YAML text', () => {
-      const content = [{type: 'text', text: 'name: Test\nyear: 2023'}]
+      const content = [{text: 'name: Test\nyear: 2023', type: 'text'}]
       expect(extractYamlFromResponse(content)).toBe('name: Test\nyear: 2023')
     })
 
     it('strips markdown yaml code fences', () => {
-      const content = [{type: 'text', text: '```yaml\nname: Test\nyear: 2023\n```'}]
+      const content = [{text: '```yaml\nname: Test\nyear: 2023\n```', type: 'text'}]
       expect(extractYamlFromResponse(content)).toBe('name: Test\nyear: 2023')
     })
 
     it('strips markdown yml code fences', () => {
-      const content = [{type: 'text', text: '```yml\nname: Test\n```'}]
+      const content = [{text: '```yml\nname: Test\n```', type: 'text'}]
       expect(extractYamlFromResponse(content)).toBe('name: Test')
     })
 
     it('strips bare code fences', () => {
-      const content = [{type: 'text', text: '```\nname: Test\n```'}]
+      const content = [{text: '```\nname: Test\n```', type: 'text'}]
       expect(extractYamlFromResponse(content)).toBe('name: Test')
     })
 
     it('handles multiple content blocks', () => {
       const content = [
-        {type: 'text', text: 'name: Test\n'},
-        {type: 'text', text: 'year: 2023'},
+        {text: 'name: Test\n', type: 'text'},
+        {text: 'year: 2023', type: 'text'},
       ]
       expect(extractYamlFromResponse(content)).toBe('name: Test\n\nyear: 2023')
     })
 
     it('ignores non-text blocks', () => {
       const content = [
-        {type: 'tool_use', id: 'abc'},
-        {type: 'text', text: 'name: Test'},
+        {id: 'abc', type: 'tool_use'},
+        {text: 'name: Test', type: 'text'},
       ]
       expect(extractYamlFromResponse(content)).toBe('name: Test')
     })
 
     it('trims whitespace', () => {
-      const content = [{type: 'text', text: '  \nname: Test\nyear: 2023\n  '}]
+      const content = [{text: '  \nname: Test\nyear: 2023\n  ', type: 'text'}]
       expect(extractYamlFromResponse(content)).toBe('name: Test\nyear: 2023')
     })
 
@@ -156,7 +156,7 @@ describe('MetadataGenerator', () => {
         expect(results[1].status).toBe('skipped')
         expect(results[1].filePath).toBe(file2)
       } finally {
-        await fsp.rm(tmpDir, {recursive: true, force: true})
+        await fsp.rm(tmpDir, {force: true, recursive: true})
       }
     })
   })

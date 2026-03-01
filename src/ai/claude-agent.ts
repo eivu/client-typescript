@@ -1,6 +1,7 @@
+import type {AgentOptions, AgentRequest, AgentResult} from '@src/ai/types'
+
 import Anthropic from '@anthropic-ai/sdk'
 import {BaseAgent, extractYamlFromResponse} from '@src/ai/base-agent'
-import type {AgentOptions, AgentRequest, AgentResult} from '@src/ai/types'
 import logger from '@src/logger'
 import * as fs from 'node:fs'
 import path from 'node:path'
@@ -37,7 +38,7 @@ export class ClaudeAgent extends BaseAgent {
         throw new Error(`EIVU metadata skill file not found: ${skillPath}`)
       }
 
-      skillContent = fs.readFileSync(skillPath, 'utf-8')
+      skillContent = fs.readFileSync(skillPath, 'utf8')
     }
 
     this.systemPromptBlocks = [
@@ -47,6 +48,15 @@ export class ClaudeAgent extends BaseAgent {
         type: 'text' as const,
       },
     ]
+  }
+
+  private static formatBatchError(result: {error?: unknown; type: string}): string {
+    if (result.type === 'errored' && result.error) {
+      const err = result.error as {message?: string; type?: string}
+      return `API error: ${err.type ?? 'unknown'} - ${err.message ?? 'no details'}`
+    }
+
+    return `Request ${result.type}`
   }
 
   async processRequests(requests: AgentRequest[]): Promise<AgentResult[]> {
@@ -70,24 +80,30 @@ export class ClaudeAgent extends BaseAgent {
     return results
   }
 
-  private async submitAndPollBatch(requests: AgentRequest[]): Promise<AgentResult[]> {
-    const batchRequests = requests.map((req) => ({
-      custom_id: req.customId,
-      params: {
-        max_tokens: this.maxTokens,
-        messages: [{role: 'user' as const, content: req.userMessage}],
-        model: this.model,
-        system: this.systemPromptBlocks as Anthropic.MessageCreateParams['system'],
-      },
-    }))
+  private async collectResults(batchId: string, requests: AgentRequest[]): Promise<AgentResult[]> {
+    const idToCustomId = new Map(requests.map((r) => [r.customId, r]))
+    const results: AgentResult[] = []
 
-    logger.info({count: requests.length}, 'Creating Anthropic message batch')
-    const batch = await this.client.messages.batches.create({requests: batchRequests})
-    logger.info({batchId: batch.id}, 'Batch created, polling for completion')
+    const resultsStream = await this.client.messages.batches.results(batchId)
+    for await (const entry of resultsStream) {
+      if (!idToCustomId.has(entry.custom_id)) {
+        logger.warn({customId: entry.custom_id}, 'Unknown custom_id in batch results')
+        continue
+      }
 
-    await this.pollUntilComplete(batch.id, requests.length)
+      if (entry.result.type === 'succeeded') {
+        const yaml = extractYamlFromResponse(
+          entry.result.message.content as Array<{text?: string; type: string}>,
+        )
+        results.push({customId: entry.custom_id, status: 'success', yaml})
+      } else {
+        const errorMsg = ClaudeAgent.formatBatchError(entry.result)
+        results.push({customId: entry.custom_id, error: errorMsg, status: 'error'})
+        logger.error({customId: entry.custom_id, resultType: entry.result.type}, 'Batch request failed')
+      }
+    }
 
-    return this.collectResults(batch.id, requests)
+    return results
   }
 
   private async pollUntilComplete(batchId: string, totalRequests: number): Promise<void> {
@@ -119,43 +135,28 @@ export class ClaudeAgent extends BaseAgent {
         id: status.id,
         processingStatus: status.processing_status,
         succeededRequests: counts.succeeded,
-        totalRequests: totalRequests,
+        totalRequests,
       })
     }
   }
 
-  private async collectResults(batchId: string, requests: AgentRequest[]): Promise<AgentResult[]> {
-    const idToCustomId = new Map(requests.map((r) => [r.customId, r]))
-    const results: AgentResult[] = []
+  private async submitAndPollBatch(requests: AgentRequest[]): Promise<AgentResult[]> {
+    const batchRequests = requests.map((req) => ({
+      custom_id: req.customId,
+      params: {
+        max_tokens: this.maxTokens,
+        messages: [{content: req.userMessage, role: 'user' as const}],
+        model: this.model,
+        system: this.systemPromptBlocks as Anthropic.MessageCreateParams['system'],
+      },
+    }))
 
-    const resultsStream = await this.client.messages.batches.results(batchId)
-    for await (const entry of resultsStream) {
-      if (!idToCustomId.has(entry.custom_id)) {
-        logger.warn({customId: entry.custom_id}, 'Unknown custom_id in batch results')
-        continue
-      }
+    logger.info({count: requests.length}, 'Creating Anthropic message batch')
+    const batch = await this.client.messages.batches.create({requests: batchRequests})
+    logger.info({batchId: batch.id}, 'Batch created, polling for completion')
 
-      if (entry.result.type === 'succeeded') {
-        const yaml = extractYamlFromResponse(
-          entry.result.message.content as Array<{text?: string; type: string}>,
-        )
-        results.push({customId: entry.custom_id, status: 'success', yaml})
-      } else {
-        const errorMsg = ClaudeAgent.formatBatchError(entry.result)
-        results.push({customId: entry.custom_id, error: errorMsg, status: 'error'})
-        logger.error({customId: entry.custom_id, resultType: entry.result.type}, 'Batch request failed')
-      }
-    }
+    await this.pollUntilComplete(batch.id, requests.length)
 
-    return results
-  }
-
-  private static formatBatchError(result: {error?: unknown; type: string}): string {
-    if (result.type === 'errored' && result.error) {
-      const err = result.error as {message?: string; type?: string}
-      return `API error: ${err.type ?? 'unknown'} - ${err.message ?? 'no details'}`
-    }
-
-    return `Request ${result.type}`
+    return this.collectResults(batch.id, requests)
   }
 }

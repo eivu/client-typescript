@@ -30,9 +30,8 @@ export function buildUserMessage(filePath: string): string {
 export abstract class BaseAgent {
   readonly maxTokens: number
   readonly model: string
-  readonly pollIntervalMs: number
-
   protected onProgress?: (progress: BatchProgress) => void
+readonly pollIntervalMs: number
 
   constructor(options: AgentOptions, defaults: AgentDefaults) {
     this.maxTokens = options.maxTokens ?? defaults.maxTokens

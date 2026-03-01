@@ -1,5 +1,6 @@
-import {BaseAgent} from '@src/ai/base-agent'
 import type {AgentOptions, AgentRequest, AgentResult} from '@src/ai/types'
+
+import {BaseAgent} from '@src/ai/base-agent'
 
 const GEMINI_DEFAULTS = {
   maxTokens: 8192,

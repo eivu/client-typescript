@@ -24,7 +24,7 @@ export type GenerationResult = {
 export type BatchProgress = {
   canceledRequests: number
   createdAt: string
-  endedAt: string | null
+  endedAt: null | string
   erroredRequests: number
   expiredRequests: number
   id: string
