@@ -1,9 +1,9 @@
-import {describe, expect, it, jest} from '@jest/globals'
-import {
-  AiMetadataGenerator,
-  buildUserMessage,
-  extractYamlFromResponse,
-} from '@src/ai-metadata-generator'
+import {describe, expect, it} from '@jest/globals'
+import {buildUserMessage, extractYamlFromResponse} from '@src/ai/base-agent'
+import {ClaudeAgent} from '@src/ai/claude-agent'
+import {GeminiAgent} from '@src/ai/gemini-agent'
+import {MetadataGenerator} from '@src/ai/metadata-generator'
+import {OpenAIAgent} from '@src/ai/openai-agent'
 import {METADATA_YML_SUFFIX} from '@src/constants'
 import {promises as fsp} from 'node:fs'
 import os from 'node:os'
@@ -11,7 +11,7 @@ import path from 'node:path'
 
 const MINIMAL_SKILL_CONTENT = '# EIVU Metadata Runtime v7.16.1\nMinimal test content'
 
-describe('AiMetadataGenerator helpers', () => {
+describe('shared helpers', () => {
   describe('buildUserMessage', () => {
     it('includes the basename of the file path', () => {
       const msg = buildUserMessage('/Users/jinx/queue/Space_Adventures_033.eivu_compressed.cbr')
@@ -34,7 +34,7 @@ describe('AiMetadataGenerator helpers', () => {
       expect(msg).toContain('clip.mp4')
     })
 
-    it('asks to create an eivu file', () => {
+    it('asks to create an eivu file using the runtime', () => {
       const msg = buildUserMessage('/path/to/file.cbr')
       expect(msg.toLowerCase()).toContain('eivu')
       expect(msg.toLowerCase()).toContain('runtime')
@@ -89,48 +89,38 @@ describe('AiMetadataGenerator helpers', () => {
   })
 })
 
-describe('AiMetadataGenerator', () => {
+describe('MetadataGenerator', () => {
   describe('constructor', () => {
-    it('accepts skillContent directly', () => {
-      const generator = new AiMetadataGenerator({
+    it('defaults to claude agent', () => {
+      const generator = new MetadataGenerator({
         apiKey: 'test-key',
         skillContent: MINIMAL_SKILL_CONTENT,
       })
-      expect(generator.model).toBe('claude-sonnet-4-20250514')
-      expect(generator.maxTokens).toBe(8192)
-      expect(generator.overwrite).toBe(false)
-      expect(generator.pollIntervalMs).toBe(30_000)
+      expect(generator).toBeInstanceOf(MetadataGenerator)
     })
 
-    it('accepts custom options', () => {
-      const generator = new AiMetadataGenerator({
+    it('accepts agent type option', () => {
+      const generator = new MetadataGenerator({
+        agent: 'claude',
         apiKey: 'test-key',
-        maxTokens: 4096,
-        model: 'claude-haiku-3-20240307',
+        skillContent: MINIMAL_SKILL_CONTENT,
+      })
+      expect(generator).toBeInstanceOf(MetadataGenerator)
+    })
+
+    it('accepts overwrite option', () => {
+      const generator = new MetadataGenerator({
+        apiKey: 'test-key',
         overwrite: true,
-        pollIntervalMs: 5000,
         skillContent: MINIMAL_SKILL_CONTENT,
       })
-      expect(generator.model).toBe('claude-haiku-3-20240307')
-      expect(generator.maxTokens).toBe(4096)
       expect(generator.overwrite).toBe(true)
-      expect(generator.pollIntervalMs).toBe(5000)
-    })
-
-    it('throws when skill file is not found', () => {
-      expect(
-        () =>
-          new AiMetadataGenerator({
-            apiKey: 'test-key',
-            skillPath: '/nonexistent/path/EIVU_METADATA_SKILL.md',
-          }),
-      ).toThrow('EIVU metadata skill file not found')
     })
   })
 
   describe('generate', () => {
     it('returns empty array for empty input', async () => {
-      const generator = new AiMetadataGenerator({
+      const generator = new MetadataGenerator({
         apiKey: 'test-key',
         skillContent: MINIMAL_SKILL_CONTENT,
       })
@@ -151,7 +141,7 @@ describe('AiMetadataGenerator', () => {
         await fsp.writeFile(yml1, 'name: existing1')
         await fsp.writeFile(yml2, 'name: existing2')
 
-        const generator = new AiMetadataGenerator({
+        const generator = new MetadataGenerator({
           apiKey: 'test-key',
           overwrite: false,
           skillContent: MINIMAL_SKILL_CONTENT,
@@ -189,5 +179,64 @@ describe('AiMetadataGenerator', () => {
       const expectedOutput = `${filePath}${METADATA_YML_SUFFIX}`
       expect(expectedOutput).toBe('/Users/jinx/queue/video.mp4.eivu.yml')
     })
+  })
+})
+
+describe('ClaudeAgent', () => {
+  it('accepts skillContent directly', () => {
+    const agent = new ClaudeAgent({
+      apiKey: 'test-key',
+      skillContent: MINIMAL_SKILL_CONTENT,
+    })
+    expect(agent.model).toBe('claude-sonnet-4-20250514')
+    expect(agent.maxTokens).toBe(8192)
+    expect(agent.pollIntervalMs).toBe(30_000)
+  })
+
+  it('accepts custom model and options', () => {
+    const agent = new ClaudeAgent({
+      apiKey: 'test-key',
+      maxTokens: 4096,
+      model: 'claude-haiku-3-20240307',
+      pollIntervalMs: 5000,
+      skillContent: MINIMAL_SKILL_CONTENT,
+    })
+    expect(agent.model).toBe('claude-haiku-3-20240307')
+    expect(agent.maxTokens).toBe(4096)
+    expect(agent.pollIntervalMs).toBe(5000)
+  })
+
+  it('throws when skill file is not found', () => {
+    expect(
+      () =>
+        new ClaudeAgent({
+          apiKey: 'test-key',
+          skillPath: '/nonexistent/path/EIVU_METADATA_SKILL.md',
+        }),
+    ).toThrow('EIVU metadata skill file not found')
+  })
+})
+
+describe('OpenAIAgent', () => {
+  it('constructs with default model', () => {
+    const agent = new OpenAIAgent({apiKey: 'test-key'})
+    expect(agent.model).toBe('gpt-4o')
+  })
+
+  it('throws not implemented on processRequests', async () => {
+    const agent = new OpenAIAgent({apiKey: 'test-key'})
+    await expect(agent.processRequests([])).rejects.toThrow('not yet implemented')
+  })
+})
+
+describe('GeminiAgent', () => {
+  it('constructs with default model', () => {
+    const agent = new GeminiAgent({apiKey: 'test-key'})
+    expect(agent.model).toBe('gemini-2.0-flash')
+  })
+
+  it('throws not implemented on processRequests', async () => {
+    const agent = new GeminiAgent({apiKey: 'test-key'})
+    await expect(agent.processRequests([])).rejects.toThrow('not yet implemented')
   })
 })
