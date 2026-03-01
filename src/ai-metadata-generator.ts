@@ -10,12 +10,6 @@ const DEFAULT_MODEL = 'claude-sonnet-4-20250514'
 const DEFAULT_MAX_TOKENS = 8192
 const DEFAULT_POLL_INTERVAL_MS = 30_000
 
-const COMIC_EXTENSIONS = new Set(['.cbr', '.cbz', '.pdf'])
-const AUDIO_EXTENSIONS = new Set(['.m4a', '.mp3', '.flac'])
-const VIDEO_EXTENSIONS = new Set(['.mp4', '.mkv', '.avi'])
-
-type MediaType = 'audio' | 'comic' | 'unknown' | 'video'
-
 type CachedTextBlock = {
   cache_control: {type: 'ephemeral'}
   text: string
@@ -60,63 +54,9 @@ export type AiMetadataGeneratorOptions = {
   skillPath?: string
 }
 
-export function detectMediaType(filePath: string): MediaType {
-  const ext = path.extname(filePath).toLowerCase()
-  if (COMIC_EXTENSIONS.has(ext)) return 'comic'
-  if (AUDIO_EXTENSIONS.has(ext)) return 'audio'
-  if (VIDEO_EXTENSIONS.has(ext)) return 'video'
-  return 'unknown'
-}
-
-export function cleanFilenameForSearch(filename: string): string {
-  return filename
-    .replace(/\.eivu_compressed/g, '')
-    .replace(/\.[^.]+$/, '')
-    .replace(/_/g, ' ')
-}
-
 export function buildUserMessage(filePath: string): string {
   const filename = path.basename(filePath)
-  const ext = path.extname(filePath).toLowerCase()
-  const mediaType = detectMediaType(filePath)
-  const searchName = cleanFilenameForSearch(filename)
-
-  const mediaInstructions: Record<MediaType, string> = {
-    audio: [
-      'Research this audio track using your knowledge.',
-      'Identify the track title, artist(s), album, year, genre, producer(s), label, duration (in seconds), and track position.',
-      'Follow all audio-specific rules from the system prompt including the id3: prefix convention and artists/release top-level structure.',
-    ].join(' '),
-    comic: [
-      'Research this comic using your knowledge.',
-      'Identify the series, issue number, publisher, writer(s), artist(s), characters, year, universe, franchise, and any award history.',
-      'Follow all comic-specific rules from the system prompt including character disambiguation, season mapping, and award tags.',
-    ].join(' '),
-    unknown:
-      'Research this file using your knowledge and generate appropriate YAML metadata following all applicable rules from the system prompt.',
-    video: [
-      'Research this video using your knowledge.',
-      'Identify the title, creator(s), year, genre, platform (if applicable), and description.',
-      'Follow all video-specific rules from the system prompt including the artists top-level structure.',
-    ].join(' '),
-  }
-
-  return [
-    'Generate a complete .eivu.yml metadata file for the following file.',
-    '',
-    `**Filename:** ${filename}`,
-    `**File extension:** ${ext}`,
-    `**Media type:** ${mediaType}`,
-    `**Search query:** ${searchName}`,
-    '',
-    mediaInstructions[mediaType],
-    '',
-    'The filename may contain encoding artifacts like ".eivu_compressed" which should be ignored when identifying the content.',
-    `Use "${searchName}" as the basis for identifying this content.`,
-    '',
-    'Output ONLY valid YAML content. Do not wrap in markdown code blocks (```). Do not include any explanation, preamble, or commentary before or after the YAML.',
-    'The response must start with a YAML field (like "name:") and end with the last YAML value.',
-  ].join('\n')
+  return `Using this runtime, please create an eivu file for ${filename}`
 }
 
 export function extractYamlFromResponse(content: Array<{text?: string; type: string}>): string {

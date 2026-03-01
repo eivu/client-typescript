@@ -1,9 +1,7 @@
-import {describe, expect, it, jest, beforeEach, afterEach} from '@jest/globals'
+import {describe, expect, it, jest} from '@jest/globals'
 import {
   AiMetadataGenerator,
   buildUserMessage,
-  cleanFilenameForSearch,
-  detectMediaType,
   extractYamlFromResponse,
 } from '@src/ai-metadata-generator'
 import {METADATA_YML_SUFFIX} from '@src/constants'
@@ -14,110 +12,32 @@ import path from 'node:path'
 const MINIMAL_SKILL_CONTENT = '# EIVU Metadata Runtime v7.16.1\nMinimal test content'
 
 describe('AiMetadataGenerator helpers', () => {
-  describe('detectMediaType', () => {
-    it.each([
-      ['/path/to/Space_Adventures_033.cbr', 'comic'],
-      ['/path/to/Batman_001.cbz', 'comic'],
-      ['/path/to/handbook.pdf', 'comic'],
-      ['file.CBR', 'comic'],
-      ['file.CBZ', 'comic'],
-    ])('detects comic files: %s → %s', (input, expected) => {
-      expect(detectMediaType(input)).toBe(expected)
-    })
-
-    it.each([
-      ['/path/to/track.mp3', 'audio'],
-      ['/path/to/song.m4a', 'audio'],
-      ['/path/to/album.flac', 'audio'],
-      ['file.MP3', 'audio'],
-    ])('detects audio files: %s → %s', (input, expected) => {
-      expect(detectMediaType(input)).toBe(expected)
-    })
-
-    it.each([
-      ['/path/to/video.mp4', 'video'],
-      ['/path/to/movie.mkv', 'video'],
-      ['/path/to/clip.avi', 'video'],
-      ['file.MKV', 'video'],
-    ])('detects video files: %s → %s', (input, expected) => {
-      expect(detectMediaType(input)).toBe(expected)
-    })
-
-    it.each([
-      ['/path/to/readme.txt', 'unknown'],
-      ['/path/to/image.png', 'unknown'],
-      ['/path/to/data.json', 'unknown'],
-      ['noextension', 'unknown'],
-    ])('returns unknown for unrecognized: %s → %s', (input, expected) => {
-      expect(detectMediaType(input)).toBe(expected)
-    })
-  })
-
-  describe('cleanFilenameForSearch', () => {
-    it('removes .eivu_compressed and extension, replaces underscores', () => {
-      expect(cleanFilenameForSearch('Space_Adventures_033.eivu_compressed.cbr')).toBe('Space Adventures 033')
-    })
-
-    it('handles filenames without .eivu_compressed', () => {
-      expect(cleanFilenameForSearch('Batman_001.cbz')).toBe('Batman 001')
-    })
-
-    it('replaces underscores with spaces', () => {
-      expect(cleanFilenameForSearch('Hello_World_Track.mp3')).toBe('Hello World Track')
-    })
-
-    it('removes file extension', () => {
-      expect(cleanFilenameForSearch('simple.flac')).toBe('simple')
-    })
-
-    it('handles multiple .eivu_compressed occurrences', () => {
-      expect(cleanFilenameForSearch('file.eivu_compressed.eivu_compressed.cbr')).toBe('file')
-    })
-
-    it('handles hyphens (does not replace them)', () => {
-      expect(cleanFilenameForSearch('Iron-Man_001.cbr')).toBe('Iron-Man 001')
-    })
-  })
-
   describe('buildUserMessage', () => {
-    it('includes filename and extension for comic files', () => {
+    it('includes the basename of the file path', () => {
       const msg = buildUserMessage('/Users/jinx/queue/Space_Adventures_033.eivu_compressed.cbr')
-      expect(msg).toContain('**Filename:** Space_Adventures_033.eivu_compressed.cbr')
-      expect(msg).toContain('**File extension:** .cbr')
-      expect(msg).toContain('**Media type:** comic')
-      expect(msg).toContain('**Search query:** Space Adventures 033')
+      expect(msg).toContain('Space_Adventures_033.eivu_compressed.cbr')
     })
 
-    it('includes comic-specific instructions for .cbr files', () => {
-      const msg = buildUserMessage('/path/to/Batman_001.cbr')
-      expect(msg).toContain('character disambiguation')
-      expect(msg).toContain('season mapping')
-      expect(msg).toContain('award tags')
+    it('strips the directory, only includes the filename', () => {
+      const msg = buildUserMessage('/Users/jinx/queue/deep/nested/Batman_001.cbz')
+      expect(msg).not.toContain('/Users/jinx/queue/deep/nested/')
+      expect(msg).toContain('Batman_001.cbz')
     })
 
-    it('includes audio-specific instructions for .mp3 files', () => {
-      const msg = buildUserMessage('/path/to/track.mp3')
-      expect(msg).toContain('**Media type:** audio')
-      expect(msg).toContain('id3: prefix convention')
-      expect(msg).toContain('artists/release top-level structure')
+    it('works for audio files', () => {
+      const msg = buildUserMessage('/path/to/song.mp3')
+      expect(msg).toContain('song.mp3')
     })
 
-    it('includes video-specific instructions for .mp4 files', () => {
-      const msg = buildUserMessage('/path/to/video.mp4')
-      expect(msg).toContain('**Media type:** video')
-      expect(msg).toContain('artists top-level structure')
+    it('works for video files', () => {
+      const msg = buildUserMessage('/path/to/clip.mp4')
+      expect(msg).toContain('clip.mp4')
     })
 
-    it('uses generic instructions for unknown file types', () => {
-      const msg = buildUserMessage('/path/to/file.txt')
-      expect(msg).toContain('**Media type:** unknown')
-      expect(msg).toContain('all applicable rules')
-    })
-
-    it('instructs to output YAML only with no code fences', () => {
+    it('asks to create an eivu file', () => {
       const msg = buildUserMessage('/path/to/file.cbr')
-      expect(msg).toContain('Output ONLY valid YAML content')
-      expect(msg).toContain('Do not wrap in markdown code blocks')
+      expect(msg.toLowerCase()).toContain('eivu')
+      expect(msg.toLowerCase()).toContain('runtime')
     })
   })
 
