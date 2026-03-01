@@ -1,5 +1,7 @@
 import type {AgentOptions, AgentRequest, AgentResult, BatchProgress} from '@src/ai/types'
 
+import path from 'node:path'
+
 /** Default values for agent configuration (maxTokens, model, pollIntervalMs). */
 export type AgentDefaults = {
   maxTokens: number
@@ -29,7 +31,7 @@ export function extractYamlFromResponse(content: Array<{text?: string; type: str
  * @returns Message string asking the agent to create an eivu file for the filename
  */
 export function buildUserMessage(filePath: string): string {
-  const filename = filePath.split('/').pop() ?? filePath
+  const filename = path.basename(filePath)
   return `Using this runtime, please create an eivu file for ${filename}`
 }
 
