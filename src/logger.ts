@@ -2,6 +2,7 @@ import pino from 'pino'
 
 const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined
 
+/** Pino logger instance used across the application. */
 export type Logger = pino.Logger
 
 // In test environment, use synchronous destination for immediate output

@@ -1,8 +1,9 @@
 /**
- * Environment variable validation and access
- * Ensures all required environment variables are present before use
+ * Environment variable validation and access.
+ * Ensures all required environment variables are present before use.
  */
 
+/** Validated EIVU environment variables (all required and non-empty). */
 interface ValidatedEnv {
   EIVU_ACCESS_KEY_ID: string
   EIVU_BUCKET_NAME: string
