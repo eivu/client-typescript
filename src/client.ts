@@ -27,26 +27,41 @@ import * as fsPromise from 'node:fs/promises'
 import path from 'node:path'
 import pLimit from 'p-limit'
 
+/**
+ * Base parameters shared by upload operations (metadata, NSFW, secured flags).
+ */
 type BaseParams = {
   metadataList?: MetadataPair[]
   nsfw?: boolean
   secured?: boolean
 }
 
+/**
+ * Parameters for bulk updating cloud files from .eivu.yml metadata files in a folder.
+ */
 type BulkUpdateCloudFilesParams = {
   concurrency?: number
   pathToFolder: string
 }
 
+/**
+ * Parameters for uploading a single local file.
+ */
 type UploadFileParams = BaseParams & {
   pathToFile: string
 }
 
+/**
+ * Parameters for uploading all files in a folder.
+ */
 type UploadFolderParams = BaseParams & {
   concurrency?: number
   pathToFolder: string
 }
 
+/**
+ * Parameters for uploading a file from a remote URL (download then upload).
+ */
 type UploadRemoteFileParams = BaseParams & {
   assetFilename?: string
   downloadUrl: string
@@ -62,6 +77,7 @@ type UploadRemoteFileParams = BaseParams & {
  * individual files or entire folders with configurable concurrency and metadata
  */
 export class Client {
+  /** File extensions that are skipped during folder uploads (e.g. .cue, .eivu.yml, .log). */
   static SKIPPABLE_EXTENSIONS: string[] = [
     'ds_store',
     'gitignore',
@@ -80,9 +96,12 @@ export class Client {
     'db.lo',
     'db.lo.1',
   ]
+  /** Folder names that are skipped during recursive folder uploads. */
   static SKIPPABLE_FOLDERS: string[] = ['.git', 'podcasts']
+  /** Logger instance for upload/update operations. */
   logger: Logger
 
+  /** Creates a new Client with the default logger. */
   constructor() {
     this.logger = logger
   }
@@ -142,6 +161,17 @@ export class Client {
     return client.uploadFolder({concurrency, metadataList, nsfw, pathToFolder, secured})
   }
 
+  /**
+   * Static helper to upload a file from a remote URL (downloads then uploads to cloud storage).
+   * @param params - Upload parameters
+   * @param params.assetFilename - Optional filename for the asset (defaults to last segment of downloadUrl)
+   * @param params.downloadUrl - URL to download the file from (must be reachable)
+   * @param params.metadataProfile - Optional metadata profile for the file
+   * @param params.nsfw - Optional NSFW flag (default: false)
+   * @param params.secured - Optional secured flag (default: false)
+   * @param params.sourceUrl - Optional source URL (defaults to downloadUrl)
+   * @returns The CloudFile instance representing the uploaded file
+   */
   static async uploadRemoteFile({
     assetFilename,
     downloadUrl,
@@ -154,6 +184,12 @@ export class Client {
     return client.uploadRemoteFile({assetFilename, downloadUrl, metadataProfile, nsfw, secured, sourceUrl})
   }
 
+  /**
+   * Static helper to process a queue of remote uploads from a JSONL file (one JSON object per line).
+   * @param pathToJson - Path to the JSONL file containing upload entries (downloadUrl, sourceUrl, etc.)
+   * @param concurrency - Number of concurrent uploads (default: 3)
+   * @returns Promise resolving to an array of status messages for each upload
+   */
   static async uploadRemoteQueue(pathToJson: string, concurrency = 3): Promise<string[]> {
     const client = new Client()
     return client.uploadRemoteQueue(pathToJson, concurrency)
@@ -301,6 +337,17 @@ export class Client {
     return Promise.all(uploadPromises)
   }
 
+  /**
+   * Uploads a file from a remote URL: verifies URLs, reserves/fetches cloud file, transfers, then completes.
+   * @param params - Upload parameters
+   * @param params.assetFilename - Optional filename for the asset (defaults to last segment of downloadUrl)
+   * @param params.downloadUrl - URL to download the file from (must be reachable)
+   * @param params.metadataProfile - Optional metadata profile for the file
+   * @param params.nsfw - Optional NSFW flag (default: false)
+   * @param params.secured - Optional secured flag (default: false)
+   * @param params.sourceUrl - Optional source URL (defaults to downloadUrl)
+   * @returns The CloudFile instance representing the uploaded file
+   */
   async uploadRemoteFile({
     assetFilename,
     downloadUrl,
@@ -365,6 +412,12 @@ export class Client {
     return cloudFile
   }
 
+  /**
+   * Processes a queue of remote uploads from a JSONL file.
+   * @param pathToJson - Path to the JSONL file (one JSON object per line)
+   * @param concurrency - Number of concurrent uploads (default: 3)
+   * @returns Promise resolving to an array of status messages
+   */
   async uploadRemoteQueue(pathToJson: string, concurrency = 3): Promise<string[]> {
     pathToJson = validateFilePath(pathToJson)
     const fileContent = await fsPromise.readFile(pathToJson, 'utf8')

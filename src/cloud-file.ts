@@ -147,6 +147,11 @@ export class CloudFile {
     return this.remoteAttr.state === CloudFileState.COMPLETED
   }
 
+  /**
+   * Deletes the cloud file on the server.
+   * @returns Promise resolving to true on success (204)
+   * @throws Error if the delete request does not return 204
+   */
   async delete(): Promise<boolean> {
     const result = await api.delete(`/cloud_files/${this.remoteAttr.md5}`)
     if (result.status !== 204) {
@@ -246,6 +251,12 @@ export class CloudFile {
     return this.updateData({action: 'update_metadata', dataProfile})
   }
 
+  /**
+   * Updates the cloud file's MD5 on the server, or fetches the existing file if a conflict (409) occurs.
+   * @param md5 - The target MD5 to update to
+   * @returns This CloudFile with updated remoteAttr, or fetched data on conflict
+   * @throws Error for non-409 failures
+   */
   async updateOrFetch(md5: string): Promise<CloudFile> {
     const {asset, filesize} = this.remoteAttr
     try {
@@ -308,6 +319,12 @@ export class CloudFile {
     }
   }
 
+  /**
+   * Updates the cloud file's MD5 on the server (move/rename by content).
+   * @param md5 - The target MD5 to update to
+   * @returns This CloudFile with updated remoteAttr
+   * @private
+   */
   private async update(md5: string): Promise<CloudFile> {
     const {asset, filesize} = this.remoteAttr
     const {data} = await api.patch(`/cloud_files/${this.remoteAttr.md5}`, {target_md5: md5})

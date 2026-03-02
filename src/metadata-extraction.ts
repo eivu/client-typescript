@@ -37,6 +37,7 @@ export type AcoustidFingerprint = {
   fingerprint: string
 }
 
+/** A single metadata key-value pair (e.g. tag name and value). */
 export type MetadataPair = Record<string, number | string>
 
 /**
