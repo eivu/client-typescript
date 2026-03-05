@@ -17,7 +17,7 @@ export default class Upload extends Command {
 
   public async run(): Promise<void> {
     const {args, flags} = await this.parse(Upload)
-    const {nsfw, secured, filename} = flags
+    const {filename, nsfw, secured} = flags
     const {path} = args
     const securedValue = secured ?? false
     const nsfwValue = secured ?? nsfw ?? false
