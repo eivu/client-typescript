@@ -9,11 +9,11 @@ import path from 'node:path'
 const MAX_BATCH_SIZE = 10_000
 const CLAUDE_DEFAULTS = {
   maxTokens: 8192,
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-opus-4-6',
   pollIntervalMs: 30_000,
 } as const
 
-const DEFAULT_SKILL_PATH = path.join('src', 'ai', 'prompts', 'claude', 'EIVU_METADATA_SKILL_v7_16_1_RUNTIME.md')
+const DEFAULT_SKILL_PATH = path.join('src', 'ai', 'prompts', 'claude', 'EIVU_METADATA_SKILL_v7_16_2_RUNTIME.md')
 
 /** System prompt block with optional cache control for Anthropic API. */
 type CachedTextBlock = {
@@ -99,9 +99,7 @@ export class ClaudeAgent extends BaseAgent {
       }
 
       if (entry.result.type === 'succeeded') {
-        const yaml = extractYamlFromResponse(
-          entry.result.message.content as Array<{text?: string; type: string}>,
-        )
+        const yaml = extractYamlFromResponse(entry.result.message.content as Array<{text?: string; type: string}>)
         results.push({customId: entry.custom_id, status: 'success', yaml})
       } else {
         const errorMsg = ClaudeAgent.formatBatchError(entry.result)

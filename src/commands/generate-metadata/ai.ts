@@ -40,6 +40,9 @@ export default class GenerateMetadataAi extends Command {
       } else if (stats.isDirectory()) {
         this.log('folders not supported yet, please provide a path to a file')
         return
+      } else {
+        this.log('Path is neither a file nor a directory.')
+        return
       }
     } else {
       this.log('Path does not exist, please provide a path to a file or folder to generate metadata for.')
