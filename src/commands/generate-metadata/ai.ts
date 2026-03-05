@@ -41,6 +41,9 @@ export default class GenerateMetadataAi extends Command {
         this.log('folders not supported yet, please provide a path to a file')
         return
       }
+    } else {
+      this.log('Path does not exist, please provide a path to a file or folder to generate metadata for.')
+      return
     }
 
     const results = await MetadataGenerator.generate(pathsArray, {
