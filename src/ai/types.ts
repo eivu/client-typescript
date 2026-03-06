@@ -47,6 +47,8 @@ export type AgentOptions = {
   pollIntervalMs?: number
   skillContent?: string
   skillPath?: string
+  /** Max web searches per request (default 10). Set to 0 to disable web search. */
+  webSearchMaxUses?: number
 }
 
 /** Options for MetadataGenerator: agent type, overwrite flag, plus AgentOptions. */
