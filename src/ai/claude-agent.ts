@@ -9,7 +9,7 @@ import path from 'node:path'
 const MAX_BATCH_SIZE = 10_000
 const CLAUDE_DEFAULTS = {
   maxTokens: 16_384,
-  model: 'claude-sonnet-4-6',
+  model: 'claude-opus-4-6',
   pollIntervalMs: 30_000,
 } as const
 
@@ -51,17 +51,14 @@ export class ClaudeAgent extends BaseAgent {
     // what a book collects, its full creative team, character appearances,
     // and critical reception before generating YAML.
     const webSearchMaxUses = options.webSearchMaxUses ?? 10
-    this.tools =
-      webSearchMaxUses > 0
-        ? [
-            {
-              // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
-              max_uses: webSearchMaxUses,
-              name: 'web_search' as const,
-              type: 'web_search_20250305' as const,
-            },
-          ]
-        : []
+    this.tools = webSearchMaxUses > 0
+      ? [{
+          // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
+          max_uses: webSearchMaxUses,
+          name: 'web_search' as const,
+          type: 'web_search_20250305' as const,
+        }]
+      : []
 
     let skillContent: string
     if (options.skillContent) {

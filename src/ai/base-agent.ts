@@ -10,8 +10,17 @@ export type AgentDefaults = {
 }
 
 /**
- * Extracts YAML from an LLM response, stripping markdown code fences if present.
- * Shared across all agent implementations since any model may wrap YAML in fences.
+ * Extracts YAML from an LLM response, stripping markdown code fences and any
+ * research/reasoning prose the model may have emitted before the actual YAML.
+ *
+ * When web search is enabled, the model often outputs its research summary and
+ * checklist reasoning as plain text before the YAML. This function detects the
+ * YAML start (the `name:` top-level key) and discards everything before it.
+ *
+ * Extraction priority:
+ *   1. Fenced YAML block (```yaml ... ```)
+ *   2. YAML detected by top-level `name:` key — everything before it is stripped
+ *   3. Full text as-is (fallback)
  */
 export function extractYamlFromResponse(content: Array<{text?: string; type: string}>): string {
   const text = content
@@ -19,9 +28,34 @@ export function extractYamlFromResponse(content: Array<{text?: string; type: str
     .map((block) => block.text)
     .join('\n')
 
+  // 1. Prefer fenced YAML blocks — cleanest signal
   const fenced = text.match(/```(?:ya?ml)?\n?([\s\S]*?)```/)
   if (fenced) return fenced[1].trim()
 
+  // 2. Detect YAML by the required top-level `name:` key at the start of a line.
+  //    The model may emit research prose, a "Now generating:" preamble, or checklist
+  //    notes before the actual YAML. We find the LAST occurrence of a line starting
+  //    with `name:` (not indented, not inside backticks) — that's the real YAML start.
+  //    We use the last match because earlier occurrences may be inline references
+  //    like `name: \`Doctor Fate...\`` inside reasoning prose.
+  const lines = text.split('\n')
+  let yamlStartIndex = -1
+
+  for (let i = lines.length - 1; i >= 0; i--) {
+    // Match `name:` at the start of the line, followed by a space and a non-backtick char
+    // (to exclude reasoning lines like "name: `Some Title`")
+    if (/^name:\s+[^`]/.test(lines[i])) {
+      yamlStartIndex = i
+      break
+    }
+  }
+
+  if (yamlStartIndex > 0) {
+    // Found YAML start after some prose — strip the prose
+    return lines.slice(yamlStartIndex).join('\n').trim()
+  }
+
+  // 3. Fallback — return the full text trimmed
   return text.trim()
 }
 
