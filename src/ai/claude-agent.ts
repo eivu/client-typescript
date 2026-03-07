@@ -1,7 +1,7 @@
 import type {AgentOptions, AgentRequest, AgentResult} from '@src/ai/types'
 
 import Anthropic from '@anthropic-ai/sdk'
-import {BaseAgent, extractYamlFromResponse} from '@src/ai/base-agent'
+import {BaseAgent, extractYamlFromResponse, postProcessAiEngine} from '@src/ai/base-agent'
 import logger from '@src/logger'
 import * as fs from 'node:fs'
 import path from 'node:path'
@@ -125,7 +125,8 @@ export class ClaudeAgent extends BaseAgent {
       }
 
       if (entry.result.type === 'succeeded') {
-        const yaml = extractYamlFromResponse(entry.result.message.content as Array<{text?: string; type: string}>)
+        const rawYaml = extractYamlFromResponse(entry.result.message.content as Array<{text?: string; type: string}>)
+        const yaml = postProcessAiEngine(rawYaml, this.model)
         results.push({customId: entry.custom_id, status: 'success', yaml})
       } else {
         const errorMsg = ClaudeAgent.formatBatchError(entry.result)

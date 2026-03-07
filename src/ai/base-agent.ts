@@ -60,6 +60,20 @@ export function extractYamlFromResponse(content: Array<{text?: string; type: str
 }
 
 /**
+ * Post-processes generated YAML so that any line starting with `- ai:engine:` has
+ * its value set to the actual model used for the request. Claude may emit a
+ * placeholder or wrong model name; this ensures the written .eivu.yml reflects
+ * the engine that produced it.
+ *
+ * @param yaml - Raw YAML string (e.g. from extractYamlFromResponse)
+ * @param model - Model identifier (e.g. 'claude-opus-4-6')
+ * @returns YAML with ai:engine lines normalized to the given model
+ */
+export function postProcessAiEngine(yaml: string, model: string): string {
+  return yaml.replace(/^(- ai:engine:\s*)[^\n]*/gm, `$1${model}`)
+}
+
+/**
  * Builds the user message sent to the agent for a given file path (filename only, no path).
  * Includes a structured research workflow to ensure the agent verifies the book's identity,
  * creative team, characters, and critical reception via web search before generating YAML.
