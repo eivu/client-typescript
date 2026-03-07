@@ -60,17 +60,15 @@ export function extractYamlFromResponse(content: Array<{text?: string; type: str
 }
 
 /**
- * Post-processes generated YAML so that any line starting with `- ai:engine:` has
- * its value set to the actual model used for the request. Claude may emit a
- * placeholder or wrong model name; this ensures the written .eivu.yml reflects
- * the engine that produced it.
+ * Post-processes generated YAML before it is written. Applies normalization rules
+ * (e.g. ai:engine set to the actual model). More rules may be added over time.
  *
  * @param yaml - Raw YAML string (e.g. from extractYamlFromResponse)
  * @param model - Model identifier (e.g. 'claude-opus-4-6')
- * @returns YAML with ai:engine lines normalized to the given model
+ * @returns Post-processed YAML
  */
-export function postProcessAiEngine(yaml: string, model: string): string {
-  return yaml.replace(/^(- ai:engine:\s*)[^\n]*/gm, `$1${model}`)
+export function postProcess(yaml: string, model: string): string {
+  return yaml.replace(/^(\s*- ai:engine:\s*)[^\n]*/gm, `$1${model}`)
 }
 
 /**

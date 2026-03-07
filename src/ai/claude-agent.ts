@@ -1,7 +1,7 @@
 import type {AgentOptions, AgentRequest, AgentResult} from '@src/ai/types'
 
 import Anthropic from '@anthropic-ai/sdk'
-import {BaseAgent, extractYamlFromResponse, postProcessAiEngine} from '@src/ai/base-agent'
+import {BaseAgent, extractYamlFromResponse, postProcess} from '@src/ai/base-agent'
 import logger from '@src/logger'
 import * as fs from 'node:fs'
 import path from 'node:path'
@@ -9,7 +9,7 @@ import path from 'node:path'
 const MAX_BATCH_SIZE = 10_000
 const CLAUDE_DEFAULTS = {
   maxTokens: 16_384,
-  model: 'claude-opus-4-6',
+  model: 'claude-sonnet-4-6',
   pollIntervalMs: 30_000,
 } as const
 
@@ -51,14 +51,17 @@ export class ClaudeAgent extends BaseAgent {
     // what a book collects, its full creative team, character appearances,
     // and critical reception before generating YAML.
     const webSearchMaxUses = options.webSearchMaxUses ?? 10
-    this.tools = webSearchMaxUses > 0
-      ? [{
-          // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
-          max_uses: webSearchMaxUses,
-          name: 'web_search' as const,
-          type: 'web_search_20250305' as const,
-        }]
-      : []
+    this.tools =
+      webSearchMaxUses > 0
+        ? [
+            {
+              // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
+              max_uses: webSearchMaxUses,
+              name: 'web_search' as const,
+              type: 'web_search_20250305' as const,
+            },
+          ]
+        : []
 
     let skillContent: string
     if (options.skillContent) {
@@ -126,7 +129,7 @@ export class ClaudeAgent extends BaseAgent {
 
       if (entry.result.type === 'succeeded') {
         const rawYaml = extractYamlFromResponse(entry.result.message.content as Array<{text?: string; type: string}>)
-        const yaml = postProcessAiEngine(rawYaml, this.model)
+        const yaml = postProcess(rawYaml, this.model)
         results.push({customId: entry.custom_id, status: 'success', yaml})
       } else {
         const errorMsg = ClaudeAgent.formatBatchError(entry.result)
