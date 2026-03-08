@@ -9,11 +9,11 @@ import path from 'node:path'
 const MAX_BATCH_SIZE = 10_000
 const CLAUDE_DEFAULTS = {
   maxTokens: 16_384,
-  model: 'claude-sonnet-4-6',
+  model: 'claude-opus-4-6',
   pollIntervalMs: 30_000,
 } as const
 
-const DEFAULT_SKILL_PATH = path.join('src', 'ai', 'prompts', 'claude', 'EIVU_METADATA_SKILL_v7_16_2_RUNTIME.md')
+const DEFAULT_SKILL_PATH = path.join('src', 'ai', 'prompts', 'claude', 'EIVU_METADATA_SKILL_v7_16_3_RUNTIME.md')
 
 /**
  * Anthropic web search tool definition.
