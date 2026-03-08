@@ -1,5 +1,6 @@
 import type {AgentOptions, AgentRequest, AgentResult, BatchProgress} from '@src/ai/types'
 
+import {addMissingParentFranchises} from '@src/ai/franchise-hierarchy'
 import path from 'node:path'
 
 /** Default values for agent configuration (maxTokens, model, pollIntervalMs). */
@@ -60,15 +61,26 @@ export function extractYamlFromResponse(content: Array<{text?: string; type: str
 }
 
 /**
- * Post-processes generated YAML before it is written. Applies normalization rules
- * (e.g. ai:engine set to the actual model). More rules may be added over time.
+ * Post-processes generated YAML before it is written. Applies normalization rules:
+ *   1. Ensures ai:engine matches the actual model used.
+ *   2. Adds missing parent franchises from the franchise hierarchy.
+ *
+ * More rules may be added over time.
  *
  * @param yaml - Raw YAML string (e.g. from extractYamlFromResponse)
  * @param model - Model identifier (e.g. 'claude-opus-4-6')
  * @returns Post-processed YAML
  */
 export function postProcess(yaml: string, model: string): string {
-  return yaml.replace(/^(\s*- ai:engine:\s*)[^\n]*/gm, `$1${model}`)
+  let result = yaml
+
+  // 1. Fix ai:engine to match the actual model
+  result = result.replace(/^(\s*- ai:engine:\s*)[^\n]*/gm, `$1${model}`)
+
+  // 2. Add missing parent franchises
+  result = addMissingParentFranchises(result)
+
+  return result
 }
 
 /**
