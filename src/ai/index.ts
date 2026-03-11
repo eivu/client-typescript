@@ -1,3 +1,4 @@
+export {deriveAwardTags, normalizeAwardTags} from '@src/ai/award-tags'
 export {BaseAgent, buildUserMessage, extractYamlFromResponse, postProcess} from '@src/ai/base-agent'
 export {ClaudeAgent} from '@src/ai/claude-agent'
 export {addMissingParentFranchises, resolveParentFranchises} from '@src/ai/franchise-hierarchy'

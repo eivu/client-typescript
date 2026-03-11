@@ -1,5 +1,6 @@
 import type {AgentOptions, AgentRequest, AgentResult, BatchProgress} from '@src/ai/types'
 
+import {normalizeAwardTags} from '@src/ai/award-tags'
 import {addMissingParentFranchises} from '@src/ai/franchise-hierarchy'
 import path from 'node:path'
 
@@ -64,6 +65,7 @@ export function extractYamlFromResponse(content: Array<{text?: string; type: str
  * Post-processes generated YAML before it is written. Applies normalization rules:
  *   1. Ensures ai:engine matches the actual model used.
  *   2. Adds missing parent franchises from the franchise hierarchy.
+ *   3. Normalizes award tags (derives implied Nominee/series/recognized tags).
  *
  * More rules may be added over time.
  *
@@ -79,6 +81,9 @@ export function postProcess(yaml: string, model: string): string {
 
   // 2. Add missing parent franchises
   result = addMissingParentFranchises(result)
+
+  // 3. Normalize award tags
+  result = normalizeAwardTags(result)
 
   return result
 }
