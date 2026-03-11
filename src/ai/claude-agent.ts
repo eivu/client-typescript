@@ -1,19 +1,30 @@
 import type {AgentOptions, AgentRequest, AgentResult} from '@src/ai/types'
 
 import Anthropic from '@anthropic-ai/sdk'
-import {BaseAgent, extractYamlFromResponse} from '@src/ai/base-agent'
+import {BaseAgent, extractYamlFromResponse, postProcess} from '@src/ai/base-agent'
+import {validateEivuYaml} from '@src/ai/validate-yaml'
 import logger from '@src/logger'
 import * as fs from 'node:fs'
 import path from 'node:path'
 
 const MAX_BATCH_SIZE = 10_000
 const CLAUDE_DEFAULTS = {
-  maxTokens: 8192,
-  model: 'claude-sonnet-4-20250514',
+  maxTokens: 16_384,
+  model: 'claude-opus-4-6',
   pollIntervalMs: 30_000,
 } as const
 
-const DEFAULT_SKILL_PATH = path.join('src', 'ai', 'prompts', 'claude', 'EIVU_METADATA_SKILL_v7_16_1_RUNTIME.md')
+const DEFAULT_SKILL_PATH = path.join('src', 'ai', 'prompts', 'claude', 'EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md')
+
+/**
+ * Anthropic web search tool definition.
+ * Uses the stable tool type; max_uses caps the number of searches per request.
+ */
+type WebSearchTool = {
+  max_uses?: number
+  name: 'web_search'
+  type: 'web_search_20250305'
+}
 
 /** System prompt block with optional cache control for Anthropic API. */
 type CachedTextBlock = {
@@ -25,14 +36,33 @@ type CachedTextBlock = {
 /**
  * Agent implementation using Anthropic's Claude API (Messages Batches).
  * Loads the EIVU metadata skill from a file or skillContent and processes requests in batches.
+ * Enables web search by default so the model can verify book identity, creative teams,
+ * character appearances, and critical reception before generating metadata.
  */
 export class ClaudeAgent extends BaseAgent {
   private client: Anthropic
   private systemPromptBlocks: CachedTextBlock[]
+  private tools: WebSearchTool[]
 
   constructor(options: AgentOptions = {}) {
     super(options, CLAUDE_DEFAULTS)
     this.client = new Anthropic({apiKey: options.apiKey})
+
+    // Web search is critical for accurate metadata — the model must verify
+    // what a book collects, its full creative team, character appearances,
+    // and critical reception before generating YAML.
+    const webSearchMaxUses = options.webSearchMaxUses ?? 10
+    this.tools =
+      webSearchMaxUses > 0
+        ? [
+            {
+              // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
+              max_uses: webSearchMaxUses,
+              name: 'web_search' as const,
+              type: 'web_search_20250305' as const,
+            },
+          ]
+        : []
 
     let skillContent: string
     if (options.skillContent) {
@@ -99,10 +129,15 @@ export class ClaudeAgent extends BaseAgent {
       }
 
       if (entry.result.type === 'succeeded') {
-        const yaml = extractYamlFromResponse(
-          entry.result.message.content as Array<{text?: string; type: string}>,
-        )
-        results.push({customId: entry.custom_id, status: 'success', yaml})
+        const rawYaml = extractYamlFromResponse(entry.result.message.content as Array<{text?: string; type: string}>)
+        const validationError = validateEivuYaml(rawYaml)
+        if (validationError) {
+          results.push({customId: entry.custom_id, error: validationError, status: 'validation_error'})
+          logger.warn({customId: entry.custom_id, error: validationError}, 'YAML validation failed')
+        } else {
+          const yaml = postProcess(rawYaml, this.model)
+          results.push({customId: entry.custom_id, status: 'success', yaml})
+        }
       } else {
         const errorMsg = ClaudeAgent.formatBatchError(entry.result)
         results.push({customId: entry.custom_id, error: errorMsg, status: 'error'})
@@ -159,6 +194,7 @@ export class ClaudeAgent extends BaseAgent {
         messages: [{content: req.userMessage, role: 'user' as const}],
         model: this.model,
         system: this.systemPromptBlocks as Anthropic.MessageCreateParams['system'],
+        ...(this.tools.length > 0 ? {tools: this.tools as unknown as Anthropic.MessageCreateParams['tools']} : {}),
       },
     }))
 

@@ -189,8 +189,8 @@ describe('AI metadata', () => {
       apiKey: 'test-key',
       skillContent: MINIMAL_SKILL_CONTENT,
     })
-    expect(agent.model).toBe('claude-sonnet-4-20250514')
-    expect(agent.maxTokens).toBe(8192)
+    expect(agent.model).toBe('claude-opus-4-6')
+    expect(agent.maxTokens).toBe(16_384)
     expect(agent.pollIntervalMs).toBe(30_000)
   })
 
