@@ -2,6 +2,7 @@ import type {AgentOptions, AgentRequest, AgentResult, BatchProgress} from '@src/
 
 import {normalizeAwardTags} from '@src/ai/award-tags'
 import {addMissingParentFranchises} from '@src/ai/franchise-hierarchy'
+import {applyMechanicalRules} from '@src/ai/postprocess-rules'
 import path from 'node:path'
 
 /** Default values for agent configuration (maxTokens, model, pollIntervalMs). */
@@ -66,8 +67,8 @@ export function extractYamlFromResponse(content: Array<{text?: string; type: str
  *   1. Ensures ai:engine matches the actual model used.
  *   2. Adds missing parent franchises from the franchise hierarchy.
  *   3. Normalizes award tags (derives implied Nominee/series/recognized tags).
- *
- * More rules may be added over time.
+ *   4. Applies mechanical rules (#7, #12, #17, #19, #22, #24) that the model
+ *      is aware of (via violations table) but doesn't need to verify (removed from checklist).
  *
  * @param yaml - Raw YAML string (e.g. from extractYamlFromResponse)
  * @param model - Model identifier (e.g. 'claude-opus-4-6')
@@ -84,6 +85,9 @@ export function postProcess(yaml: string, model: string): string {
 
   // 3. Normalize award tags
   result = normalizeAwardTags(result)
+
+  // 4. Mechanical rules (unquote numbers, remove format:Digital, skill version, zero-pad, genre casing, Masterwork tag)
+  result = applyMechanicalRules(result)
 
   return result
 }

@@ -13,7 +13,7 @@ const CLAUDE_DEFAULTS = {
   pollIntervalMs: 30_000,
 } as const
 
-const DEFAULT_SKILL_PATH = path.join('src', 'ai', 'prompts', 'claude', 'EIVU_METADATA_SKILL_v7_16_3_RUNTIME.md')
+const DEFAULT_SKILL_PATH = path.join('src', 'ai', 'prompts', 'claude', 'EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md')
 
 /**
  * Anthropic web search tool definition.

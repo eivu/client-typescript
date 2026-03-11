@@ -5,6 +5,15 @@ export {addMissingParentFranchises, resolveParentFranchises} from '@src/ai/franc
 export {GeminiAgent} from '@src/ai/gemini-agent'
 export {MetadataGenerator} from '@src/ai/metadata-generator'
 export {OpenAIAgent} from '@src/ai/openai-agent'
+export {
+  applyMechanicalRules,
+  enforceGenreTitleCase,
+  enforceMasterworkTag,
+  enforceSkillVersion,
+  removeFormatDigital,
+  unquoteNumbers,
+  zeroPadNameNumbers,
+} from '@src/ai/postprocess-rules'
 export type {
   AgentOptions,
   AgentRequest,
