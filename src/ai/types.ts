@@ -8,11 +8,11 @@ export type AgentRequest = {
   userMessage: string
 }
 
-/** Result from an agent for one request (success with YAML or error). */
+/** Result from an agent for one request (success with YAML, validation error, or error). */
 export type AgentResult = {
   customId: string
   error?: string
-  status: 'error' | 'success'
+  status: 'error' | 'success' | 'validation_error'
   yaml?: string
 }
 

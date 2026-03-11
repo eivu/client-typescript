@@ -2,6 +2,7 @@ import type {AgentOptions, AgentRequest, AgentResult} from '@src/ai/types'
 
 import Anthropic from '@anthropic-ai/sdk'
 import {BaseAgent, extractYamlFromResponse, postProcess} from '@src/ai/base-agent'
+import {validateEivuYaml} from '@src/ai/validate-yaml'
 import logger from '@src/logger'
 import * as fs from 'node:fs'
 import path from 'node:path'
@@ -129,8 +130,14 @@ export class ClaudeAgent extends BaseAgent {
 
       if (entry.result.type === 'succeeded') {
         const rawYaml = extractYamlFromResponse(entry.result.message.content as Array<{text?: string; type: string}>)
-        const yaml = postProcess(rawYaml, this.model)
-        results.push({customId: entry.custom_id, status: 'success', yaml})
+        const validationError = validateEivuYaml(rawYaml)
+        if (validationError) {
+          results.push({customId: entry.custom_id, error: validationError, status: 'validation_error'})
+          logger.warn({customId: entry.custom_id, error: validationError}, 'YAML validation failed')
+        } else {
+          const yaml = postProcess(rawYaml, this.model)
+          results.push({customId: entry.custom_id, status: 'success', yaml})
+        }
       } else {
         const errorMsg = ClaudeAgent.formatBatchError(entry.result)
         results.push({customId: entry.custom_id, error: errorMsg, status: 'error'})

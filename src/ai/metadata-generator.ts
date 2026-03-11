@@ -6,9 +6,12 @@ import {GeminiAgent} from '@src/ai/gemini-agent'
 import {OpenAIAgent} from '@src/ai/openai-agent'
 import {METADATA_YML_SUFFIX} from '@src/constants'
 import logger from '@src/logger'
+import * as fastCsv from 'fast-csv'
 import * as fs from 'node:fs'
 import {promises as fsp} from 'node:fs'
 import path from 'node:path'
+
+const MAX_VALIDATION_ATTEMPTS = 3
 
 /**
  * Factory that creates the appropriate agent instance for the given type.
@@ -77,6 +80,13 @@ export class MetadataGenerator {
     return `${String(index).padStart(5, '0')}-${basename}`.slice(0, 64)
   }
 
+  private static async logValidationFailure(filePath: string, error: string): Promise<void> {
+    await fsp.mkdir('logs', {recursive: true})
+    const data = [new Date().toISOString(), filePath, error]
+    const csvString = await fastCsv.writeToString([data], {headers: false})
+    await fsp.appendFile('logs/failure.csv', '\n' + csvString.trim())
+  }
+
   /**
    * Generates .eivu.yml metadata for the given file paths.
    * Skips files that already have metadata when overwrite is false; otherwise runs the agent and writes results.
@@ -98,12 +108,69 @@ export class MetadataGenerator {
       'Processing files for AI metadata generation',
     )
 
-    const agentResults = await this.agent.processRequests(requests)
-
     const idToFilePath = new Map(requests.map((r) => [r.customId, {filePath: r.filePath, outputPath: r.outputPath}]))
-    const writeResults = await this.writeResults(agentResults, idToFilePath)
+    const idToRequest = new Map(requests.map((r) => [r.customId, r]))
+    const failureCounts = new Map<string, number>()
+    const allWriteResults: GenerationResult[] = []
+    let currentRequests = [...requests]
 
-    const results = [...skippedResults, ...writeResults]
+    for (let attempt = 1; attempt <= MAX_VALIDATION_ATTEMPTS && currentRequests.length > 0; attempt++) {
+      if (attempt > 1) {
+        logger.info({attempt, count: currentRequests.length}, 'Retrying files that failed YAML validation')
+      }
+
+      // eslint-disable-next-line no-await-in-loop -- retry batches must be sequential
+      const agentResults = await this.agent.processRequests(currentRequests)
+
+      const validResults: Array<{customId: string; error?: string; status: string; yaml?: string}> = []
+      const retryIds: string[] = []
+
+      for (const result of agentResults) {
+        if (result.status !== 'validation_error') {
+          validResults.push(result)
+          continue
+        }
+
+        const count = (failureCounts.get(result.customId) ?? 0) + 1
+        failureCounts.set(result.customId, count)
+
+        if (count < MAX_VALIDATION_ATTEMPTS) {
+          retryIds.push(result.customId)
+          logger.warn(
+            {attempt: count, customId: result.customId, error: result.error, maxAttempts: MAX_VALIDATION_ATTEMPTS},
+            'YAML validation failed, will retry',
+          )
+          continue
+        }
+
+        const mapping = idToFilePath.get(result.customId)
+        if (mapping) {
+          // eslint-disable-next-line no-await-in-loop -- must log before next iteration
+          await MetadataGenerator.logValidationFailure(mapping.filePath, result.error ?? 'Validation failed')
+          allWriteResults.push({
+            error: `Validation failed after ${MAX_VALIDATION_ATTEMPTS} attempts: ${result.error}`,
+            filePath: mapping.filePath,
+            outputPath: mapping.outputPath,
+            status: 'error',
+          })
+        }
+
+        logger.error(
+          {attempts: count, customId: result.customId, error: result.error},
+          'YAML validation failed permanently, logged to logs/failure.csv',
+        )
+      }
+
+      // eslint-disable-next-line no-await-in-loop -- must complete before next retry iteration
+      const writeResults = await this.writeResults(validResults, idToFilePath)
+      allWriteResults.push(...writeResults)
+
+      currentRequests = retryIds
+        .map((id) => idToRequest.get(id))
+        .filter((r): r is AgentRequest & {outputPath: string} => r !== undefined)
+    }
+
+    const results = [...skippedResults, ...allWriteResults]
     const succeeded = results.filter((r) => r.status === 'success').length
     const errored = results.filter((r) => r.status === 'error').length
     const skipped = results.filter((r) => r.status === 'skipped').length
