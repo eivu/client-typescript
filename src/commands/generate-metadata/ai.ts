@@ -1,5 +1,6 @@
 import {Args, Command, Flags} from '@oclif/core'
 import {MetadataGenerator} from '@src/ai/metadata-generator'
+import {isEivuYmlFile} from '@src/utils'
 import * as fs from 'node:fs'
 import path from 'node:path'
 
@@ -14,7 +15,7 @@ function collectFilesInDir(
     if (pathsToSkip.has(ent.name)) continue
     const fullPath = path.join(dirPath, ent.name)
     if (ent.isFile()) {
-      out.push(fullPath)
+      if (!isEivuYmlFile(ent.name)) out.push(fullPath)
     } else if (ent.isDirectory() && recursive) {
       collectFilesInDir(fullPath, recursive, pathsToSkip, out)
     }
@@ -55,6 +56,11 @@ export default class GenerateMetadataAi extends Command {
     if (fs.existsSync(path)) {
       const stats = fs.statSync(path)
       if (stats.isFile()) {
+        if (isEivuYmlFile(path)) {
+          this.log('Cannot generate metadata for an .eivu.yml file itself.')
+          return
+        }
+
         pathsArray = [path]
       } else if (stats.isDirectory()) {
         pathsArray = []
