@@ -130,12 +130,12 @@ export class ClaudeAgent extends BaseAgent {
 
       if (entry.result.type === 'succeeded') {
         const rawYaml = extractYamlFromResponse(entry.result.message.content as Array<{text?: string; type: string}>)
-        const validationError = validateEivuYaml(rawYaml)
-        if (validationError) {
-          results.push({customId: entry.custom_id, error: validationError, status: 'validation_error'})
-          logger.warn({customId: entry.custom_id, error: validationError}, 'YAML validation failed')
+        const validationResult = validateEivuYaml(rawYaml)
+        if ('error' in validationResult) {
+          results.push({customId: entry.custom_id, error: validationResult.error, status: 'validation_error'})
+          logger.warn({customId: entry.custom_id, error: validationResult.error}, 'YAML validation failed')
         } else {
-          const yaml = postProcess(rawYaml, this.model)
+          const yaml = postProcess(validationResult.yaml, this.model)
           results.push({customId: entry.custom_id, status: 'success', yaml})
         }
       } else {

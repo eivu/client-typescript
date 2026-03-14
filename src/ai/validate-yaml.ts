@@ -1,32 +1,104 @@
 import YAML from 'yaml'
 
+/** Validation result: sanitized YAML on success, or an error message on failure. */
+export type ValidationResult = {error: string} | {yaml: string}
+
+/**
+ * Checks whether an unquoted YAML scalar value contains characters that could
+ * break parsing. Covers comment indicators, nested mapping separators, and
+ * reserved start-of-value characters.
+ */
+function needsQuoting(value: string): boolean {
+  if (/ #/.test(value)) return true
+  if (/: /.test(value)) return true
+  if (/^[\[{*&!@`]/.test(value.trimStart())) return true
+  return false
+}
+
+/**
+ * Quotes unquoted YAML values that contain characters known to break parsing.
+ *
+ * Processes line-by-line, tracking block scalar context (`|` / `>`) so
+ * continuation lines are never modified. For each key-value line, if the value
+ * is unquoted and contains problematic characters (` #`, `: `, or starts with
+ * `[`, `{`, `*`, `&`, `!`, `@`, backtick), it wraps the value in double quotes
+ * (escaping existing `\` and `"`).
+ *
+ * @param yaml - Raw YAML string
+ * @returns Sanitized YAML string with problematic values quoted
+ */
+export function sanitizeYamlValues(yaml: string): string {
+  const lines = yaml.split('\n')
+  let inBlockScalar = false
+  let blockScalarBaseIndent = -1
+
+  const result = lines.map((line) => {
+    const trimmed = line.trimStart()
+    const currentIndent = line.length - trimmed.length
+
+    if (inBlockScalar) {
+      if (trimmed === '' || currentIndent > blockScalarBaseIndent) {
+        return line
+      }
+
+      inBlockScalar = false
+    }
+
+    // Match key-value lines: optional indent, optional list prefix, key (may contain colons
+    // without trailing spaces, e.g. ai:rating), separator (: + whitespace), and value.
+    // The lazy .*? ensures we split at the FIRST `: ` that acts as the YAML key separator.
+    const match = line.match(/^(\s*(?:-\s+)?\S.*?:\s+)(.+)$/)
+    if (!match) return line
+
+    const [, prefix, value] = match
+
+    if (/^[|>]/.test(value.trim())) {
+      inBlockScalar = true
+      blockScalarBaseIndent = currentIndent
+      return line
+    }
+
+    if (/^["']/.test(value.trim())) return line
+
+    if (!needsQuoting(value)) return line
+
+    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    return `${prefix}"${escaped}"`
+  })
+
+  return result.join('\n')
+}
+
 /**
  * Validates that a raw YAML string meets the minimum requirements for an .eivu.yml file.
  *
  * Checks (in order):
  *   1. A line starting with `name:` (required top-level key)
  *   2. A line starting with `metadata_list:` (required top-level key)
- *   3. Valid YAML syntax (parseable)
+ *   3. Sanitizes values with characters that break YAML (` #`, `: `, etc.)
+ *   4. Valid YAML syntax (parseable after sanitization)
  *
  * @param yaml - Raw YAML string to validate
- * @returns null if valid, or an error message string describing the first validation failure
+ * @returns `{yaml}` with the sanitized YAML on success, or `{error}` on failure
  */
-export function validateEivuYaml(yaml: string): null | string {
+export function validateEivuYaml(yaml: string): ValidationResult {
   const lines = yaml.split('\n')
 
   if (!lines.some((line) => /^name:/.test(line))) {
-    return 'Missing required top-level key: name'
+    return {error: 'Missing required top-level key: name'}
   }
 
   if (!lines.some((line) => /^metadata_list:/.test(line))) {
-    return 'Missing required top-level key: metadata_list'
+    return {error: 'Missing required top-level key: metadata_list'}
   }
+
+  const sanitized = sanitizeYamlValues(yaml)
 
   try {
-    YAML.parse(yaml)
+    YAML.parse(sanitized)
   } catch (error) {
-    return `Invalid YAML: ${error instanceof Error ? error.message : String(error)}`
+    return {error: `Invalid YAML: ${error instanceof Error ? error.message : String(error)}`}
   }
 
-  return null
+  return {yaml: sanitized}
 }
