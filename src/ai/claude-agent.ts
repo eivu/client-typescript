@@ -3,8 +3,10 @@ import type {AgentOptions, AgentRequest, AgentResult} from '@src/ai/types'
 import Anthropic from '@anthropic-ai/sdk'
 import {BaseAgent, extractYamlFromResponse, postProcess} from '@src/ai/base-agent'
 import {validateEivuYaml} from '@src/ai/validate-yaml'
+import {METADATA_YML_SUFFIX} from '@src/constants'
 import logger from '@src/logger'
 import * as fs from 'node:fs'
+import {promises as fsp} from 'node:fs'
 import path from 'node:path'
 
 const MAX_BATCH_SIZE = 10_000
@@ -117,24 +119,56 @@ export class ClaudeAgent extends BaseAgent {
     return results
   }
 
+  /**
+   * Collects and processes results from a completed Anthropic batch.
+   *
+   * For each succeeded result: extracts YAML, validates (with sanitization), and
+   * post-processes if valid. Invalid results are returned as `validation_error` so
+   * MetadataGenerator can retry them. Failed YAML is saved to `tmp/{timestamp}-{batchId}/`
+   * for inspection/debugging — one shared timestamp per batch so related failures
+   * are grouped together.
+   */
   private async collectResults(batchId: string, requests: AgentRequest[]): Promise<AgentResult[]> {
-    const idToCustomId = new Map(requests.map((r) => [r.customId, r]))
+    const idToRequest = new Map(requests.map((r) => [r.customId, r]))
     const results: AgentResult[] = []
+
+    // Shared timestamp for all validation failures in this batch, so they land
+    // in the same tmp directory. Colons/dots replaced to be filesystem-safe.
+    const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-')
+    const failureDir = path.join('tmp', `${timestamp}-${batchId}`)
+    let failureDirCreated = false
 
     const resultsStream = await this.client.messages.batches.results(batchId)
     for await (const entry of resultsStream) {
-      if (!idToCustomId.has(entry.custom_id)) {
+      if (!idToRequest.has(entry.custom_id)) {
         logger.warn({customId: entry.custom_id}, 'Unknown custom_id in batch results')
         continue
       }
 
       if (entry.result.type === 'succeeded') {
         const rawYaml = extractYamlFromResponse(entry.result.message.content as Array<{text?: string; type: string}>)
+        // Validate and sanitize before post-processing — invalid results will be
+        // retried by MetadataGenerator up to MAX_VALIDATION_ATTEMPTS times
         const validationResult = validateEivuYaml(rawYaml)
         if ('error' in validationResult) {
           results.push({customId: entry.custom_id, error: validationResult.error, status: 'validation_error'})
           logger.warn({customId: entry.custom_id, error: validationResult.error}, 'YAML validation failed')
+
+          // Save the raw AI output to tmp for debugging — the directory is only
+          // created on the first failure to avoid empty directories
+          const request = idToRequest.get(entry.custom_id)
+          if (request) {
+            if (!failureDirCreated) {
+              await fsp.mkdir(failureDir, {recursive: true})
+              failureDirCreated = true
+            }
+
+            const filename = `${path.basename(request.filePath)}${METADATA_YML_SUFFIX}`
+            await fsp.writeFile(path.join(failureDir, filename), rawYaml, 'utf8')
+            logger.info({batchId, filePath: path.join(failureDir, filename)}, 'Saved failed YAML to tmp')
+          }
         } else {
+          // Validation passed — post-process the sanitized YAML (not the raw version)
           const yaml = postProcess(validationResult.yaml, this.model)
           results.push({customId: entry.custom_id, status: 'success', yaml})
         }

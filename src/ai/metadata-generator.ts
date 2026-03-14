@@ -114,6 +114,9 @@ export class MetadataGenerator {
     const allWriteResults: GenerationResult[] = []
     let currentRequests = [...requests]
 
+    // Retry loop: files that fail YAML validation are re-submitted to the AI agent
+    // in a new batch. Each file gets up to MAX_VALIDATION_ATTEMPTS total tries.
+    // After exhausting retries, the file is logged to logs/failure.csv.
     for (let attempt = 1; attempt <= MAX_VALIDATION_ATTEMPTS && currentRequests.length > 0; attempt++) {
       if (attempt > 1) {
         logger.info({attempt, count: currentRequests.length}, 'Retrying files that failed YAML validation')
@@ -122,6 +125,8 @@ export class MetadataGenerator {
       // eslint-disable-next-line no-await-in-loop -- retry batches must be sequential
       const agentResults = await this.agent.processRequests(currentRequests)
 
+      // Triage results: successes/errors go to validResults for writing,
+      // validation failures are tracked for retry or permanent failure
       const validResults: Array<{customId: string; error?: string; status: string; yaml?: string}> = []
       const retryIds: string[] = []
 
@@ -134,6 +139,7 @@ export class MetadataGenerator {
         const count = (failureCounts.get(result.customId) ?? 0) + 1
         failureCounts.set(result.customId, count)
 
+        // Still has retries remaining — re-queue for the next batch
         if (count < MAX_VALIDATION_ATTEMPTS) {
           retryIds.push(result.customId)
           logger.warn(
@@ -143,6 +149,7 @@ export class MetadataGenerator {
           continue
         }
 
+        // Exhausted all retries — log to failure CSV and record as error
         const mapping = idToFilePath.get(result.customId)
         if (mapping) {
           // eslint-disable-next-line no-await-in-loop -- must log before next iteration
@@ -165,6 +172,7 @@ export class MetadataGenerator {
       const writeResults = await this.writeResults(validResults, idToFilePath)
       allWriteResults.push(...writeResults)
 
+      // Build the next batch from files that still have retries left
       currentRequests = retryIds
         .map((id) => idToRequest.get(id))
         .filter((r): r is AgentRequest & {outputPath: string} => r !== undefined)

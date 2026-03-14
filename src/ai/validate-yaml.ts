@@ -9,8 +9,12 @@ export type ValidationResult = {error: string} | {yaml: string}
  * reserved start-of-value characters.
  */
 function needsQuoting(value: string): boolean {
+  // " #" in YAML starts a comment, silently truncating the value
   if (/ #/.test(value)) return true
+  // ": " can be misinterpreted as a nested mapping separator
   if (/: /.test(value)) return true
+  // These characters are reserved at the start of a YAML value:
+  // [/{ = flow collection, */& = alias/anchor, ! = tag, @/` = reserved
   if (/^[\[{*&!@`]/.test(value.trimStart())) return true
   return false
 }
@@ -36,6 +40,8 @@ export function sanitizeYamlValues(yaml: string): string {
     const trimmed = line.trimStart()
     const currentIndent = line.length - trimmed.length
 
+    // Block scalar content (lines after | or >) is literal text — never modify it.
+    // We exit when we encounter a non-empty line at the same or lesser indent as the key.
     if (inBlockScalar) {
       if (trimmed === '' || currentIndent > blockScalarBaseIndent) {
         return line
@@ -52,16 +58,19 @@ export function sanitizeYamlValues(yaml: string): string {
 
     const [, prefix, value] = match
 
+    // Block scalar indicator (| or >) — track context so we skip continuation lines
     if (/^[|>]/.test(value.trim())) {
       inBlockScalar = true
       blockScalarBaseIndent = currentIndent
       return line
     }
 
+    // Already quoted — no modification needed
     if (/^["']/.test(value.trim())) return line
 
     if (!needsQuoting(value)) return line
 
+    // Escape existing backslashes and double quotes before wrapping in double quotes
     const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
     return `${prefix}"${escaped}"`
   })
@@ -84,6 +93,8 @@ export function sanitizeYamlValues(yaml: string): string {
 export function validateEivuYaml(yaml: string): ValidationResult {
   const lines = yaml.split('\n')
 
+  // Structural checks first (cheap) — these catch responses that are clearly
+  // not eivu YAML (e.g. the AI returned prose or a partial response)
   if (!lines.some((line) => /^name:/.test(line))) {
     return {error: 'Missing required top-level key: name'}
   }
@@ -92,6 +103,8 @@ export function validateEivuYaml(yaml: string): ValidationResult {
     return {error: 'Missing required top-level key: metadata_list'}
   }
 
+  // Sanitize before parsing — the AI sometimes forgets to quote values containing
+  // special YAML characters (e.g. `collects: Batman #1-5` where `#1-5` becomes a comment)
   const sanitized = sanitizeYamlValues(yaml)
 
   try {
@@ -100,5 +113,6 @@ export function validateEivuYaml(yaml: string): ValidationResult {
     return {error: `Invalid YAML: ${error instanceof Error ? error.message : String(error)}`}
   }
 
+  // Return the sanitized version so it flows through to post-processing
   return {yaml: sanitized}
 }
