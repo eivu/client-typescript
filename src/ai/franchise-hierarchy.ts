@@ -266,7 +266,6 @@ const SUICIDE_SQUAD_FRANCHISE: Record<string, string[]> = {
 
 const JUSTICE_SOCIETY_OF_AMERICA_FRANCHISE: Record<string, string[]> = {
   'doctor fate': ['Justice Society of America'],
-  firestorm: ['Justice Society of America'],
   jsa: ['Justice Society of America'],
   'mr terrific': ['Justice Society of America'],
   stargirl: ['Justice Society of America'],
