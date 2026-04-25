@@ -13,8 +13,7 @@
  *   - Spin-off title brands (Invincible Iron Man, Absolute Wonder Woman) that the
  *     runtime treats as separate franchises still roll up to the parent property.
  */
-const FRANCHISE_PARENTS: Record<string, string[]> = {
-  // ── Marvel: X-Men family ──────────────────────────────────────────────
+const XMEN_FRANCHISE: Record<string, string[]> = {
   'x-factor': ['X-Men'],
   'x-factor investigations': ['X-Men'],
   'x-force': ['X-Men'],
@@ -50,8 +49,9 @@ const FRANCHISE_PARENTS: Record<string, string[]> = {
   'amazing x-men': ['X-Men'],
   'x-men: legacy': ['X-Men'],
   'x-men legacy': ['X-Men'],
+}
 
-  // ── Marvel: Avengers family ───────────────────────────────────────────
+const AVENGERS_FRANCHISE: Record<string, string[]> = {
   'west coast avengers': ['Avengers'],
   'new avengers': ['Avengers'],
   'mighty avengers': ['Avengers'],
@@ -64,8 +64,9 @@ const FRANCHISE_PARENTS: Record<string, string[]> = {
   'dark avengers': ['Avengers'],
   'avengers world': ['Avengers'],
   'a-force': ['Avengers'],
+}
 
-  // ── Marvel: Spider-Man family ─────────────────────────────────────────
+const SPIDER_MAN_FRANCHISE: Record<string, string[]> = {
   'spider-woman': ['Spider-Man'],
   'spider-gwen': ['Spider-Man'],
   'miles morales: spider-man': ['Spider-Man'],
@@ -83,29 +84,33 @@ const FRANCHISE_PARENTS: Record<string, string[]> = {
   'web of spider-man': ['Spider-Man'],
   'spider-verse': ['Spider-Man'],
   'spider-man/deadpool': ['Spider-Man', 'Deadpool'],
+}
 
-  // ── Marvel: Iron Man family ───────────────────────────────────────────
+const IRON_MAN_FRANCHISE: Record<string, string[]> = {
   'invincible iron man': ['Iron Man'],
   'iron man': ['Avengers'], // Iron Man is a top-level franchise, but also rolls up to Avengers
   'war machine': ['Iron Man'],
   rescue: ['Iron Man'],
   ironheart: ['Iron Man'],
+}
 
-  // ── Marvel: Captain America family ────────────────────────────────────
+const CAPTAIN_AMERICA_FRANCHISE: Record<string, string[]> = {
   'captain america': ['Avengers'],
   falcon: ['Captain America'],
   'winter soldier': ['Captain America'],
   'sam wilson: captain america': ['Captain America'],
+}
 
-  // ── Marvel: Thor family ───────────────────────────────────────────────
+const THOR_FRANCHISE: Record<string, string[]> = {
   thor: ['Avengers'],
   'mighty thor': ['Thor'],
   'unworthy thor': ['Thor'],
   'jane foster': ['Thor'],
   loki: ['Thor'],
   'beta ray bill': ['Thor'],
+}
 
-  // ── Marvel: Hulk family ───────────────────────────────────────────────
+const HULK_FRANCHISE: Record<string, string[]> = {
   hulk: ['Avengers'],
   'incredible hulk': ['Hulk'],
   'immortal hulk': ['Hulk'],
@@ -113,46 +118,58 @@ const FRANCHISE_PARENTS: Record<string, string[]> = {
   'totally awesome hulk': ['Hulk'],
   'amadeus cho': ['Hulk'],
   'red hulk': ['Hulk'],
+}
 
-  // ── Marvel: Fantastic Four family ─────────────────────────────────────
+const FANTASTIC_FOUR_FRANCHISE: Record<string, string[]> = {
   'silver surfer': ['Fantastic Four'],
   thing: ['Fantastic Four'],
   'human torch': ['Fantastic Four'],
   'future foundation': ['Fantastic Four'],
   'doctor doom': ['Fantastic Four'],
+}
 
-  // ── Marvel: Guardians family ──────────────────────────────────────────
+const GUARDIANS_OF_THE_GALAXY_FRANCHISE: Record<string, string[]> = {
   'rocket raccoon': ['Guardians of the Galaxy'],
   groot: ['Guardians of the Galaxy'],
   'star-lord': ['Guardians of the Galaxy'],
   gamora: ['Guardians of the Galaxy'],
   drax: ['Guardians of the Galaxy'],
   nova: ['Guardians of the Galaxy'],
+}
 
-  // ── Marvel: Daredevil family ──────────────────────────────────────────
+const DAREDEVIL_FRANCHISE: Record<string, string[]> = {
   elektra: ['Daredevil'],
   punisher: ['Daredevil'],
+}
 
-  // ── Marvel: Black Panther family ──────────────────────────────────────
+const BLACK_PANTHER_FRANCHISE: Record<string, string[]> = {
   shuri: ['Black Panther'],
+}
 
-  // ── Marvel: Doctor Strange family ─────────────────────────────────────
+const DOCTOR_STRANGE_FRANCHISE: Record<string, string[]> = {
   'doctor strange': ['Avengers'],
+}
 
-  // ── Marvel: Defenders family ──────────────────────────────────────────
+const DEFENDERS_FRANCHISE: Record<string, string[]> = {
   defenders: ['Avengers'],
+}
 
-  // ── Marvel: Inhumans family ───────────────────────────────────────────
+const INHUMANS_FRANCHISE: Record<string, string[]> = {
   'ms. marvel': ['Inhumans'],
   'moon girl': ['Inhumans'],
   'black bolt': ['Inhumans'],
   royals: ['Inhumans'],
+  karnak: ['Inhumans'],
+}
 
+const CROSSOVER_FRANCHISE: Record<string, string[]> = {
   // ── Marvel: Crossover / Multi-franchise ───────────────────────────────
   'deadpool & wolverine': ['Deadpool', 'Wolverine'],
   'cable & deadpool': ['Cable', 'Deadpool'],
   'power pack': ['Fantastic Four'],
+}
 
+const BATMAN_FRANCHISE: Record<string, string[]> = {
   // ── DC: Batman family ─────────────────────────────────────────────────
   'detective comics': ['Batman'],
   nightwing: ['Batman'],
@@ -176,7 +193,9 @@ const FRANCHISE_PARENTS: Record<string, string[]> = {
   'batman: the dark knight': ['Batman'],
   'shadow of the bat': ['Batman'],
   'legends of the dark knight': ['Batman'],
+}
 
+const SUPERMAN_FRANCHISE: Record<string, string[]> = {
   // ── DC: Superman family ───────────────────────────────────────────────
   'action comics': ['Superman'],
   supergirl: ['Superman'],
@@ -184,12 +203,16 @@ const FRANCHISE_PARENTS: Record<string, string[]> = {
   'superman/batman': ['Superman', 'Batman'],
   'superman: son of kal-el': ['Superman'],
   steel: ['Superman'],
+}
 
+const WONDER_WOMAN_FRANCHISE: Record<string, string[]> = {
   // ── DC: Wonder Woman family ───────────────────────────────────────────
   'absolute wonder woman': ['Wonder Woman'],
   'wonder girl': ['Wonder Woman'],
   nubia: ['Wonder Woman'],
+}
 
+const GREEN_LANTERN_FRANCHISE: Record<string, string[]> = {
   // ── DC: Green Lantern family ──────────────────────────────────────────
   'green lantern corps': ['Green Lantern'],
   'green lanterns': ['Green Lantern'],
@@ -198,20 +221,23 @@ const FRANCHISE_PARENTS: Record<string, string[]> = {
   sinestro: ['Green Lantern'],
   'new guardians': ['Green Lantern'],
   'far sector': ['Green Lantern'],
+}
 
+const FLASH_FRANCHISE: Record<string, string[]> = {
   // ── DC: Flash family ──────────────────────────────────────────────────
   flash: ['Justice League'],
   'speed force': ['Flash'],
+}
 
+const JUSTICE_LEAGUE_FRANCHISE: Record<string, string[]> = {
   // ── DC: Justice League family ─────────────────────────────────────────
   'justice league dark': ['Justice League'],
   'justice league of america': ['Justice League'],
   'justice league international': ['Justice League'],
   'justice league europe': ['Justice League'],
-  'justice society of america': ['Justice League'],
-  jsa: ['Justice Society of America'],
-  stargirl: ['Justice Society of America'],
+}
 
+const JUSTICE_LEAGUE_CONSTITUENT_FRANCHISES: Record<string, string[]> = {
   // ── DC: Justice League constituent franchises ─────────────────────────
   aquaman: ['Justice League'],
   'green arrow': ['Justice League'],
@@ -223,33 +249,43 @@ const FRANCHISE_PARENTS: Record<string, string[]> = {
   firestorm: ['Justice League'],
   zatanna: ['Justice League'],
   constantine: ['Justice League Dark'],
+}
 
-  // ── DC: Teen Titans family ────────────────────────────────────────────
-  'teen titans': ['Justice League'],
+const TEEN_TITANS_FRANCHISE: Record<string, string[]> = {
   titans: ['Teen Titans'],
   'young justice': ['Teen Titans'],
+}
 
+const SUICIDE_SQUAD_FRANCHISE: Record<string, string[]> = {
   // ── DC: Suicide Squad family ──────────────────────────────────────────
-  'suicide squad': ['Justice League'],
   deadshot: ['Suicide Squad'],
+}
 
-  // ── DC: Doctor Fate family ────────────────────────────────────────────
+const JUSTICE_SOCIETY_OF_AMERICA_FRANCHISE: Record<string, string[]> = {
   'doctor fate': ['Justice Society of America'],
+  'mr terrific': ['Justice Society of America'],
+  firestorm: ['Justice Society of America'],
+  jsa: ['Justice Society of America'],
+  stargirl: ['Justice Society of America'],
+  starman: ['Justice Society of America'],
+}
 
-  // ── DC: Swamp Thing family ────────────────────────────────────────────
+const SWAMP_THING_FRANCHISE: Record<string, string[]> = {
   'swamp thing': ['Justice League Dark'],
+}
 
-  // ── DC: Vertigo/mature imprints ───────────────────────────────────────
+const VERTIGO_FRANCHISE: Record<string, string[]> = {
   sandman: ['Vertigo'],
-  lucifer: ['Sandman'],
-  'dead boy detectives': ['Sandman'],
-  'sandman mystery theatre': ['Sandman'],
+  lucifer: ['Vertigo'],
+  'dead boy detectives': ['Vertigo'],
+  'sandman mystery theatre': ['Vertigo'],
   'books of magic': ['Vertigo'],
-  hellblazer: ['Constantine'],
+  hellblazer: ['Vertigo'],
   fables: ['Vertigo'],
-  'jack of fables': ['Fables'],
+  'jack of fables': ['Vertigo'],
+}
 
-  // ── DC: WildStorm family ──────────────────────────────────────────────
+const WILDCATS_FRANCHISE: Record<string, string[]> = {
   'the wild storm': ['WildStorm'],
   wildcats: ['WildStorm'],
   'the authority': ['WildStorm'],
@@ -259,13 +295,46 @@ const FRANCHISE_PARENTS: Record<string, string[]> = {
   grifter: ['WildStorm'],
   midnighter: ['WildStorm'],
   deathblow: ['WildStorm'],
+}
 
-  // ── Image Comics family ───────────────────────────────────────────────
-  spawn: ['Image'],
-  invincible: ['Image'],
-  'savage dragon': ['Image'],
-  witchblade: ['Image'],
-  'the darkness': ['Image'],
+const IMAGE_COMICS_FRANCHISE: Record<string, string[]> = {
+  spawn: ['Image Comics'],
+  invincible: ['Image Comics'],
+  'savage dragon': ['Image Comics'],
+  witchblade: ['Image Comics'],
+  'the darkness': ['Image Comics'],
+}
+
+const FRANCHISE_PARENTS: Record<string, string[]> = {
+  ...XMEN_FRANCHISE,
+  ...AVENGERS_FRANCHISE,
+  ...SPIDER_MAN_FRANCHISE,
+  ...IRON_MAN_FRANCHISE,
+  ...CAPTAIN_AMERICA_FRANCHISE,
+  ...THOR_FRANCHISE,
+  ...HULK_FRANCHISE,
+  ...FANTASTIC_FOUR_FRANCHISE,
+  ...GUARDIANS_OF_THE_GALAXY_FRANCHISE,
+  ...DAREDEVIL_FRANCHISE,
+  ...BLACK_PANTHER_FRANCHISE,
+  ...DOCTOR_STRANGE_FRANCHISE,
+  ...DEFENDERS_FRANCHISE,
+  ...INHUMANS_FRANCHISE,
+  ...CROSSOVER_FRANCHISE,
+  ...BATMAN_FRANCHISE,
+  ...SUPERMAN_FRANCHISE,
+  ...WONDER_WOMAN_FRANCHISE,
+  ...GREEN_LANTERN_FRANCHISE,
+  ...FLASH_FRANCHISE,
+  ...JUSTICE_LEAGUE_FRANCHISE,
+  ...JUSTICE_LEAGUE_CONSTITUENT_FRANCHISES,
+  ...TEEN_TITANS_FRANCHISE,
+  ...SUICIDE_SQUAD_FRANCHISE,
+  ...JUSTICE_SOCIETY_OF_AMERICA_FRANCHISE,
+  ...SWAMP_THING_FRANCHISE,
+  ...VERTIGO_FRANCHISE,
+  ...WILDCATS_FRANCHISE,
+  ...IMAGE_COMICS_FRANCHISE,
 }
 
 /**
