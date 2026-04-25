@@ -11,7 +11,8 @@ export default class TestUploadRemoteFile extends Command {
     const metadataProfile: MetadataProfile = {
       description:
         'Official box art for Fallout 4 Anniversary Edition, featuring the iconic power armor-clad Sole Survivor standing in the post-apocalyptic wasteland of the Commonwealth.\n\nThe image depicts the lone figure against the backdrop of a devastated Boston landscape, 210 years after the nuclear apocalypse known as the Great War. This tenth anniversary edition celebrates one of the most acclaimed open-world RPGs, winner of over 200 "Best Of" awards including DICE and BAFTA Game of the Year.\n',
-      info_url: 'https://fallout.bethesda.net/en/games/fallout-4',
+      info_url: 'https://fallout.bethesda.net/en/games/fallout-4', // eslint-disable-line camelcase -- API uses snake_case
+      // eslint-disable-next-line camelcase -- API uses snake_case
       metadata_list: [
         {studio: 'Bethesda Game Studios'},
         {publisher: 'Bethesda Softworks'},
