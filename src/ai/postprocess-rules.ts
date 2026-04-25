@@ -61,22 +61,13 @@ export function enforceMasterworkTag(yaml: string): string {
  */
 export function unquoteNumbers(yaml: string): string {
   // Top-level numeric fields: year, duration
-  let result = yaml.replaceAll(
-    /^((?:year|duration):\s*)"(\d+(?:\.\d+)?)"$/gm,
-    '$1$2',
-  )
+  let result = yaml.replaceAll(/^((?:year|duration):\s*)"(\d+(?:\.\d+)?)"$/gm, '$1$2')
 
   // metadata_list numeric fields: ai:rating
-  result = result.replaceAll(
-    /^(\s*- ai:rating:\s*)"(\d+(?:\.\d+)?)"$/gm,
-    '$1$2',
-  )
+  result = result.replaceAll(/^(\s*- ai:rating:\s*)"(\d+(?:\.\d+)?)"$/gm, '$1$2')
 
   // release sub-fields: year, position, bundle_pos
-  result = result.replaceAll(
-    /^(\s+(?:year|position|bundle_pos):\s*)"(\d+(?:\.\d+)?)"$/gm,
-    '$1$2',
-  )
+  result = result.replaceAll(/^(\s+(?:year|position|bundle_pos):\s*)"(\d+(?:\.\d+)?)"$/gm, '$1$2')
 
   return result
 }
@@ -131,13 +122,11 @@ export function enforceSkillVersion(yaml: string): string {
  * S1 → S01, v2 → v02, E9 → E09. Only targets single-digit numbers.
  */
 export function zeroPadNameNumbers(yaml: string): string {
-  return yaml.replace(
-    /^(name:\s*.*)$/m,
-    (_, nameLine: string) =>
-      nameLine
-        .replaceAll(/\bS(\d)(?!\d)/g, 'S0$1')
-        .replaceAll(/\bv(\d)(?!\d)/g, 'v0$1')
-        .replaceAll(/\bE(\d)(?!\d)/g, 'E0$1'),
+  return yaml.replace(/^(name:\s*.*)$/m, (_, nameLine: string) =>
+    nameLine
+      .replaceAll(/\bS(\d)(?!\d)/g, 'S0$1')
+      .replaceAll(/\bv(\d)(?!\d)/g, 'v0$1')
+      .replaceAll(/\bE(\d)(?!\d)/g, 'E0$1'),
   )
 }
 
@@ -152,7 +141,23 @@ export function zeroPadNameNumbers(yaml: string): string {
  *   - All-caps short words preserved (R&B, TV, RPG, UK, US)
  *   - Hyphenated words each capitalized (Sci-Fi → Sci-Fi)
  */
-const LOWERCASE_WORDS = new Set(['a', 'an', 'and', 'at', 'but', 'by', 'for', 'in', 'nor', 'of', 'on', 'or', 'the', 'to', 'vs'])
+const LOWERCASE_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'at',
+  'but',
+  'by',
+  'for',
+  'in',
+  'nor',
+  'of',
+  'on',
+  'or',
+  'the',
+  'to',
+  'vs',
+])
 const PRESERVE_UPPERCASE = new Set(['hip-hop', 'lo-fi', 'r&b', 'rpg', 'tv', 'uk', 'us'])
 
 function smartTitleCase(str: string): string {
@@ -168,7 +173,7 @@ function smartTitleCase(str: string): string {
       if (word.includes('-')) {
         return word
           .split('-')
-          .map((part, j) => {
+          .map((part) => {
             if (PRESERVE_UPPERCASE.has(part.toLowerCase())) return part.toUpperCase()
             return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
           })
@@ -196,11 +201,11 @@ export function enforceGenreTitleCase(yaml: string): string {
  */
 export function applyMechanicalRules(yaml: string): string {
   let result = yaml
-  result = unquoteNumbers(result)           // #12
-  result = removeFormatDigital(result)      // #17
-  result = enforceSkillVersion(result)      // #19
-  result = zeroPadNameNumbers(result)       // #22
-  result = enforceGenreTitleCase(result)    // #24
-  result = enforceMasterworkTag(result)     // #7 (last — depends on clean ai:rating)
+  result = unquoteNumbers(result) // #12
+  result = removeFormatDigital(result) // #17
+  result = enforceSkillVersion(result) // #19
+  result = zeroPadNameNumbers(result) // #22
+  result = enforceGenreTitleCase(result) // #24
+  result = enforceMasterworkTag(result) // #7 (last — depends on clean ai:rating)
   return result
 }
