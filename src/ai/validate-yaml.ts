@@ -71,7 +71,7 @@ export function sanitizeYamlValues(yaml: string): string {
     if (!needsQuoting(value)) return line
 
     // Escape existing backslashes and double quotes before wrapping in double quotes
-    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    const escaped = value.replaceAll('\\', '\\\\').replaceAll('"', String.raw`\"`)
     return `${prefix}"${escaped}"`
   })
 
@@ -95,11 +95,11 @@ export function validateEivuYaml(yaml: string): ValidationResult {
 
   // Structural checks first (cheap) — these catch responses that are clearly
   // not eivu YAML (e.g. the AI returned prose or a partial response)
-  if (!lines.some((line) => /^name:/.test(line))) {
+  if (!lines.some((line) => line.startsWith('name:'))) {
     return {error: 'Missing required top-level key: name'}
   }
 
-  if (!lines.some((line) => /^metadata_list:/.test(line))) {
+  if (!lines.some((line) => line.startsWith('metadata_list:'))) {
     return {error: 'Missing required top-level key: metadata_list'}
   }
 

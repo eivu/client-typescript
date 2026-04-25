@@ -95,6 +95,7 @@ export function normalizeAwardTags(yaml: string): string {
         return line.replace(pattern, replacement)
       }
     }
+
     return line
   })
 
@@ -103,8 +104,8 @@ export function normalizeAwardTags(yaml: string): string {
   let lastAwardTagIndex = -1
   let lastTagIndex = -1
 
-  for (let i = 0; i < lines.length; i++) {
-    const tagMatch = lines[i].match(/^(\s*)- tag:\s*(.+)$/)
+  for (const [i, line] of lines.entries()) {
+    const tagMatch = line.match(/^(\s*)- tag:\s*(.+)$/)
     if (tagMatch) {
       const tagValue = tagMatch[2].trim()
       existingTags.add(tagValue)

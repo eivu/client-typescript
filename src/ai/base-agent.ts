@@ -78,7 +78,7 @@ export function postProcess(yaml: string, model: string): string {
   let result = yaml
 
   // 1. Fix ai:engine to match the actual model
-  result = result.replace(/^(\s*- ai:engine:\s*)[^\n]*/gm, `$1${model}`)
+  result = result.replaceAll(/^(\s*- ai:engine:\s*)[^\n]*/gm, `$1${model}`)
 
   // 2. Add missing parent franchises
   result = addMissingParentFranchises(result)

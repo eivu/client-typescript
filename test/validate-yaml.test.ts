@@ -107,7 +107,7 @@ note: He said "hello" to everyone: welcome
 metadata_list:
   - writer: Someone`
     const result = sanitizeYamlValues(input)
-    expect(result).toContain('note: "He said \\"hello\\" to everyone: welcome"')
+    expect(result).toContain(String.raw`note: "He said \"hello\" to everyone: welcome"`)
   })
 
   it('escapes existing backslashes when quoting', () => {
@@ -116,7 +116,7 @@ note: path\\to\\file has a #comment
 metadata_list:
   - writer: Someone`
     const result = sanitizeYamlValues(input)
-    expect(result).toContain('note: "path\\\\to\\\\file has a #comment"')
+    expect(result).toContain(String.raw`note: "path\\to\\file has a #comment"`)
   })
 
   it('handles keys containing colons (like ai:rating_reasoning)', () => {

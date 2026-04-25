@@ -39,15 +39,15 @@ export function enforceMasterworkTag(yaml: string): string {
 
   const hasMasterwork = lines.some((l) => l.includes(`tag: ${MASTERWORK_TAG}`))
 
-  if (ratingValue >= 4.0 && !hasMasterwork) {
+  if (ratingValue >= 4 && !hasMasterwork) {
     // Add Masterwork tag after ai:engine line
     const engineIndex = lines.findIndex((l) => /^\s*- ai:engine:/.test(l))
-    if (engineIndex >= 0) {
+    if (engineIndex !== -1) {
       const indentMatch = lines[engineIndex].match(/^(\s*)/)
       const indent = indentMatch ? indentMatch[1] : '  '
       lines.splice(engineIndex + 1, 0, `${indent}- tag: ${MASTERWORK_TAG}`)
     }
-  } else if (ratingValue < 4.0 && hasMasterwork) {
+  } else if (ratingValue < 4 && hasMasterwork) {
     // Remove erroneous Masterwork tag
     return lines.filter((l) => !l.includes(`tag: ${MASTERWORK_TAG}`)).join('\n')
   }
@@ -61,19 +61,19 @@ export function enforceMasterworkTag(yaml: string): string {
  */
 export function unquoteNumbers(yaml: string): string {
   // Top-level numeric fields: year, duration
-  let result = yaml.replace(
+  let result = yaml.replaceAll(
     /^((?:year|duration):\s*)"(\d+(?:\.\d+)?)"$/gm,
     '$1$2',
   )
 
   // metadata_list numeric fields: ai:rating
-  result = result.replace(
+  result = result.replaceAll(
     /^(\s*- ai:rating:\s*)"(\d+(?:\.\d+)?)"$/gm,
     '$1$2',
   )
 
   // release sub-fields: year, position, bundle_pos
-  result = result.replace(
+  result = result.replaceAll(
     /^(\s+(?:year|position|bundle_pos):\s*)"(\d+(?:\.\d+)?)"$/gm,
     '$1$2',
   )
@@ -101,10 +101,10 @@ export function enforceSkillVersion(yaml: string): string {
   let ratingReasoningIndex = -1
   let engineIndex = -1
 
-  for (let i = 0; i < lines.length; i++) {
-    if (/^\s*- ai:skill_version:/.test(lines[i])) skillVersionIndex = i
-    if (/^\s*- ai:rating_reasoning:/.test(lines[i])) ratingReasoningIndex = i
-    if (/^\s*- ai:engine:/.test(lines[i])) engineIndex = i
+  for (const [i, line] of lines.entries()) {
+    if (/^\s*- ai:skill_version:/.test(line)) skillVersionIndex = i
+    if (/^\s*- ai:rating_reasoning:/.test(line)) ratingReasoningIndex = i
+    if (/^\s*- ai:engine:/.test(line)) engineIndex = i
   }
 
   if (skillVersionIndex >= 0) {
@@ -135,9 +135,9 @@ export function zeroPadNameNumbers(yaml: string): string {
     /^(name:\s*.*)$/m,
     (_, nameLine: string) =>
       nameLine
-        .replace(/\bS(\d)(?!\d)/g, 'S0$1')
-        .replace(/\bv(\d)(?!\d)/g, 'v0$1')
-        .replace(/\bE(\d)(?!\d)/g, 'E0$1'),
+        .replaceAll(/\bS(\d)(?!\d)/g, 'S0$1')
+        .replaceAll(/\bv(\d)(?!\d)/g, 'v0$1')
+        .replaceAll(/\bE(\d)(?!\d)/g, 'E0$1'),
   )
 }
 
@@ -152,8 +152,8 @@ export function zeroPadNameNumbers(yaml: string): string {
  *   - All-caps short words preserved (R&B, TV, RPG, UK, US)
  *   - Hyphenated words each capitalized (Sci-Fi → Sci-Fi)
  */
-const LOWERCASE_WORDS = new Set(['of', 'the', 'and', 'in', 'on', 'for', 'to', 'a', 'an', 'or', 'but', 'nor', 'at', 'by', 'vs'])
-const PRESERVE_UPPERCASE = new Set(['rpg', 'tv', 'uk', 'us', 'r&b', 'lo-fi', 'hip-hop'])
+const LOWERCASE_WORDS = new Set(['a', 'an', 'and', 'at', 'but', 'by', 'for', 'in', 'nor', 'of', 'on', 'or', 'the', 'to', 'vs'])
+const PRESERVE_UPPERCASE = new Set(['hip-hop', 'lo-fi', 'r&b', 'rpg', 'tv', 'uk', 'us'])
 
 function smartTitleCase(str: string): string {
   return str
@@ -184,7 +184,7 @@ function smartTitleCase(str: string): string {
 }
 
 export function enforceGenreTitleCase(yaml: string): string {
-  return yaml.replace(
+  return yaml.replaceAll(
     /^(\s*- (?:id3:)?genre:\s*)(.+)$/gm,
     (_, prefix: string, value: string) => `${prefix}${smartTitleCase(value.trim())}`,
   )
