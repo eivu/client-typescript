@@ -20,7 +20,7 @@ export default class Upload extends Command {
     const {filename, nsfw, secured} = flags
     const {path} = args
     const securedValue = secured ?? false
-    const nsfwValue = secured ?? nsfw ?? false
+    const nsfwValue = securedValue || (nsfw ?? false)
     const filenameValue = filename ?? undefined
 
     if (!path) {
