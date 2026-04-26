@@ -36,12 +36,12 @@ export default class Upload extends Command {
     if (fs.existsSync(path)) {
       const stats = fs.statSync(path)
       if (stats.isFile()) {
-        Client.uploadFile({
+        await Client.uploadFile({
           pathToFile: path,
           ...defaultArguments,
         })
       } else if (stats.isDirectory()) {
-        Client.uploadFolder({
+        await Client.uploadFolder({
           pathToFolder: path,
           ...defaultArguments,
         })
@@ -55,7 +55,7 @@ export default class Upload extends Command {
       }
 
       if (onlineCheck.isOnline) {
-        Client.uploadRemoteFile({
+        await Client.uploadRemoteFile({
           assetFilename: filenameValue,
           downloadUrl: path,
           ...defaultArguments,
