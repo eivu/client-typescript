@@ -65,8 +65,13 @@ export function deriveAwardTags(existingTags: Set<string>): string[] {
     }
   }
 
-  // Filter out tags that already exist
-  return [...toAdd].filter((t) => !existingTags.has(t))
+  // Filter out tags that already exist, using a case-insensitive check so that
+  // a partially-normalized tag (e.g. "award Recognized Series") still blocks the
+  // correctly-cased derived form ("Award Recognized Series") from being added as
+  // a duplicate. Casing normalization (SERIES_CASING_FIXES) is the primary fix;
+  // this is a defense-in-depth safety net for any edge cases that slip through.
+  const existingTagsLower = new Set([...existingTags].map((t) => t.toLowerCase()))
+  return [...toAdd].filter((t) => !existingTagsLower.has(t.toLowerCase()))
 }
 
 /**
@@ -83,7 +88,17 @@ export function normalizeAwardTags(yaml: string): string {
   // Step 0: Normalize casing of existing award series tags to Title Case.
   //   e.g. "Eisner Award winning series" → "Eisner Award Winning Series"
   //        "award recognized series"     → "Award Recognized Series"
+  //
+  // Specific patterns for the standalone cross-award generic tags come FIRST so
+  // they take priority and fully normalize both the prefix AND the suffix.
+  // The generic suffix-only patterns below would leave the prefix lowercase
+  // (e.g. "award recognized series" → "award Recognized Series") which would
+  // cause the derived "Award Recognized Series" to pass the case-sensitive
+  // duplicate filter and create a duplicate tag.
   const SERIES_CASING_FIXES: Array<{pattern: RegExp; replacement: string}> = [
+    {pattern: /^(\s*- tag:\s*)award\s+winning\s+series$/i, replacement: '$1Award Winning Series'},
+    {pattern: /^(\s*- tag:\s*)award\s+nominated\s+series$/i, replacement: '$1Award Nominated Series'},
+    {pattern: /^(\s*- tag:\s*)award\s+recognized\s+series$/i, replacement: '$1Award Recognized Series'},
     {pattern: /^(\s*- tag:\s*.+?)\s+winning series$/i, replacement: '$1 Winning Series'},
     {pattern: /^(\s*- tag:\s*.+?)\s+nominated series$/i, replacement: '$1 Nominated Series'},
     {pattern: /^(\s*- tag:\s*.+?)\s+recognized series$/i, replacement: '$1 Recognized Series'},
