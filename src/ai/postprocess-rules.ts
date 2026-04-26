@@ -158,7 +158,7 @@ const LOWERCASE_WORDS = new Set([
   'to',
   'vs',
 ])
-const PRESERVE_UPPERCASE = new Set(['hip-hop', 'lo-fi', 'r&b', 'rpg', 'tv', 'uk', 'us'])
+const PRESERVE_UPPERCASE = new Set(['r&b', 'rpg', 'tv', 'uk', 'us'])
 
 function smartTitleCase(str: string): string {
   return str
