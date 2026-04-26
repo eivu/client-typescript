@@ -83,8 +83,42 @@ export function removeFormatDigital(yaml: string): string {
 }
 
 /**
+ * When a field line uses block scalar syntax (`|` or `>`), returns the index of
+ * the last line that belongs to the block scalar body — i.e. the last line before
+ * the next sibling field (identified by equal or lesser indentation, non-empty).
+ *
+ * If the field is NOT a block scalar, returns `fieldIndex` unchanged.
+ */
+function findBlockScalarEnd(lines: string[], fieldIndex: number): number {
+  if (!/:\s*[|>][-+]?\d*\s*$/.test(lines[fieldIndex])) return fieldIndex
+
+  const baseIndentMatch = lines[fieldIndex].match(/^(\s*)/)
+  const baseIndent = baseIndentMatch ? baseIndentMatch[1].length : 0
+
+  let lastBodyIndex = fieldIndex
+  for (let i = fieldIndex + 1; i < lines.length; i++) {
+    const line = lines[i]
+    // Blank lines don't terminate a block scalar — keep scanning
+    if (line.trim() === '') continue
+    const lineIndentMatch = line.match(/^(\s*)/)
+    const lineIndent = lineIndentMatch ? lineIndentMatch[1].length : 0
+    if (lineIndent > baseIndent) {
+      lastBodyIndex = i
+    } else {
+      break
+    }
+  }
+
+  return lastBodyIndex
+}
+
+/**
  * #19 — Force ai:skill_version to the current version.
  * If the line exists, overwrite the value. If missing, add after ai:rating_reasoning.
+ *
+ * When ai:rating_reasoning uses block scalar syntax (`|` or `>`), the insertion
+ * point is advanced past all indented block scalar body lines so the new field
+ * lands after the block content, not inside it.
  */
 export function enforceSkillVersion(yaml: string): string {
   const lines = yaml.split('\n')
@@ -105,9 +139,11 @@ export function enforceSkillVersion(yaml: string): string {
       `$1${CURRENT_SKILL_VERSION}`,
     )
   } else {
-    // Insert after ai:rating_reasoning, or before ai:engine, whichever is found
-    const insertAfter = ratingReasoningIndex >= 0 ? ratingReasoningIndex : engineIndex - 1
-    if (insertAfter >= 0) {
+    // Insert after ai:rating_reasoning (skipping past any block scalar body),
+    // or before ai:engine as a fallback.
+    const rawInsertAfter = ratingReasoningIndex >= 0 ? ratingReasoningIndex : engineIndex - 1
+    if (rawInsertAfter >= 0) {
+      const insertAfter = findBlockScalarEnd(lines, rawInsertAfter)
       const indentMatch = lines[insertAfter + 1]?.match(/^(\s*)/) ?? lines[insertAfter]?.match(/^(\s*)/)
       const indent = indentMatch ? indentMatch[1] : '  '
       lines.splice(insertAfter + 1, 0, `${indent}- ai:skill_version: ${CURRENT_SKILL_VERSION}`)
