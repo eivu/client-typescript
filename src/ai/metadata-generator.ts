@@ -84,7 +84,9 @@ export class MetadataGenerator {
     await fsp.mkdir('logs', {recursive: true})
     const data = [new Date().toISOString(), filePath, error]
     const csvString = await fastCsv.writeToString([data], {headers: false})
-    await fsp.appendFile('logs/failure.csv', '\n' + csvString.trim())
+    const logPath = 'logs/failure.csv'
+    const fileExists = await fsp.stat(logPath).then((s) => s.size > 0).catch(() => false)
+    await fsp.appendFile(logPath, (fileExists ? '\n' : '') + csvString.trim())
   }
 
   /**
