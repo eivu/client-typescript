@@ -157,12 +157,12 @@ export class ClaudeAgent extends BaseAgent {
           // Save the raw AI output to tmp for debugging — the directory is only
           // created on the first failure to avoid empty directories
           const request = idToRequest.get(entry.custom_id)
-          if (request) {
-            if (!failureDirCreated) {
-              await fsp.mkdir(failureDir, {recursive: true})
-              failureDirCreated = true
-            }
+          if (request && !failureDirCreated) {
+            await fsp.mkdir(failureDir, {recursive: true})
+            failureDirCreated = true
+          }
 
+          if (request) {
             const filename = `${path.basename(request.filePath)}${METADATA_YML_SUFFIX}`
             await fsp.writeFile(path.join(failureDir, filename), rawYaml, 'utf8')
             logger.info({batchId, filePath: path.join(failureDir, filename)}, 'Saved failed YAML to tmp')

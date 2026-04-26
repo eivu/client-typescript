@@ -15,7 +15,7 @@ function needsQuoting(value: string): boolean {
   if (/: /.test(value)) return true
   // These characters are reserved at the start of a YAML value:
   // [/{ = flow collection, */& = alias/anchor, ! = tag, @/` = reserved
-  if (/^[\[{*&!@`]/.test(value.trimStart())) return true
+  if (/^[[{*&!@`]/.test(value.trimStart())) return true
   return false
 }
 
