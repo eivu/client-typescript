@@ -382,14 +382,20 @@ export function resolveParentFranchises(franchise: string): string[] {
 export function addMissingParentFranchises(yaml: string): string {
   const lines = yaml.split('\n')
 
-  // Collect existing franchises and track the last franchise line index
+  // Collect existing franchises and track the last franchise line index.
+  // existingLower holds lowercased values for case-insensitive dedup checks,
+  // since resolveParentFranchises returns canonical-cased names while the YAML
+  // may contain non-canonical casing (e.g. `franchise: x-men`).
   const existingFranchises = new Set<string>()
+  const existingLower = new Set<string>()
   let lastFranchiseLineIndex = -1
 
   for (const [i, line] of lines.entries()) {
     const match = line.match(/^(\s*)- franchise:\s*(.+)$/)
     if (match) {
-      existingFranchises.add(match[2].trim())
+      const value = match[2].trim()
+      existingFranchises.add(value)
+      existingLower.add(value.toLowerCase())
       lastFranchiseLineIndex = i
     }
   }
@@ -402,11 +408,13 @@ export function addMissingParentFranchises(yaml: string): string {
 
   // Resolve all missing parents
   const toAdd: string[] = []
+  const toAddLower = new Set<string>()
   for (const franchise of existingFranchises) {
     const parents = resolveParentFranchises(franchise)
     for (const parent of parents) {
-      if (!existingFranchises.has(parent) && !toAdd.includes(parent)) {
+      if (!existingLower.has(parent.toLowerCase()) && !toAddLower.has(parent.toLowerCase())) {
         toAdd.push(parent)
+        toAddLower.add(parent.toLowerCase())
       }
     }
   }
