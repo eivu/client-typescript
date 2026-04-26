@@ -5,6 +5,7 @@ import {logResponse} from '@src/utils'
 export default class TestUploadFile extends Command {
   static override description = 'Test uploading a single file'
   static override examples = ['<%= config.bin %> <%= command.id %>']
+  static override hidden = true
 
   public async run(): Promise<void> {
     logResponse(

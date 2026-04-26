@@ -6,6 +6,7 @@ import {logResponse} from '@src/utils'
 export default class TestUploadRemoteFile extends Command {
   static override description = 'Test uploading a remote file by URL'
   static override examples = ['<%= config.bin %> <%= command.id %>']
+  static override hidden = true
 
   public async run(): Promise<void> {
     const metadataProfile: MetadataProfile = {

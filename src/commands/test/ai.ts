@@ -2,6 +2,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import {Command} from '@oclif/core'
 
 export default class TestAi extends Command {
+  static override hidden = true
+
   public async run(): Promise<void> {
     const client = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
