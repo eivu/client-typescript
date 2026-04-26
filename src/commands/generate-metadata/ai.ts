@@ -42,7 +42,7 @@ export default class GenerateMetadataAi extends Command {
     const {path} = args
     const recursive = flags.recursive ?? false
     let pathsArray: string[]
-    const overwrite = false
+    const overwrite = flags.force ?? false
     const pathsToSkip = new Set<string>([
       '.bzr', '.DS_Store', '.env', '.env.development.local', '.env.local',
       '.env.production.local', '.env.test.local', '.git', '.hg', '.idea', '.svn', '.vscode',
