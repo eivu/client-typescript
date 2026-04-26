@@ -4,7 +4,8 @@ import {enforceGenreTitleCase, enforceSkillVersion} from '../src/ai/postprocess-
 
 const CURRENT_VERSION = '7.16.4'
 
-describe('enforceSkillVersion', () => {
+describe('postprocess-rules', () => {
+  describe('enforceSkillVersion', () => {
   describe('existing ai:skill_version line', () => {
     it('overwrites an outdated version', () => {
       const yaml = '  - ai:skill_version: 7.0.0'
@@ -121,7 +122,7 @@ describe('enforceSkillVersion', () => {
   })
 })
 
-describe('enforceGenreTitleCase', () => {
+  describe('enforceGenreTitleCase', () => {
   describe('hyphenated genre names', () => {
     it('title-cases hip-hop → Hip-Hop', () => {
       expect(enforceGenreTitleCase('  - genre: hip-hop')).toBe('  - genre: Hip-Hop')
@@ -193,5 +194,6 @@ describe('enforceGenreTitleCase', () => {
     it('normalises already-cased input', () => {
       expect(enforceGenreTitleCase('  - genre: Hip-Hop')).toBe('  - genre: Hip-Hop')
     })
+  })
   })
 })
