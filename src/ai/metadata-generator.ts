@@ -47,6 +47,8 @@ export class MetadataGenerator {
   /** When false, files that already have a .eivu.yml are skipped. */
   readonly overwrite: boolean
   private agent: BaseAgent
+  /** When set, overrides the base name of the output .eivu.yml file. */
+  private readonly outputBaseName: string | undefined
 
   /**
    * Creates a MetadataGenerator with the given options.
@@ -55,6 +57,7 @@ export class MetadataGenerator {
   constructor(options: MetadataGeneratorOptions = {}) {
     const agentType = options.agent ?? 'claude'
     this.overwrite = options.overwrite ?? false
+    this.outputBaseName = options.outputBaseName
     this.agent = createAgent(agentType, options)
   }
 
@@ -197,7 +200,8 @@ export class MetadataGenerator {
     const skippedResults: GenerationResult[] = []
 
     for (const [i, filePath] of filePaths.entries()) {
-      const outputPath = `${filePath}${METADATA_YML_SUFFIX}`
+      const baseName = this.outputBaseName ?? path.basename(filePath)
+      const outputPath = path.join(path.dirname(filePath), `${baseName}${METADATA_YML_SUFFIX}`)
 
       if (!this.overwrite && fs.existsSync(outputPath)) {
         skippedResults.push({filePath, outputPath, status: 'skipped'})

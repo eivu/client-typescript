@@ -33,7 +33,7 @@ export default class GenerateMetadataAi extends Command {
     // flag with no value (-f, --force)
     force: Flags.boolean({char: 'f'}),
     // flag with a value (-n, --name=VALUE)
-    name: Flags.string({char: 'n', description: 'name to print'}),
+    name: Flags.string({char: 'n', description: 'base name for the output .eivu.yml file (single-file mode only)'}),
     recursive: Flags.boolean({char: 'r', description: 'when path is a folder, include files in all subdirectories'}),
   }
 
@@ -41,6 +41,7 @@ export default class GenerateMetadataAi extends Command {
     const {args, flags} = await this.parse(GenerateMetadataAi)
     const {path} = args
     const recursive = flags.recursive ?? false
+    const outputBaseName = flags.name
     let pathsArray: string[]
     const overwrite = flags.force ?? false
     const pathsToSkip = new Set<string>([
@@ -78,9 +79,14 @@ export default class GenerateMetadataAi extends Command {
       return
     }
 
+    if (outputBaseName && pathsArray.length > 1) {
+      this.log('Warning: --name is ignored when processing multiple files.')
+    }
+
     await MetadataGenerator.generate(pathsArray, {
       agent: 'claude',
       apiKey: process.env.ANTHROPIC_API_KEY,
+      outputBaseName: pathsArray.length === 1 ? outputBaseName : undefined,
       overwrite,
     })
   }

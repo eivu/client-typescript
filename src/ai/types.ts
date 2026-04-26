@@ -54,5 +54,6 @@ export type AgentOptions = {
 /** Options for MetadataGenerator: agent type, overwrite flag, plus AgentOptions. */
 export type MetadataGeneratorOptions = AgentOptions & {
   agent?: AgentType
+  outputBaseName?: string
   overwrite?: boolean
 }
