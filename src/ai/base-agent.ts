@@ -3,6 +3,7 @@ import type {AgentOptions, AgentRequest, AgentResult, BatchProgress} from '@src/
 import {normalizeAwardTags} from '@src/ai/award-tags'
 import {addMissingParentFranchises} from '@src/ai/franchise-hierarchy'
 import {applyMechanicalRules} from '@src/ai/postprocess-rules'
+import {contentTypeIsAudio, contentTypeIsComic, contentTypeIsVideo, detectMime} from '@src/utils'
 import path from 'node:path'
 
 /** Default values for agent configuration (maxTokens, model, pollIntervalMs). */
@@ -93,16 +94,35 @@ export function postProcess(yaml: string, model: string): string {
 }
 
 /**
- * Builds the user message sent to the agent for a given file path (filename only, no path).
- * Includes a structured research workflow to ensure the agent verifies the book's identity,
- * creative team, characters, and critical reception via web search before generating YAML.
+ * Returns the broad media category for a file based on its extension.
+ * @param filePath - Full or relative path to the file
+ * @returns 'comic' | 'audio' | 'video' | 'other'
+ */
+export function getMediaCategory(filePath: string): 'audio' | 'comic' | 'other' | 'video' {
+  const {type} = detectMime(filePath)
+
+  if (contentTypeIsComic(type)) return 'comic'
+  if (contentTypeIsAudio(type)) return 'audio'
+  if (contentTypeIsVideo(type)) return 'video'
+
+  return 'other'
+}
+
+/**
+ * Builds the user message sent to the agent for a given file path.
+ * Returns a media-category-specific research workflow so that comics instructions
+ * are not sent for audio/video files (and vice-versa), avoiding AI confusion and
+ * unnecessary web-search budget consumption.
  *
  * @param filePath - Full path to the file
- * @returns Message string with research workflow instructions for the filename
+ * @returns Message string with research workflow instructions tailored to the file type
  */
 export function buildUserMessage(filePath: string): string {
   const filename = path.basename(filePath)
-  return `Create an .eivu.yml metadata file for: ${filename}
+  const category = getMediaCategory(filePath)
+
+  if (category === 'comic') {
+    return `Create an .eivu.yml metadata file for: ${filename}
 
 ## Research Workflow — execute these steps IN ORDER before generating any YAML
 
@@ -141,6 +161,99 @@ Cite SPECIFIC sources by name in ai:rating_reasoning.
 
 ### Step 6: Generate the YAML
 Only now — with verified data from Steps 1-5 — generate the .eivu.yml following all
+runtime skill rules. Run through the FINAL CHECKLIST before outputting.
+
+Output ONLY the raw YAML content. No markdown fences, no commentary.`
+  }
+
+  if (category === 'audio') {
+    return `Create an .eivu.yml metadata file for: ${filename}
+
+## Research Workflow — execute these steps IN ORDER before generating any YAML
+
+**IMPORTANT: "Filenames lie." The filename is a hint, not ground truth. You MUST verify
+every detail via web search. Do NOT generate YAML until you have completed research.**
+
+### Step 1: Identify the release
+Parse the filename to extract artist, album/track title, year, and any edition markers.
+
+### Step 2: Verify release details
+Search the web for this specific recording. Determine:
+- Is this a single, EP, album, live recording, or compilation?
+- What label released it and in what year?
+- Search: "[artist] [album] [year]" or "[artist] [title] discography"
+
+### Step 3: Find the full credits
+List ALL contributors: performers, producers, engineers, featured artists, and session musicians.
+Check AllMusic, Discogs, or the label's official site.
+
+### Step 4: Research critical reception for ai:rating
+Search for reviews and aggregate scores to calibrate the ai:rating.
+Check: Metacritic, AllMusic, Pitchfork, RateYourMusic, Rolling Stone.
+Cite SPECIFIC sources by name in ai:rating_reasoning.
+
+### Step 5: Generate the YAML
+Only now — with verified data from Steps 1-4 — generate the .eivu.yml following all
+runtime skill rules. Run through the FINAL CHECKLIST before outputting.
+
+Output ONLY the raw YAML content. No markdown fences, no commentary.`
+  }
+
+  if (category === 'video') {
+    return `Create an .eivu.yml metadata file for: ${filename}
+
+## Research Workflow — execute these steps IN ORDER before generating any YAML
+
+**IMPORTANT: "Filenames lie." The filename is a hint, not ground truth. You MUST verify
+every detail via web search. Do NOT generate YAML until you have completed research.**
+
+### Step 1: Identify the content
+Parse the filename to extract title, year, season/episode numbers, and any edition markers.
+
+### Step 2: Verify what this video is
+Search the web for this specific title. Determine:
+- Is this a feature film, TV episode, documentary, short, or special?
+- What year was it released or aired?
+- Search: "[title] [year] film" or "[title] season [#] episode [#]"
+
+### Step 3: Find the full creative team
+List director(s), writers, lead cast, producers, and composer.
+Check IMDb, TMDb, or the studio's official site.
+
+### Step 4: Research critical reception for ai:rating
+Search for reviews and aggregate scores to calibrate the ai:rating.
+Check: IMDb rating, Rotten Tomatoes/Metacritic scores, prominent reviews (AV Club, Variety, etc.).
+Cite SPECIFIC sources by name in ai:rating_reasoning.
+
+### Step 5: Generate the YAML
+Only now — with verified data from Steps 1-4 — generate the .eivu.yml following all
+runtime skill rules. Run through the FINAL CHECKLIST before outputting.
+
+Output ONLY the raw YAML content. No markdown fences, no commentary.`
+  }
+
+  // Fallback for unrecognised extensions
+  return `Create an .eivu.yml metadata file for: ${filename}
+
+## Research Workflow — execute these steps IN ORDER before generating any YAML
+
+**IMPORTANT: "Filenames lie." The filename is a hint, not ground truth. You MUST verify
+every detail via web search. Do NOT generate YAML until you have completed research.**
+
+### Step 1: Identify the content
+Parse the filename to extract title, creator, year, and any edition markers.
+
+### Step 2: Verify what this file is
+Search the web for this specific work to confirm its identity, release date, and creator(s).
+
+### Step 3: Find the full credits
+List all relevant contributors. Check authoritative sources appropriate to the content type.
+
+### Step 4: Research critical reception for ai:rating
+Search for reviews and aggregate scores. Cite SPECIFIC sources by name in ai:rating_reasoning.
+
+### Step 5: Generate the YAML
+Only now — with verified data from Steps 1-4 — generate the .eivu.yml following all
 runtime skill rules. Run through the FINAL CHECKLIST before outputting.
 
 Output ONLY the raw YAML content. No markdown fences, no commentary.`
