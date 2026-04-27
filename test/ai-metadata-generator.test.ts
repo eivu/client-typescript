@@ -25,14 +25,33 @@ describe('AI metadata', () => {
       expect(msg).toContain('Batman_001.cbz')
     })
 
-    it('works for audio files', () => {
-      const msg = buildUserMessage('/path/to/song.mp3')
-      expect(msg).toContain('song.mp3')
+    it('comic files get comic-specific research workflow', () => {
+      const msg = buildUserMessage('/path/to/Batman_Vol1.cbr')
+      expect(msg).toContain('Batman_Vol1.cbr')
+      // Comic-specific sources and terminology
+      expect(msg).toMatch(/trade paperback|omnibus|single issue/i)
+      expect(msg).toMatch(/dc\.com|marvel\.com|comics\.org|Grand Comics Database/i)
+      expect(msg).toMatch(/penciller|inker|colorist|letterer/i)
     })
 
-    it('works for video files', () => {
+    it('audio files get audio-specific research workflow', () => {
+      const msg = buildUserMessage('/path/to/song.mp3')
+      expect(msg).toContain('song.mp3')
+      // Audio-specific sources
+      expect(msg).toMatch(/AllMusic|Discogs|Pitchfork|Metacritic/i)
+      // Must NOT contain comic-specific terms
+      expect(msg).not.toMatch(/trade paperback|omnibus|dc\.com|marvel\.com|Grand Comics Database/i)
+      expect(msg).not.toMatch(/penciller|inker|colorist|letterer/i)
+    })
+
+    it('video files get video-specific research workflow', () => {
       const msg = buildUserMessage('/path/to/clip.mp4')
       expect(msg).toContain('clip.mp4')
+      // Video-specific sources
+      expect(msg).toMatch(/IMDb|Rotten Tomatoes|Metacritic/i)
+      // Must NOT contain comic-specific terms
+      expect(msg).not.toMatch(/trade paperback|omnibus|dc\.com|marvel\.com|Grand Comics Database/i)
+      expect(msg).not.toMatch(/penciller|inker|colorist|letterer/i)
     })
 
     it('asks to create an eivu file using the runtime', () => {
