@@ -1,3 +1,5 @@
+import type {AgentRequest, AgentResult} from '@src/ai/types'
+
 import {describe, expect, it} from '@jest/globals'
 import {buildUserMessage, extractYamlFromResponse} from '@src/ai/base-agent'
 import {ClaudeAgent} from '@src/ai/claude-agent'
@@ -10,6 +12,64 @@ import os from 'node:os'
 import path from 'node:path'
 
 const MINIMAL_SKILL_CONTENT = '# EIVU Metadata Runtime v7.16.1\nMinimal test content'
+
+/**
+ * Helpers for retry-loop tests. The scripted agent returns pre-configured
+ * AgentResult arrays per call so individual tests can control which customIds
+ * are reported as validation_error each attempt and exercise the retry loop's
+ * boundary conditions without spinning up real LLM clients.
+ */
+type ScriptStep = (requests: AgentRequest[]) => AgentResult[]
+function installScriptedAgent(generator: MetadataGenerator, script: ScriptStep[]): {callCount: () => number} {
+  let callIdx = 0
+  const fakeAgent = {
+    maxTokens: 0,
+    model: 'mock-model',
+    pollIntervalMs: 0,
+    async processRequests(requests: AgentRequest[]): Promise<AgentResult[]> {
+      const step = script[callIdx]
+      callIdx += 1
+      return step ? step(requests) : []
+    },
+  }
+  ;(generator as unknown as {agent: typeof fakeAgent}).agent = fakeAgent
+  return {callCount: () => callIdx}
+}
+
+/**
+ * Sets up a clean tmpdir + chdir into it (so MetadataGenerator's relative
+ * `logs/failure.csv` write lands inside the test's sandbox). Returns a cleanup
+ * function that restores cwd and removes the tmpdir. Using a flat setup/cleanup
+ * pair instead of a wrapper avoids exceeding the project's nested-callback limit.
+ */
+async function setupTmpEnv(): Promise<{
+  cleanup: () => Promise<void>
+  failureLog: string
+  tmpDir: string
+}> {
+  const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'eivu-retry-test-'))
+  const prevCwd = process.cwd()
+  process.chdir(tmpDir)
+  async function cleanup(): Promise<void> {
+    process.chdir(prevCwd)
+    await fsp.rm(tmpDir, {force: true, recursive: true})
+  }
+
+  return {
+    cleanup,
+    failureLog: path.join(tmpDir, 'logs', 'failure.csv'),
+    tmpDir,
+  }
+}
+
+const alwaysValidationError: ScriptStep = (requests) =>
+  requests.map((r) => ({customId: r.customId, error: 'bad yaml', status: 'validation_error'}))
+
+function findRequestIdBySuffix(requests: AgentRequest[], suffix: string): string {
+  const r = requests.find((req) => req.filePath.endsWith(suffix))
+  if (!r) throw new Error(`Could not find request for ${suffix}`)
+  return r.customId
+}
 
 describe('AI metadata', () => {
   describe('shared helpers', () => {
@@ -177,6 +237,121 @@ describe('AI metadata', () => {
         expect(results[1].filePath).toBe(file2)
       } finally {
         await fsp.rm(tmpDir, {force: true, recursive: true})
+      }
+    })
+
+    it('logs and records permanent failure when a file fails validation on every attempt', async () => {
+      const {cleanup, failureLog, tmpDir} = await setupTmpEnv()
+      try {
+        const file = path.join(tmpDir, 'always-fails.cbr')
+        await fsp.writeFile(file, '')
+
+        const generator = new MetadataGenerator({
+          apiKey: 'test-key',
+          overwrite: true,
+          skillContent: MINIMAL_SKILL_CONTENT,
+        })
+
+        const tracker = installScriptedAgent(generator, [
+          alwaysValidationError,
+          alwaysValidationError,
+          alwaysValidationError,
+        ])
+
+        const results = await generator.generate([file])
+
+        expect(tracker.callCount()).toBe(3)
+        expect(results).toHaveLength(1)
+        expect(results[0].status).toBe('error')
+        expect(results[0].error).toContain('Validation failed')
+        expect(results[0].filePath).toBe(file)
+
+        const csv = await fsp.readFile(failureLog, 'utf8')
+        expect(csv).toContain(file)
+        expect(csv).toContain('bad yaml')
+      } finally {
+        await cleanup()
+      }
+    })
+
+    it('does not silently drop files when count < MAX_VALIDATION_ATTEMPTS on the final iteration', async () => {
+      // This regression test exposes a structural bug in the retry loop: previously, if a file's
+      // failureCount was < MAX_VALIDATION_ATTEMPTS on the final attempt, it was queued into
+      // retryIds (and a "will retry" warning was logged), but the loop exited immediately after,
+      // so the file was never retried, never logged to failure.csv, and never added to results —
+      // it silently disappeared.
+      //
+      // We construct the divergence between attempt and count by having the scripted agent return
+      // results for a customId that was NOT in the current batch (file B), simulating an agent
+      // that re-emits a prior file's customId. By the time we reach attempt 3, fileB's count is
+      // only 2 (incremented in attempts 2 and 3 — never in attempt 1, where the agent dropped it),
+      // so under the old condition `count < MAX_VALIDATION_ATTEMPTS`, fileB would silently disappear.
+      const {cleanup, failureLog, tmpDir} = await setupTmpEnv()
+      try {
+        const fileA = path.join(tmpDir, 'file-a.cbr')
+        const fileB = path.join(tmpDir, 'file-b.cbr')
+        await fsp.writeFile(fileA, '')
+        await fsp.writeFile(fileB, '')
+
+        const generator = new MetadataGenerator({
+          apiKey: 'test-key',
+          overwrite: true,
+          skillContent: MINIMAL_SKILL_CONTENT,
+        })
+
+        // Captured ids let later steps reference customIds that aren't in their own batch.
+        let idA = ''
+        let idB = ''
+
+        const script: ScriptStep[] = [
+          // Attempt 1: agent processes [A, B] but only emits a result for A.
+          //   - A: count 0→1, queued for retry.
+          //   - B: silently dropped from agentResults (no count increment, not in retryIds).
+          // currentRequests for attempt 2 is just [A].
+          (requests) => {
+            idA = findRequestIdBySuffix(requests, 'file-a.cbr')
+            idB = findRequestIdBySuffix(requests, 'file-b.cbr')
+            return [{customId: idA, error: 'bad yaml A', status: 'validation_error'}]
+          },
+          // Attempt 2: agent receives [A] but emits results for BOTH A and B (using B's
+          // original customId from the initial batch, which is still in idToFilePath/idToRequest).
+          //   - A: count 1→2, queued for retry.
+          //   - B: count 0→1, queued for retry.
+          // currentRequests for attempt 3 contains both A and B.
+          () => [
+            {customId: idA, error: 'bad yaml A', status: 'validation_error'},
+            {customId: idB, error: 'bad yaml B', status: 'validation_error'},
+          ],
+          // Attempt 3 (final): both fail again.
+          //   - A: count 2→3 → retries exhausted → logged. (Both old and new code agree.)
+          //   - B: count 1→2 → with OLD code, 2 < 3 so queued for retry, but loop exits → DISAPPEARS.
+          //                  → with NEW code, attempt(3) < 3 is false → logged. ✓
+          (requests) =>
+            requests.map((r) => ({customId: r.customId, error: `bad yaml ${r.filePath}`, status: 'validation_error'})),
+        ]
+
+        installScriptedAgent(generator, script)
+
+        const results = await generator.generate([fileA, fileB])
+
+        // The whole point: BOTH files must be represented in results — not just A.
+        expect(results).toHaveLength(2)
+        const resultByPath = Object.fromEntries(results.map((r) => [r.filePath, r]))
+
+        expect(resultByPath[fileA].status).toBe('error')
+        expect(resultByPath[fileA].error).toContain('Validation failed')
+
+        // This is the assertion that fails on the buggy code — fileB would be missing.
+        expect(resultByPath[fileB]).toBeDefined()
+        expect(resultByPath[fileB].status).toBe('error')
+        expect(resultByPath[fileB].error).toContain('Validation failed')
+
+        // And both files must be logged to failure.csv.
+        const csv = await fsp.readFile(failureLog, 'utf8')
+        expect(csv).toContain(fileA)
+        expect(csv).toContain(fileB)
+      } finally {
+        await cleanup()
       }
     })
   })

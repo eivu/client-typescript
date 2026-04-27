@@ -144,8 +144,13 @@ export class MetadataGenerator {
         const count = (failureCounts.get(result.customId) ?? 0) + 1
         failureCounts.set(result.customId, count)
 
-        // Still has retries remaining — re-queue for the next batch
-        if (count < MAX_VALIDATION_ATTEMPTS) {
+        // Re-queue for the next batch only if the file still has retries remaining
+        // AND there will actually be another loop iteration. The `attempt < MAX_VALIDATION_ATTEMPTS`
+        // check is critical: without it, a file failing on the final iteration with count < MAX
+        // (which can happen if count and attempt diverge — e.g. agent batch anomalies, future
+        // refactors, or a tunable MAX) is added to retryIds but never retried, never logged to
+        // failure.csv, and never added to allWriteResults — silently disappearing from output.
+        if (count < MAX_VALIDATION_ATTEMPTS && attempt < MAX_VALIDATION_ATTEMPTS) {
           retryIds.push(result.customId)
           logger.warn(
             {attempt: count, customId: result.customId, error: result.error, maxAttempts: MAX_VALIDATION_ATTEMPTS},
@@ -154,13 +159,13 @@ export class MetadataGenerator {
           continue
         }
 
-        // Exhausted all retries — log to failure CSV and record as error
+        // Either retries exhausted OR final loop iteration — log to failure CSV and record as error
         const mapping = idToFilePath.get(result.customId)
         if (mapping) {
           // eslint-disable-next-line no-await-in-loop -- must log before next iteration
           await MetadataGenerator.logValidationFailure(mapping.filePath, result.error ?? 'Validation failed')
           allWriteResults.push({
-            error: `Validation failed after ${MAX_VALIDATION_ATTEMPTS} attempts: ${result.error}`,
+            error: `Validation failed after ${count} attempt${count === 1 ? '' : 's'}: ${result.error}`,
             filePath: mapping.filePath,
             outputPath: mapping.outputPath,
             status: 'error',
