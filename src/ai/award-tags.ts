@@ -30,6 +30,26 @@ const WINNER_PATTERN = /^(.+?)\s+Winner\s+(\d{4})$/i
 const NOMINEE_YEAR_PATTERN = /^(.+?)\s+Nominee\s+(\d{4})$/i
 
 /**
+ * Title-cases an award name prefix so that derived tags have canonical casing
+ * regardless of what the AI emitted (e.g. "eisner award" → "Eisner Award").
+ */
+function titleCaseAward(award: string): string {
+  return award
+    .split(' ')
+    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : word))
+    .join(' ')
+}
+
+/**
+ * Case-insensitive add to a Map<lowercase, canonicalValue>.
+ * The first value wins, so earlier (winner) branches take precedence.
+ */
+function ciAdd(map: Map<string, string>, value: string): void {
+  const key = value.toLowerCase()
+  if (!map.has(key)) map.set(key, value)
+}
+
+/**
  * Given a set of existing tag values, computes all implied award tags
  * that should also be present.
  *
@@ -37,31 +57,37 @@ const NOMINEE_YEAR_PATTERN = /^(.+?)\s+Nominee\s+(\d{4})$/i
  * @returns Array of tag values to add (excluding any already in existingTags)
  */
 export function deriveAwardTags(existingTags: Set<string>): string[] {
-  const toAdd = new Set<string>()
+  // Map<lowercase → canonical> so internally-derived tags are deduplicated
+  // case-insensitively. Without this, two source tags whose award names differ
+  // only in casing (e.g. "eisner award Winner 2020" and "Eisner Award Winner 2021")
+  // would each add their own casing variant of the same implied tag.
+  const toAdd = new Map<string, string>()
 
   for (const tag of existingTags) {
     const winnerMatch = tag.match(WINNER_PATTERN)
     if (winnerMatch) {
-      const [, award, year] = winnerMatch
+      const [, rawAward, year] = winnerMatch
+      const award = titleCaseAward(rawAward)
       // Winner implies all of these
-      toAdd.add(`${award} Nominee ${year}`)
-      toAdd.add(`${award} Nominee`)
-      toAdd.add(`${award} Winning Series`)
-      toAdd.add(`${award} Nominated Series`)
-      toAdd.add(`${award} Recognized Series`)
-      toAdd.add('Award Winning Series')
-      toAdd.add('Award Recognized Series')
+      ciAdd(toAdd, `${award} Nominee ${year}`)
+      ciAdd(toAdd, `${award} Nominee`)
+      ciAdd(toAdd, `${award} Winning Series`)
+      ciAdd(toAdd, `${award} Nominated Series`)
+      ciAdd(toAdd, `${award} Recognized Series`)
+      ciAdd(toAdd, 'Award Winning Series')
+      ciAdd(toAdd, 'Award Recognized Series')
       continue
     }
 
     const nomineeMatch = tag.match(NOMINEE_YEAR_PATTERN)
     if (nomineeMatch) {
-      const [, award] = nomineeMatch
+      const [, rawAward] = nomineeMatch
+      const award = titleCaseAward(rawAward)
       // Nominee implies these (but not winning)
-      toAdd.add(`${award} Nominee`)
-      toAdd.add(`${award} Nominated Series`)
-      toAdd.add(`${award} Recognized Series`)
-      toAdd.add('Award Recognized Series')
+      ciAdd(toAdd, `${award} Nominee`)
+      ciAdd(toAdd, `${award} Nominated Series`)
+      ciAdd(toAdd, `${award} Recognized Series`)
+      ciAdd(toAdd, 'Award Recognized Series')
     }
   }
 
@@ -71,7 +97,7 @@ export function deriveAwardTags(existingTags: Set<string>): string[] {
   // a duplicate. Casing normalization (SERIES_CASING_FIXES) is the primary fix;
   // this is a defense-in-depth safety net for any edge cases that slip through.
   const existingTagsLower = new Set([...existingTags].map((t) => t.toLowerCase()))
-  return [...toAdd].filter((t) => !existingTagsLower.has(t.toLowerCase()))
+  return [...toAdd.values()].filter((t) => !existingTagsLower.has(t.toLowerCase()))
 }
 
 /**
