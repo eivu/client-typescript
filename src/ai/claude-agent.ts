@@ -121,15 +121,6 @@ export class ClaudeAgent extends BaseAgent {
   /**
    * Collects and processes results from a completed Anthropic batch.
    *
-   * For each succeeded result: extracts YAML, validates (with sanitization), and
-   * post-processes if valid. Invalid results are returned as `validation_error` so
-   * MetadataGenerator can retry them. Failed YAML is saved to `tmp/{timestamp}-{batchId}/`
-   * for inspection/debugging — one shared timestamp per batch so related failures
-   * are grouped together.
-   */
-  /**
-   * Collects and processes results from a completed Anthropic batch.
-   *
    * Raw YAML is extracted from each succeeded entry and passed to the shared
    * BaseAgent.validateAndPostProcess pipeline. For validation failures, the raw
    * AI output is saved to `tmp/{timestamp}-{batchId}/` for debugging — one shared
