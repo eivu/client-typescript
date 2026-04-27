@@ -3,6 +3,7 @@ import type {AgentOptions, AgentRequest, AgentResult, BatchProgress} from '@src/
 import {normalizeAwardTags} from '@src/ai/award-tags'
 import {addMissingParentFranchises} from '@src/ai/franchise-hierarchy'
 import {applyMechanicalRules} from '@src/ai/postprocess-rules'
+import {validateEivuYaml} from '@src/ai/validate-yaml'
 import {contentTypeIsAudio, contentTypeIsComic, contentTypeIsVideo, detectMime} from '@src/utils'
 import path from 'node:path'
 
@@ -286,6 +287,32 @@ export abstract class BaseAgent {
    * Implementations handle their own batching/chunking as needed.
    */
   abstract processRequests(requests: AgentRequest[]): Promise<AgentResult[]>
+
+  /**
+   * Validates and post-processes raw YAML strings extracted from agent responses.
+   *
+   * Centralises the shared pipeline so that every agent implementation automatically
+   * benefits from validation and post-processing without duplicating the logic.
+   * Subclasses should call this on the raw YAML they extract from the provider API
+   * before returning results.
+   *
+   * Returns `success` results (with post-processed YAML) or `validation_error` results
+   * (with `rawYaml` preserved so callers can save it for debugging/retry).
+   *
+   * @param items - Array of `{customId, rawYaml}` pairs extracted from provider responses
+   * @returns Array of `AgentResult` — each either `success` or `validation_error`
+   */
+  protected validateAndPostProcess(items: Array<{customId: string; rawYaml: string}>): AgentResult[] {
+    return items.map(({customId, rawYaml}) => {
+      const validationResult = validateEivuYaml(rawYaml)
+      if ('error' in validationResult) {
+        return {customId, error: validationResult.error, rawYaml, status: 'validation_error' as const}
+      }
+
+      const yaml = postProcess(validationResult.yaml, this.model)
+      return {customId, status: 'success' as const, yaml}
+    })
+  }
 
   /** Returns a promise that resolves after the given number of milliseconds. */
   protected sleep(ms: number): Promise<void> {

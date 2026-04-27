@@ -1,8 +1,7 @@
 import type {AgentOptions, AgentRequest, AgentResult} from '@src/ai/types'
 
 import Anthropic from '@anthropic-ai/sdk'
-import {BaseAgent, extractYamlFromResponse, postProcess} from '@src/ai/base-agent'
-import {validateEivuYaml} from '@src/ai/validate-yaml'
+import {BaseAgent, extractYamlFromResponse} from '@src/ai/base-agent'
 import {METADATA_YML_SUFFIX} from '@src/constants'
 import logger from '@src/logger'
 import * as fs from 'node:fs'
@@ -128,15 +127,19 @@ export class ClaudeAgent extends BaseAgent {
    * for inspection/debugging — one shared timestamp per batch so related failures
    * are grouped together.
    */
+  /**
+   * Collects and processes results from a completed Anthropic batch.
+   *
+   * Raw YAML is extracted from each succeeded entry and passed to the shared
+   * BaseAgent.validateAndPostProcess pipeline. For validation failures, the raw
+   * AI output is saved to `tmp/{timestamp}-{batchId}/` for debugging — one shared
+   * timestamp per batch so related failures are grouped together. Failed results are
+   * returned as `validation_error` so MetadataGenerator can retry them.
+   */
   private async collectResults(batchId: string, requests: AgentRequest[]): Promise<AgentResult[]> {
     const idToRequest = new Map(requests.map((r) => [r.customId, r]))
-    const results: AgentResult[] = []
-
-    // Shared timestamp for all validation failures in this batch, so they land
-    // in the same tmp directory. Colons/dots replaced to be filesystem-safe.
-    const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-')
-    const failureDir = path.join('tmp', `${timestamp}-${batchId}`)
-    let failureDirCreated = false
+    const rawItems: Array<{customId: string; rawYaml: string}> = []
+    const errorResults: AgentResult[] = []
 
     const resultsStream = await this.client.messages.batches.results(batchId)
     for await (const entry of resultsStream) {
@@ -147,39 +150,44 @@ export class ClaudeAgent extends BaseAgent {
 
       if (entry.result.type === 'succeeded') {
         const rawYaml = extractYamlFromResponse(entry.result.message.content as Array<{text?: string; type: string}>)
-        // Validate and sanitize before post-processing — invalid results will be
-        // retried by MetadataGenerator up to MAX_VALIDATION_ATTEMPTS times
-        const validationResult = validateEivuYaml(rawYaml)
-        if ('error' in validationResult) {
-          results.push({customId: entry.custom_id, error: validationResult.error, status: 'validation_error'})
-          logger.warn({customId: entry.custom_id, error: validationResult.error}, 'YAML validation failed')
-
-          // Save the raw AI output to tmp for debugging — the directory is only
-          // created on the first failure to avoid empty directories
-          const request = idToRequest.get(entry.custom_id)
-          if (request && !failureDirCreated) {
-            await fsp.mkdir(failureDir, {recursive: true})
-            failureDirCreated = true
-          }
-
-          if (request) {
-            const filename = `${path.basename(request.filePath)}${METADATA_YML_SUFFIX}`
-            await fsp.writeFile(path.join(failureDir, filename), rawYaml, 'utf8')
-            logger.info({batchId, filePath: path.join(failureDir, filename)}, 'Saved failed YAML to tmp')
-          }
-        } else {
-          // Validation passed — post-process the sanitized YAML (not the raw version)
-          const yaml = postProcess(validationResult.yaml, this.model)
-          results.push({customId: entry.custom_id, status: 'success', yaml})
-        }
+        rawItems.push({customId: entry.custom_id, rawYaml})
       } else {
         const errorMsg = ClaudeAgent.formatBatchError(entry.result)
-        results.push({customId: entry.custom_id, error: errorMsg, status: 'error'})
+        errorResults.push({customId: entry.custom_id, error: errorMsg, status: 'error'})
         logger.error({customId: entry.custom_id, resultType: entry.result.type}, 'Batch request failed')
       }
     }
 
-    return results
+    // Shared validation + post-processing (owned by BaseAgent so all agents use it)
+    const processedResults = this.validateAndPostProcess(rawItems)
+
+    // Save failed YAML to tmp for debugging — directory is only created on the first
+    // failure to avoid empty directories. Shared timestamp keeps batch failures together.
+    const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-')
+    const failureDir = path.join('tmp', `${timestamp}-${batchId}`)
+    let failureDirCreated = false
+
+    for (const result of processedResults) {
+      if (result.status === 'validation_error') {
+        logger.warn({customId: result.customId, error: result.error}, 'YAML validation failed')
+
+        const request = idToRequest.get(result.customId)
+        if (request) {
+          if (!failureDirCreated) {
+            // eslint-disable-next-line no-await-in-loop -- lazy directory creation
+            await fsp.mkdir(failureDir, {recursive: true})
+            failureDirCreated = true
+          }
+
+          const filename = `${path.basename(request.filePath)}${METADATA_YML_SUFFIX}`
+          // eslint-disable-next-line no-await-in-loop -- sequential saves within same batch
+          await fsp.writeFile(path.join(failureDir, filename), result.rawYaml ?? '', 'utf8')
+          logger.info({batchId, filePath: path.join(failureDir, filename)}, 'Saved failed YAML to tmp')
+        }
+      }
+    }
+
+    return [...errorResults, ...processedResults]
   }
 
   private async pollUntilComplete(batchId: string, totalRequests: number): Promise<void> {

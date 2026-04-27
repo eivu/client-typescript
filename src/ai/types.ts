@@ -12,6 +12,8 @@ export type AgentRequest = {
 export type AgentResult = {
   customId: string
   error?: string
+  /** Preserved for validation_error results so callers can save/log the raw AI output for debugging. */
+  rawYaml?: string
   status: 'error' | 'success' | 'validation_error'
   yaml?: string
 }
