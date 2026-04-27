@@ -16,7 +16,7 @@ import {
 } from '@src/constants'
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
-import {detectMime, isEivuYmlFile, validateFilePath} from '@src/utils'
+import {contentTypeIsAudio, contentTypeIsComic, detectMime, isEivuYmlFile, validateFilePath} from '@src/utils'
 import cleanDeep from 'clean-deep'
 import {filter, uniqWith} from 'lodash-es'
 import {type IAudioMetadata, parseFile} from 'music-metadata'
@@ -153,10 +153,10 @@ export const extractInfo = async (pathToFile: string): Promise<MetadataPair[]> =
   // Validate file path for existence and security, and get trimmed path
   pathToFile = validateFilePath(pathToFile)
 
-  const {mediatype} = detectMime(pathToFile)
+  const {type} = detectMime(pathToFile)
   let coverArtMetadata: MetadataPair = {}
-  if (mediatype === 'audio') return extractAudioInfo(pathToFile)
-  if (pathToFile.endsWith('.cbr') || pathToFile.endsWith('.cbz')) {
+  if (contentTypeIsAudio(type)) return extractAudioInfo(pathToFile)
+  if (contentTypeIsComic(type)) {
     coverArtMetadata = await uploadComicMetadataArtwork(pathToFile)
   }
 
