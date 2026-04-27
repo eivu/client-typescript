@@ -1,6 +1,6 @@
 import {describe, expect, it} from '@jest/globals'
 
-import {enforceGenreTitleCase, enforceSkillVersion} from '../src/ai/postprocess-rules'
+import {enforceGenreTitleCase, enforceMasterworkTag, enforceSkillVersion} from '../src/ai/postprocess-rules'
 
 const CURRENT_VERSION = '7.16.4'
 
@@ -109,6 +109,96 @@ describe('postprocess-rules', () => {
 
       expect(svIdx).toBe(engineIdx - 1)
       expect(lines[svIdx]).toBe(`  - ai:skill_version: ${CURRENT_VERSION}`)
+    })
+  })
+
+  describe('enforceMasterworkTag', () => {
+    const TAG = "Eivu's AI Masterwork Collection"
+
+    it('adds Masterwork tag after ai:engine when rating >= 4.0 (happy path)', () => {
+      const yaml = [
+        '  - ai:rating: 4.5',
+        '  - ai:engine: claude-opus-4-6',
+      ].join('\n')
+
+      const result = enforceMasterworkTag(yaml)
+      const lines = result.split('\n')
+      const engineIdx = findLineIndex(lines, 'ai:engine')
+      expect(lines[engineIdx + 1]).toBe(`  - tag: ${TAG}`)
+    })
+
+    it('does NOT add tag when rating < 4.0', () => {
+      const yaml = [
+        '  - ai:rating: 3.9',
+        '  - ai:engine: claude-opus-4-6',
+      ].join('\n')
+
+      expect(enforceMasterworkTag(yaml)).not.toContain(TAG)
+    })
+
+    it('removes Masterwork tag when rating < 4.0 and tag is erroneously present', () => {
+      const yaml = [
+        '  - ai:rating: 3.0',
+        `  - tag: ${TAG}`,
+      ].join('\n')
+
+      expect(enforceMasterworkTag(yaml)).not.toContain(TAG)
+    })
+
+    it('is a no-op when rating >= 4.0 and tag already present', () => {
+      const yaml = [
+        '  - ai:rating: 4.5',
+        `  - tag: ${TAG}`,
+        '  - ai:engine: claude-opus-4-6',
+      ].join('\n')
+
+      expect(enforceMasterworkTag(yaml)).toBe(yaml)
+    })
+
+    it('returns unchanged YAML when no ai:rating is present', () => {
+      const yaml = '  - ai:engine: claude-opus-4-6'
+      expect(enforceMasterworkTag(yaml)).toBe(yaml)
+    })
+
+    // ── Bug regression: ai:engine absent ──────────────────────────────────────
+
+    it('adds tag after ai:rating_reasoning when ai:engine is absent (inline scalar)', () => {
+      const yaml = [
+        '  - ai:rating: 4.2',
+        '  - ai:rating_reasoning: Excellent work.',
+      ].join('\n')
+
+      const result = enforceMasterworkTag(yaml)
+      expect(result).toContain(TAG)
+      const lines = result.split('\n')
+      const rrIdx = findLineIndex(lines, 'ai:rating_reasoning')
+      expect(lines[rrIdx + 1]).toBe(`  - tag: ${TAG}`)
+    })
+
+    it('adds tag AFTER block scalar body of ai:rating_reasoning when ai:engine is absent', () => {
+      const yaml = [
+        '  - ai:rating: 4.2',
+        '  - ai:rating_reasoning: |',
+        '      Line one.',
+        '      Line two.',
+      ].join('\n')
+
+      const result = enforceMasterworkTag(yaml)
+      expect(result).toContain(TAG)
+      const lines = result.split('\n')
+      const tagIdx = findLineIndex(lines, `tag: ${TAG}`)
+      // Should be the very last line (after the block scalar body)
+      expect(tagIdx).toBe(lines.length - 1)
+    })
+
+    it('adds tag after ai:rating when both ai:engine and ai:rating_reasoning are absent', () => {
+      const yaml = '  - ai:rating: 4.0'
+
+      const result = enforceMasterworkTag(yaml)
+      expect(result).toContain(TAG)
+      const lines = result.split('\n')
+      const ratingIdx = findLineIndex(lines, 'ai:rating')
+      expect(lines[ratingIdx + 1]).toBe(`  - tag: ${TAG}`)
     })
   })
 

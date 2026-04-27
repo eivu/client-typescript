@@ -40,12 +40,32 @@ export function enforceMasterworkTag(yaml: string): string {
   const hasMasterwork = lines.some((l) => l.includes(`tag: ${MASTERWORK_TAG}`))
 
   if (ratingValue >= 4 && !hasMasterwork) {
-    // Add Masterwork tag after ai:engine line
-    const engineIndex = lines.findIndex((l) => /^\s*- ai:engine:/.test(l))
-    if (engineIndex !== -1) {
-      const indentMatch = lines[engineIndex].match(/^(\s*)/)
-      const indent = indentMatch ? indentMatch[1] : '  '
-      lines.splice(engineIndex + 1, 0, `${indent}- tag: ${MASTERWORK_TAG}`)
+    // Insertion priority: ai:engine → ai:rating_reasoning → ai:rating → last line
+    let insertIndex = lines.findIndex((l) => /^\s*- ai:engine:/.test(l))
+
+    if (insertIndex === -1) {
+      // ai:engine absent — fall back to ai:rating_reasoning (may be a block scalar)
+      const reasoningIndex = lines.findIndex((l) => /^\s*- ai:rating_reasoning:/.test(l))
+      if (reasoningIndex !== -1) {
+        insertIndex = findBlockScalarEnd(lines, reasoningIndex)
+      }
+    }
+
+    if (insertIndex === -1) {
+      // Also missing ai:rating_reasoning — fall back to the ai:rating line itself
+      insertIndex = lines.findIndex((l) => /^\s*- ai:rating:/.test(l))
+    }
+
+    // Derive indent from the anchor line; default to two spaces
+    const indentMatch =
+      insertIndex === -1 ? null : lines[insertIndex].match(/^(\s*)/)
+    const indent = indentMatch ? indentMatch[1] : '  '
+
+    if (insertIndex === -1) {
+      // Last resort: append to end of file
+      lines.push(`${indent}- tag: ${MASTERWORK_TAG}`)
+    } else {
+      lines.splice(insertIndex + 1, 0, `${indent}- tag: ${MASTERWORK_TAG}`)
     }
   } else if (ratingValue < 4 && hasMasterwork) {
     // Remove erroneous Masterwork tag
