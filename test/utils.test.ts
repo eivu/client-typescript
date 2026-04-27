@@ -2,6 +2,11 @@ import {describe, expect, it} from '@jest/globals'
 
 import {
   cleansedAssetName,
+  contentTypeIsAudio,
+  contentTypeIsComic,
+  contentTypeIsImage,
+  contentTypeIsText,
+  contentTypeIsVideo,
   detectMime,
   generateMd5,
   generateMd5OfString,
@@ -213,6 +218,120 @@ describe('Utils', () => {
       const expectedMd5 = '65A8E27D8879283831B664BD8B7F0AD4' // Precomputed MD5 hash
       const md5 = generateMd5OfString(inputString)
       expect(md5).toBe(expectedMd5)
+    })
+  })
+
+  describe('contentTypeIsVideo', () => {
+    it('returns true for video/mp4', () => {
+      expect(contentTypeIsVideo('video/mp4')).toBe(true)
+    })
+
+    it('returns true for video/webm', () => {
+      expect(contentTypeIsVideo('video/webm')).toBe(true)
+    })
+
+    it('returns false for audio/mpeg', () => {
+      expect(contentTypeIsVideo('audio/mpeg')).toBe(false)
+    })
+
+    it('returns false for image/jpeg', () => {
+      expect(contentTypeIsVideo('image/jpeg')).toBe(false)
+    })
+
+    it('returns false for an empty string', () => {
+      expect(contentTypeIsVideo('')).toBe(false)
+    })
+  })
+
+  describe('contentTypeIsAudio', () => {
+    it('returns true for audio/mpeg', () => {
+      expect(contentTypeIsAudio('audio/mpeg')).toBe(true)
+    })
+
+    it('returns true for audio/flac', () => {
+      expect(contentTypeIsAudio('audio/flac')).toBe(true)
+    })
+
+    it('returns false for video/mp4', () => {
+      expect(contentTypeIsAudio('video/mp4')).toBe(false)
+    })
+
+    it('returns false for image/png', () => {
+      expect(contentTypeIsAudio('image/png')).toBe(false)
+    })
+
+    it('returns false for an empty string', () => {
+      expect(contentTypeIsAudio('')).toBe(false)
+    })
+  })
+
+  describe('contentTypeIsImage', () => {
+    it('returns true for image/jpeg', () => {
+      expect(contentTypeIsImage('image/jpeg')).toBe(true)
+    })
+
+    it('returns true for image/webp', () => {
+      expect(contentTypeIsImage('image/webp')).toBe(true)
+    })
+
+    it('returns false for video/mp4', () => {
+      expect(contentTypeIsImage('video/mp4')).toBe(false)
+    })
+
+    it('returns false for text/plain', () => {
+      expect(contentTypeIsImage('text/plain')).toBe(false)
+    })
+
+    it('returns false for an empty string', () => {
+      expect(contentTypeIsImage('')).toBe(false)
+    })
+  })
+
+  describe('contentTypeIsText', () => {
+    it('returns true for text/plain', () => {
+      expect(contentTypeIsText('text/plain')).toBe(true)
+    })
+
+    it('returns true for text/html', () => {
+      expect(contentTypeIsText('text/html')).toBe(true)
+    })
+
+    it('returns false for application/json', () => {
+      expect(contentTypeIsText('application/json')).toBe(false)
+    })
+
+    it('returns false for image/jpeg', () => {
+      expect(contentTypeIsText('image/jpeg')).toBe(false)
+    })
+
+    it('returns false for an empty string', () => {
+      expect(contentTypeIsText('')).toBe(false)
+    })
+  })
+
+  describe('contentTypeIsComic', () => {
+    it('returns true for application/x-cbr', () => {
+      expect(contentTypeIsComic('application/x-cbr')).toBe(true)
+    })
+
+    it('returns true for application/x-cbz', () => {
+      expect(contentTypeIsComic('application/x-cbz')).toBe(true)
+    })
+
+    it('returns true for application/x-cb7', () => {
+      expect(contentTypeIsComic('application/x-cb7')).toBe(true)
+    })
+
+    it('returns false for application/pdf', () => {
+      expect(contentTypeIsComic('application/pdf')).toBe(false)
+    })
+
+    it('returns false for image/jpeg', () => {
+      expect(contentTypeIsComic('image/jpeg')).toBe(false)
+    })
+
+    it('returns false for an empty string', () => {
+      expect(contentTypeIsComic('')).toBe(false)
     })
   })
 })
