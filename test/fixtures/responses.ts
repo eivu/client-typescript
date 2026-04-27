@@ -963,7 +963,7 @@ export const REMOTE_VIDEO_PATCHED_RESERVATION: CloudFileType = {
 export const REMOTE_VIDEO_TRANSFER: CloudFileType = {
   ...REMOTE_VIDEO_PATCHED_RESERVATION,
   asset: REMOTE_ASSET_FILENAME,
-  content_type: 'application/mp4',
+  content_type: 'video/mp4',
   filesize: REMOTE_FILESIZE,
   state: CloudFileState.TRANSFERRED,
 }
@@ -973,7 +973,7 @@ export const REMOTE_VIDEO_COMPLETE: CloudFileType = {
   metadata: [{id: 3001, type: 'source_url', value: REMOTE_DOWNLOAD_URL}],
   name: REMOTE_ASSET_FILENAME,
   state: CloudFileState.COMPLETED,
-  url: `https://eivu-test.s3.wasabisys.com/archive/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${REMOTE_ASSET_FILENAME}`,
+  url: `https://eivu-test.s3.wasabisys.com/video/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${REMOTE_ASSET_FILENAME}`,
 }
 
 export const REMOTE_VIDEO_COMPLETE_WITH_METADATA: CloudFileType = {
