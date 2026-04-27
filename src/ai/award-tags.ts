@@ -23,11 +23,11 @@
  * Ringo Award, Ignatz Award, and any other `X Award` pattern.
  */
 
-/** Matches `{AwardName} Winner {year}` */
-const WINNER_PATTERN = /^(.+?)\s+Winner\s+(\d{4})$/
+/** Matches `{AwardName} Winner {year}` (case-insensitive) */
+const WINNER_PATTERN = /^(.+?)\s+Winner\s+(\d{4})$/i
 
-/** Matches `{AwardName} Nominee {year}` */
-const NOMINEE_YEAR_PATTERN = /^(.+?)\s+Nominee\s+(\d{4})$/
+/** Matches `{AwardName} Nominee {year}` (case-insensitive) */
+const NOMINEE_YEAR_PATTERN = /^(.+?)\s+Nominee\s+(\d{4})$/i
 
 /**
  * Given a set of existing tag values, computes all implied award tags
@@ -85,17 +85,20 @@ export function deriveAwardTags(existingTags: Set<string>): string[] {
 export function normalizeAwardTags(yaml: string): string {
   let lines = yaml.split('\n')
 
-  // Step 0: Normalize casing of existing award series tags to Title Case.
-  //   e.g. "Eisner Award winning series" → "Eisner Award Winning Series"
-  //        "award recognized series"     → "Award Recognized Series"
+  // Step 0: Normalize casing of award keywords in tag lines to Title Case so that
+  // WINNER_PATTERN / NOMINEE_YEAR_PATTERN (and the duplicate filter) operate on
+  // consistently-cased values regardless of what the AI emitted.
   //
-  // Specific patterns for the standalone cross-award generic tags come FIRST so
-  // they take priority and fully normalize both the prefix AND the suffix.
-  // The generic suffix-only patterns below would leave the prefix lowercase
-  // (e.g. "award recognized series" → "award Recognized Series") which would
-  // cause the derived "Award Recognized Series" to pass the case-sensitive
-  // duplicate filter and create a duplicate tag.
+  // Winner/Nominee year patterns come FIRST so they normalize those keywords before
+  // the series-suffix patterns run.
+  //
+  // For series tags, the standalone cross-award generic patterns come before the
+  // generic suffix-only patterns so they fully normalize both prefix AND suffix —
+  // e.g. "award recognized series" → "Award Recognized Series" (not "award Recognized Series"),
+  // which would otherwise pass the case-sensitive duplicate filter and create a dupe.
   const SERIES_CASING_FIXES: Array<{pattern: RegExp; replacement: string}> = [
+    {pattern: /^(\s*- tag:\s*.+?)\s+winner\s+(\d{4})$/i, replacement: '$1 Winner $2'},
+    {pattern: /^(\s*- tag:\s*.+?)\s+nominee\s+(\d{4})$/i, replacement: '$1 Nominee $2'},
     {pattern: /^(\s*- tag:\s*)award\s+winning\s+series$/i, replacement: '$1Award Winning Series'},
     {pattern: /^(\s*- tag:\s*)award\s+nominated\s+series$/i, replacement: '$1Award Nominated Series'},
     {pattern: /^(\s*- tag:\s*)award\s+recognized\s+series$/i, replacement: '$1Award Recognized Series'},
