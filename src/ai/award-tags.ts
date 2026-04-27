@@ -128,9 +128,9 @@ export function normalizeAwardTags(yaml: string): string {
     {pattern: /^(\s*- tag:\s*)award\s+winning\s+series$/i, replacement: '$1Award Winning Series'},
     {pattern: /^(\s*- tag:\s*)award\s+nominated\s+series$/i, replacement: '$1Award Nominated Series'},
     {pattern: /^(\s*- tag:\s*)award\s+recognized\s+series$/i, replacement: '$1Award Recognized Series'},
-    {pattern: /^(\s*- tag:\s*.+?)\s+winning series$/i, replacement: '$1 Winning Series'},
-    {pattern: /^(\s*- tag:\s*.+?)\s+nominated series$/i, replacement: '$1 Nominated Series'},
-    {pattern: /^(\s*- tag:\s*.+?)\s+recognized series$/i, replacement: '$1 Recognized Series'},
+    {pattern: /^(\s*- tag:\s*.+?)\s+winning\s+series$/i, replacement: '$1 Winning Series'},
+    {pattern: /^(\s*- tag:\s*.+?)\s+nominated\s+series$/i, replacement: '$1 Nominated Series'},
+    {pattern: /^(\s*- tag:\s*.+?)\s+recognized\s+series$/i, replacement: '$1 Recognized Series'},
   ]
 
   lines = lines.map((line) => {
