@@ -37,7 +37,8 @@ export function enforceMasterworkTag(yaml: string): string {
 
   if (ratingValue < 0) return yaml // no rating found, leave as-is
 
-  const hasMasterwork = lines.some((l) => l.includes(`tag: ${MASTERWORK_TAG}`))
+  const masterworkTagLower = `tag: ${MASTERWORK_TAG}`.toLowerCase()
+  const hasMasterwork = lines.some((l) => l.toLowerCase().includes(masterworkTagLower))
 
   if (ratingValue >= 4 && !hasMasterwork) {
     // Insertion priority: ai:engine → ai:rating_reasoning → ai:rating → last line
@@ -68,8 +69,8 @@ export function enforceMasterworkTag(yaml: string): string {
       lines.splice(insertIndex + 1, 0, `${indent}- tag: ${MASTERWORK_TAG}`)
     }
   } else if (ratingValue < 4 && hasMasterwork) {
-    // Remove erroneous Masterwork tag
-    return lines.filter((l) => !l.includes(`tag: ${MASTERWORK_TAG}`)).join('\n')
+    // Remove erroneous Masterwork tag (case-insensitive to catch non-canonical casing)
+    return lines.filter((l) => !l.toLowerCase().includes(masterworkTagLower)).join('\n')
   }
 
   return lines.join('\n')

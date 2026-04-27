@@ -155,6 +155,30 @@ describe('postprocess-rules', () => {
       expect(enforceMasterworkTag(yaml)).toBe(yaml)
     })
 
+    it('does NOT add a duplicate when rating >= 4.0 and tag exists with non-canonical casing', () => {
+      const wrongCased = TAG.toLowerCase()
+      const yaml = [
+        '  - ai:rating: 4.5',
+        `  - tag: ${wrongCased}`,
+        '  - ai:engine: claude-opus-4-6',
+      ].join('\n')
+
+      const result = enforceMasterworkTag(yaml)
+      const tagCount = result.split('\n').filter((l) => l.toLowerCase().includes('masterwork')).length
+      expect(tagCount).toBe(1)
+    })
+
+    it('removes Masterwork tag when rating < 4.0 and tag has non-canonical casing', () => {
+      const wrongCased = TAG.toLowerCase()
+      const yaml = [
+        '  - ai:rating: 3.0',
+        `  - tag: ${wrongCased}`,
+      ].join('\n')
+
+      const result = enforceMasterworkTag(yaml)
+      expect(result.toLowerCase()).not.toContain('masterwork')
+    })
+
     it('returns unchanged YAML when no ai:rating is present', () => {
       const yaml = '  - ai:engine: claude-opus-4-6'
       expect(enforceMasterworkTag(yaml)).toBe(yaml)
