@@ -288,6 +288,13 @@ export abstract class BaseAgent {
    */
   abstract processRequests(requests: AgentRequest[]): Promise<AgentResult[]>
 
+  /** Returns a promise that resolves after the given number of milliseconds. */
+  protected sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms)
+    })
+  }
+
   /**
    * Validates and post-processes raw YAML strings extracted from agent responses.
    *
@@ -311,13 +318,6 @@ export abstract class BaseAgent {
 
       const yaml = postProcess(validationResult.yaml, this.model)
       return {customId, status: 'success' as const, yaml}
-    })
-  }
-
-  /** Returns a promise that resolves after the given number of milliseconds. */
-  protected sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => {
-      setTimeout(resolve, ms)
     })
   }
 }
