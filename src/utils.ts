@@ -276,10 +276,13 @@ export const md5AsFolders = (md5: string): string => {
 const mimeLookup = (pathToFile: string): false | string => {
   if (pathToFile.endsWith('.m4a')) return 'audio/mpeg'
   if (pathToFile.endsWith('.mp3')) return 'audio/mpeg'
+  if (pathToFile.endsWith('.mp4')) return 'video/mp4'
   if (pathToFile.endsWith('.a52')) return 'application/x-atari-5200-rom'
   if (pathToFile.endsWith('.j64') || pathToFile.endsWith('.jag')) return 'application/x-atari-jaguar-rom'
   if (pathToFile.endsWith('.bsv')) return 'application/x-nes-rom'
   if (pathToFile.endsWith('.col')) return 'application/x-colecovision-rom'
+  if (pathToFile.endsWith('.cbr')) return 'application/x-cbr'
+  if (pathToFile.endsWith('.cbz')) return 'application/x-cbz'
 
   return mime.lookup(pathToFile) || false
 }
