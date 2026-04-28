@@ -43,23 +43,30 @@ export function enforceMasterworkTag(yaml: string): string {
   if (ratingValue >= 4 && !hasMasterwork) {
     // Insertion priority: ai:engine → ai:rating_reasoning → ai:rating → last line
     let insertIndex = lines.findIndex((l) => /^\s*- ai:engine:/.test(l))
+    // indentSourceIndex tracks the metadata_list field line used for indent derivation.
+    // This must stay separate from insertIndex because when ai:rating_reasoning uses a
+    // block scalar, insertIndex is advanced to the last block body line (deeply indented),
+    // while indentSourceIndex stays on the field line itself (correct sibling indentation).
+    let indentSourceIndex = insertIndex
 
     if (insertIndex === -1) {
       // ai:engine absent — fall back to ai:rating_reasoning (may be a block scalar)
       const reasoningIndex = lines.findIndex((l) => /^\s*- ai:rating_reasoning:/.test(l))
       if (reasoningIndex !== -1) {
         insertIndex = findBlockScalarEnd(lines, reasoningIndex)
+        indentSourceIndex = reasoningIndex // use the field line indent, not the block body end
       }
     }
 
     if (insertIndex === -1) {
       // Also missing ai:rating_reasoning — fall back to the ai:rating line itself
       insertIndex = lines.findIndex((l) => /^\s*- ai:rating:/.test(l))
+      indentSourceIndex = insertIndex
     }
 
-    // Derive indent from the anchor line; default to two spaces
+    // Derive indent from the metadata_list field line; default to two spaces
     const indentMatch =
-      insertIndex === -1 ? null : lines[insertIndex].match(/^(\s*)/)
+      indentSourceIndex === -1 ? null : lines[indentSourceIndex].match(/^(\s*)/)
     const indent = indentMatch ? indentMatch[1] : '  '
 
     if (insertIndex === -1) {

@@ -213,6 +213,8 @@ describe('postprocess-rules', () => {
       const tagIdx = findLineIndex(lines, `tag: ${TAG}`)
       // Should be the very last line (after the block scalar body)
       expect(tagIdx).toBe(lines.length - 1)
+      // Indentation must match the field (2 spaces), NOT the block body (6 spaces)
+      expect(lines[tagIdx]).toBe(`  - tag: ${TAG}`)
     })
 
     it('adds tag after ai:rating when both ai:engine and ai:rating_reasoning are absent', () => {
