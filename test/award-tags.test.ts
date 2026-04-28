@@ -209,5 +209,32 @@ describe('award-tags', () => {
       expect(result).toContain('  - tag: Award Recognized Series')
       expect(result).not.toContain('  - tag: award recognized series')
     })
+
+    // Regression: the suffix-only series patterns must use \s+ (not a literal single
+    // space) between the keyword and `series` so that AI-emitted variants with
+    // extra whitespace (e.g. "Eisner Award winning  series") still get normalized.
+    // Mirrors the \s+ used in the cross-award generic patterns above them.
+    describe('whitespace tolerance in suffix-only series patterns', () => {
+      it.each([
+        ['winning', 'Winning'],
+        ['nominated', 'Nominated'],
+        ['recognized', 'Recognized'],
+      ])('normalizes "%s" with extra whitespace before `series`', (lower, title) => {
+        const yaml = ['tags:', `  - tag: Eisner Award ${lower}  series`].join('\n')
+        const result = normalizeAwardTags(yaml)
+        expect(result).toContain(`  - tag: Eisner Award ${title} Series`)
+        expect(result).not.toContain(`  - tag: Eisner Award ${lower}  series`)
+      })
+
+      it.each([
+        ['winning', 'Winning'],
+        ['nominated', 'Nominated'],
+        ['recognized', 'Recognized'],
+      ])('normalizes "%s" with a tab before `series`', (lower, title) => {
+        const yaml = ['tags:', `  - tag: Eisner Award ${lower}\tseries`].join('\n')
+        const result = normalizeAwardTags(yaml)
+        expect(result).toContain(`  - tag: Eisner Award ${title} Series`)
+      })
+    })
   })
 })
