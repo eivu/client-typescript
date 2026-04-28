@@ -4,12 +4,7 @@ import {isEivuYmlFile} from '@src/utils'
 import * as fs from 'node:fs'
 import path from 'node:path'
 
-function collectFilesInDir(
-  dirPath: string,
-  recursive: boolean,
-  pathsToSkip: Set<string>,
-  out: string[],
-): void {
+function collectFilesInDir(dirPath: string, recursive: boolean, pathsToSkip: Set<string>, out: string[]): void {
   const entries = fs.readdirSync(dirPath, {withFileTypes: true})
   for (const ent of entries) {
     if (pathsToSkip.has(ent.name)) continue
@@ -39,33 +34,43 @@ export default class GenerateMetadataAi extends Command {
 
   public async run(): Promise<void> {
     const {args, flags} = await this.parse(GenerateMetadataAi)
-    const {path} = args
+    const {path: pathToItem} = args
     const recursive = flags.recursive ?? false
     const outputBaseName = flags.name
     let pathsArray: string[]
     const overwrite = flags.force ?? false
     const pathsToSkip = new Set<string>([
-      '.bzr', '.DS_Store', '.env', '.env.development.local', '.env.local',
-      '.env.production.local', '.env.test.local', '.git', '.hg', '.idea', '.svn', '.vscode',
+      '.bzr',
+      '.DS_Store',
+      '.env',
+      '.env.development.local',
+      '.env.local',
+      '.env.production.local',
+      '.env.test.local',
+      '.git',
+      '.hg',
+      '.idea',
+      '.svn',
+      '.vscode',
     ])
 
-    if (!path) {
+    if (!pathToItem) {
       this.log('Please provide a path to a file or folder to generate metadata for.')
       return
     }
 
-    if (fs.existsSync(path)) {
-      const stats = fs.statSync(path)
+    if (fs.existsSync(pathToItem)) {
+      const stats = fs.statSync(pathToItem)
       if (stats.isFile()) {
-        if (isEivuYmlFile(path)) {
+        if (isEivuYmlFile(pathToItem)) {
           this.log('Cannot generate metadata for an .eivu.yml file itself.')
           return
         }
 
-        pathsArray = [path]
+        pathsArray = [pathToItem]
       } else if (stats.isDirectory()) {
         pathsArray = []
-        collectFilesInDir(path, recursive, pathsToSkip, pathsArray)
+        collectFilesInDir(pathToItem, recursive, pathsToSkip, pathsArray)
         if (pathsArray.length === 0) {
           this.log('No files found in folder.')
           return
