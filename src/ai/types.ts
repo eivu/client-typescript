@@ -8,11 +8,13 @@ export type AgentRequest = {
   userMessage: string
 }
 
-/** Result from an agent for one request (success with YAML or error). */
+/** Result from an agent for one request (success with YAML, validation error, or error). */
 export type AgentResult = {
   customId: string
   error?: string
-  status: 'error' | 'success'
+  /** Preserved for validation_error results so callers can save/log the raw AI output for debugging. */
+  rawYaml?: string
+  status: 'error' | 'success' | 'validation_error'
   yaml?: string
 }
 
@@ -47,10 +49,13 @@ export type AgentOptions = {
   pollIntervalMs?: number
   skillContent?: string
   skillPath?: string
+  /** Max web searches per request (default 10). Set to 0 to disable web search. */
+  webSearchMaxUses?: number
 }
 
 /** Options for MetadataGenerator: agent type, overwrite flag, plus AgentOptions. */
 export type MetadataGeneratorOptions = AgentOptions & {
   agent?: AgentType
+  outputBaseName?: string
   overwrite?: boolean
 }

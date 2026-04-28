@@ -254,6 +254,12 @@ export const detectMime = (pathToFile: string): {mediatype: string; subtype: str
   return {mediatype, subtype, type}
 }
 
+export const contentTypeIsVideo = (contentType: string): boolean => contentType.startsWith('video/')
+export const contentTypeIsAudio = (contentType: string): boolean => contentType.startsWith('audio/')
+export const contentTypeIsImage = (contentType: string): boolean => contentType.startsWith('image/')
+export const contentTypeIsText = (contentType: string): boolean => contentType.startsWith('text/')
+export const contentTypeIsComic = (contentType: string): boolean => contentType.startsWith('application/x-cb')
+
 /**
  * Converts an MD5 hash into a folder path structure
  * Example: "ABC123" -> "AB/C1/23"
@@ -276,10 +282,16 @@ export const md5AsFolders = (md5: string): string => {
 const mimeLookup = (pathToFile: string): false | string => {
   if (pathToFile.endsWith('.m4a')) return 'audio/mpeg'
   if (pathToFile.endsWith('.mp3')) return 'audio/mpeg'
+  if (pathToFile.endsWith('.mp4')) return 'video/mp4'
   if (pathToFile.endsWith('.a52')) return 'application/x-atari-5200-rom'
   if (pathToFile.endsWith('.j64') || pathToFile.endsWith('.jag')) return 'application/x-atari-jaguar-rom'
   if (pathToFile.endsWith('.bsv')) return 'application/x-nes-rom'
   if (pathToFile.endsWith('.col')) return 'application/x-colecovision-rom'
+  if (pathToFile.endsWith('.cb7')) return 'application/x-cb7'
+  if (pathToFile.endsWith('.cba')) return 'application/x-cba'
+  if (pathToFile.endsWith('.cbr')) return 'application/x-cbr'
+  if (pathToFile.endsWith('.cbt')) return 'application/x-cbt'
+  if (pathToFile.endsWith('.cbz')) return 'application/x-cbz'
 
   return mime.lookup(pathToFile) || false
 }

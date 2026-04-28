@@ -1,4 +1,4 @@
-import type {AgentRequest, AgentType, GenerationResult, MetadataGeneratorOptions} from '@src/ai/types'
+import type {AgentRequest, AgentResult, AgentType, GenerationResult, MetadataGeneratorOptions} from '@src/ai/types'
 
 import {type BaseAgent, buildUserMessage} from '@src/ai/base-agent'
 import {ClaudeAgent} from '@src/ai/claude-agent'
@@ -6,9 +6,12 @@ import {GeminiAgent} from '@src/ai/gemini-agent'
 import {OpenAIAgent} from '@src/ai/openai-agent'
 import {METADATA_YML_SUFFIX} from '@src/constants'
 import logger from '@src/logger'
+import * as fastCsv from 'fast-csv'
 import * as fs from 'node:fs'
 import {promises as fsp} from 'node:fs'
 import path from 'node:path'
+
+const MAX_VALIDATION_ATTEMPTS = 3
 
 /**
  * Factory that creates the appropriate agent instance for the given type.
@@ -44,6 +47,8 @@ export class MetadataGenerator {
   /** When false, files that already have a .eivu.yml are skipped. */
   readonly overwrite: boolean
   private agent: BaseAgent
+  /** When set, overrides the base name of the output .eivu.yml file. */
+  private readonly outputBaseName: string | undefined
 
   /**
    * Creates a MetadataGenerator with the given options.
@@ -52,6 +57,7 @@ export class MetadataGenerator {
   constructor(options: MetadataGeneratorOptions = {}) {
     const agentType = options.agent ?? 'claude'
     this.overwrite = options.overwrite ?? false
+    this.outputBaseName = options.outputBaseName
     this.agent = createAgent(agentType, options)
   }
 
@@ -77,6 +83,15 @@ export class MetadataGenerator {
     return `${String(index).padStart(5, '0')}-${basename}`.slice(0, 64)
   }
 
+  private static async logValidationFailure(filePath: string, error: string): Promise<void> {
+    await fsp.mkdir('logs', {recursive: true})
+    const data = [new Date().toISOString(), filePath, error]
+    const csvString = await fastCsv.writeToString([data], {headers: false})
+    const logPath = 'logs/failure.csv'
+    const fileExists = await fsp.stat(logPath).then((s) => s.size > 0).catch(() => false)
+    await fsp.appendFile(logPath, (fileExists ? '\n' : '') + csvString.trim())
+  }
+
   /**
    * Generates .eivu.yml metadata for the given file paths.
    * Skips files that already have metadata when overwrite is false; otherwise runs the agent and writes results.
@@ -98,12 +113,82 @@ export class MetadataGenerator {
       'Processing files for AI metadata generation',
     )
 
-    const agentResults = await this.agent.processRequests(requests)
-
     const idToFilePath = new Map(requests.map((r) => [r.customId, {filePath: r.filePath, outputPath: r.outputPath}]))
-    const writeResults = await this.writeResults(agentResults, idToFilePath)
+    const idToRequest = new Map(requests.map((r) => [r.customId, r]))
+    const failureCounts = new Map<string, number>()
+    const allWriteResults: GenerationResult[] = []
+    let currentRequests = [...requests]
 
-    const results = [...skippedResults, ...writeResults]
+    // Retry loop: files that fail YAML validation are re-submitted to the AI agent
+    // in a new batch. Each file gets up to MAX_VALIDATION_ATTEMPTS total tries.
+    // After exhausting retries, the file is logged to logs/failure.csv.
+    for (let attempt = 1; attempt <= MAX_VALIDATION_ATTEMPTS && currentRequests.length > 0; attempt++) {
+      if (attempt > 1) {
+        logger.info({attempt, count: currentRequests.length}, 'Retrying files that failed YAML validation')
+      }
+
+      // eslint-disable-next-line no-await-in-loop -- retry batches must be sequential
+      const agentResults = await this.agent.processRequests(currentRequests)
+
+      // Triage results: successes/errors go to validResults for writing,
+      // validation failures are tracked for retry or permanent failure
+      const validResults: AgentResult[] = []
+      const retryIds: string[] = []
+
+      for (const result of agentResults) {
+        if (result.status !== 'validation_error') {
+          validResults.push(result)
+          continue
+        }
+
+        const count = (failureCounts.get(result.customId) ?? 0) + 1
+        failureCounts.set(result.customId, count)
+
+        // Re-queue for the next batch only if the file still has retries remaining
+        // AND there will actually be another loop iteration. The `attempt < MAX_VALIDATION_ATTEMPTS`
+        // check is critical: without it, a file failing on the final iteration with count < MAX
+        // (which can happen if count and attempt diverge — e.g. agent batch anomalies, future
+        // refactors, or a tunable MAX) is added to retryIds but never retried, never logged to
+        // failure.csv, and never added to allWriteResults — silently disappearing from output.
+        if (count < MAX_VALIDATION_ATTEMPTS && attempt < MAX_VALIDATION_ATTEMPTS) {
+          retryIds.push(result.customId)
+          logger.warn(
+            {attempt: count, customId: result.customId, error: result.error, maxAttempts: MAX_VALIDATION_ATTEMPTS},
+            'YAML validation failed, will retry',
+          )
+          continue
+        }
+
+        // Either retries exhausted OR final loop iteration — log to failure CSV and record as error
+        const mapping = idToFilePath.get(result.customId)
+        if (mapping) {
+          // eslint-disable-next-line no-await-in-loop -- must log before next iteration
+          await MetadataGenerator.logValidationFailure(mapping.filePath, result.error ?? 'Validation failed')
+          allWriteResults.push({
+            error: `Validation failed after ${count} attempt${count === 1 ? '' : 's'}: ${result.error}`,
+            filePath: mapping.filePath,
+            outputPath: mapping.outputPath,
+            status: 'error',
+          })
+        }
+
+        logger.error(
+          {attempts: count, customId: result.customId, error: result.error},
+          'YAML validation failed permanently, logged to logs/failure.csv',
+        )
+      }
+
+      // eslint-disable-next-line no-await-in-loop -- must complete before next retry iteration
+      const writeResults = await this.writeResults(validResults, idToFilePath)
+      allWriteResults.push(...writeResults)
+
+      // Build the next batch from files that still have retries left
+      currentRequests = retryIds
+        .map((id) => idToRequest.get(id))
+        .filter((r): r is AgentRequest & {outputPath: string} => r !== undefined)
+    }
+
+    const results = [...skippedResults, ...allWriteResults]
     const succeeded = results.filter((r) => r.status === 'success').length
     const errored = results.filter((r) => r.status === 'error').length
     const skipped = results.filter((r) => r.status === 'skipped').length
@@ -120,7 +205,8 @@ export class MetadataGenerator {
     const skippedResults: GenerationResult[] = []
 
     for (const [i, filePath] of filePaths.entries()) {
-      const outputPath = `${filePath}${METADATA_YML_SUFFIX}`
+      const baseName = this.outputBaseName ?? path.basename(filePath)
+      const outputPath = path.join(path.dirname(filePath), `${baseName}${METADATA_YML_SUFFIX}`)
 
       if (!this.overwrite && fs.existsSync(outputPath)) {
         skippedResults.push({filePath, outputPath, status: 'skipped'})
@@ -136,7 +222,7 @@ export class MetadataGenerator {
   }
 
   private async writeResults(
-    agentResults: Array<{customId: string; error?: string; status: string; yaml?: string}>,
+    agentResults: AgentResult[],
     idToFilePath: Map<string, {filePath: string; outputPath: string}>,
   ): Promise<GenerationResult[]> {
     const resultPromises: Promise<GenerationResult>[] = []

@@ -15,6 +15,8 @@ export default {
     '^@src/(.*)$': '<rootDir>/src/$1',
     '^@test/(.*)$': '<rootDir>/test/$1',
     '^file-type$': '<rootDir>/node_modules/file-type/index.js',
+    '^lodash-es$': 'lodash',
+    '^lodash-es/(.*)$': 'lodash/$1',
     '^music-metadata$': '<rootDir>/node_modules/music-metadata/lib/index.js'
   },
   setupFiles: ['<rootDir>/jest.setup.js'],

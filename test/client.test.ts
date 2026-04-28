@@ -654,13 +654,13 @@ describe('Client', () => {
         .reply(404, {error: 'Not found'})
 
       const headS3Req = nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
-        .head(`/archive/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${REMOTE_ASSET_FILENAME}`)
+        .head(`/video/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${REMOTE_ASSET_FILENAME}`)
         .reply(200, '', {'Content-Length': String(filesize)})
 
       const transferReq = nock(SERVER_HOST)
         .post(`${URL_BUCKET_PREFIX}/cloud_files/${REMOTE_REAL_MD5}/transfer`, {
           asset: REMOTE_ASSET_FILENAME,
-          content_type: 'application/mp4', // eslint-disable-line camelcase
+          content_type: 'video/mp4', // eslint-disable-line camelcase
           filesize,
         })
         .query({keyFormat: 'camel_lower'})
@@ -788,13 +788,13 @@ describe('Client', () => {
           .reply(404, {error: 'Not found'})
 
         const headS3Req = nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
-          .head(`/archive/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${customAsset}`)
+          .head(`/video/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${customAsset}`)
           .reply(200, '', {'Content-Length': String(REMOTE_FILESIZE)})
 
         const transferReq = nock(SERVER_HOST)
           .post(`${URL_BUCKET_PREFIX}/cloud_files/${REMOTE_REAL_MD5}/transfer`, {
             asset: customAsset,
-            content_type: 'application/mp4', // eslint-disable-line camelcase
+            content_type: 'video/mp4', // eslint-disable-line camelcase
             filesize: REMOTE_FILESIZE,
           })
           .query({keyFormat: 'camel_lower'})
@@ -984,7 +984,7 @@ describe('Client', () => {
 
         // Filesize mismatch triggers reset and error
         nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
-          .head(`/archive/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${REMOTE_ASSET_FILENAME}`)
+          .head(`/video/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${REMOTE_ASSET_FILENAME}`)
           .reply(200, '', {'Content-Length': '999'})
 
         const resetReq = nock(SERVER_HOST)
@@ -1070,7 +1070,7 @@ describe('Client', () => {
 
         const assetFilename = url.split('/').pop()!
         nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
-          .head(`/archive/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${assetFilename}`)
+          .head(`/video/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${assetFilename}`)
           .reply(200, '', {'Content-Length': String(REMOTE_FILESIZE)})
 
         nock(SERVER_HOST)
@@ -1146,7 +1146,7 @@ describe('Client', () => {
         .reply(404, {error: 'Not found'})
 
       nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
-        .head(`/archive/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${assetGood}`)
+        .head(`/video/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${assetGood}`)
         .reply(200, '', {'Content-Length': String(REMOTE_FILESIZE)})
 
       nock(SERVER_HOST)
@@ -1275,7 +1275,7 @@ describe('Client', () => {
 
       // File not found on S3 (404)
       nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
-        .head(`/archive/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${REMOTE_ASSET_FILENAME}`)
+        .head(`/video/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${REMOTE_ASSET_FILENAME}`)
         .reply(404)
 
       const resetReq = nock(SERVER_HOST)
@@ -1324,13 +1324,13 @@ describe('Client', () => {
         .reply(404, {error: 'Not found'})
 
       nock(`https://${process.env.EIVU_BUCKET_NAME}.s3.wasabisys.com`)
-        .head(`/archive/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${REMOTE_ASSET_FILENAME}`)
+        .head(`/video/A9/F3/B2/C1/D4/E5/F6/07/18/29/30/4A/5B/6C/7D/8E/${REMOTE_ASSET_FILENAME}`)
         .reply(200, '', {'Content-Length': String(REMOTE_FILESIZE)})
 
       const transferReq = nock(SERVER_HOST)
         .post(`${URL_BUCKET_PREFIX}/cloud_files/${REMOTE_REAL_MD5}/transfer`, {
           asset: REMOTE_ASSET_FILENAME,
-          content_type: 'application/mp4', // eslint-disable-line camelcase
+          content_type: 'video/mp4', // eslint-disable-line camelcase
           filesize: REMOTE_FILESIZE,
         })
         .query({keyFormat: 'camel_lower'})

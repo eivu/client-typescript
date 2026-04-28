@@ -2,18 +2,30 @@ import type {AgentOptions, AgentRequest, AgentResult} from '@src/ai/types'
 
 import Anthropic from '@anthropic-ai/sdk'
 import {BaseAgent, extractYamlFromResponse} from '@src/ai/base-agent'
+import {METADATA_YML_SUFFIX} from '@src/constants'
 import logger from '@src/logger'
 import * as fs from 'node:fs'
+import {promises as fsp} from 'node:fs'
 import path from 'node:path'
 
 const MAX_BATCH_SIZE = 10_000
 const CLAUDE_DEFAULTS = {
-  maxTokens: 8192,
-  model: 'claude-sonnet-4-20250514',
+  maxTokens: 16_384,
+  model: 'claude-opus-4-6',
   pollIntervalMs: 30_000,
 } as const
 
-const DEFAULT_SKILL_PATH = path.join('src', 'ai', 'prompts', 'claude', 'EIVU_METADATA_SKILL_v7_16_1_RUNTIME.md')
+const DEFAULT_SKILL_PATH = path.join('src', 'ai', 'prompts', 'claude', 'EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md')
+
+/**
+ * Anthropic web search tool definition.
+ * Uses the stable tool type; max_uses caps the number of searches per request.
+ */
+type WebSearchTool = {
+  max_uses?: number
+  name: 'web_search'
+  type: 'web_search_20250305'
+}
 
 /** System prompt block with optional cache control for Anthropic API. */
 type CachedTextBlock = {
@@ -25,14 +37,33 @@ type CachedTextBlock = {
 /**
  * Agent implementation using Anthropic's Claude API (Messages Batches).
  * Loads the EIVU metadata skill from a file or skillContent and processes requests in batches.
+ * Enables web search by default so the model can verify book identity, creative teams,
+ * character appearances, and critical reception before generating metadata.
  */
 export class ClaudeAgent extends BaseAgent {
   private client: Anthropic
   private systemPromptBlocks: CachedTextBlock[]
+  private tools: WebSearchTool[]
 
   constructor(options: AgentOptions = {}) {
     super(options, CLAUDE_DEFAULTS)
     this.client = new Anthropic({apiKey: options.apiKey})
+
+    // Web search is critical for accurate metadata — the model must verify
+    // what a book collects, its full creative team, character appearances,
+    // and critical reception before generating YAML.
+    const webSearchMaxUses = options.webSearchMaxUses ?? 10
+    this.tools =
+      webSearchMaxUses > 0
+        ? [
+            {
+              // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
+              max_uses: webSearchMaxUses,
+              name: 'web_search' as const,
+              type: 'web_search_20250305' as const,
+            },
+          ]
+        : []
 
     let skillContent: string
     if (options.skillContent) {
@@ -87,30 +118,67 @@ export class ClaudeAgent extends BaseAgent {
     return results
   }
 
+  /**
+   * Collects and processes results from a completed Anthropic batch.
+   *
+   * Raw YAML is extracted from each succeeded entry and passed to the shared
+   * BaseAgent.validateAndPostProcess pipeline. For validation failures, the raw
+   * AI output is saved to `tmp/{timestamp}-{batchId}/` for debugging — one shared
+   * timestamp per batch so related failures are grouped together. Failed results are
+   * returned as `validation_error` so MetadataGenerator can retry them.
+   */
   private async collectResults(batchId: string, requests: AgentRequest[]): Promise<AgentResult[]> {
-    const idToCustomId = new Map(requests.map((r) => [r.customId, r]))
-    const results: AgentResult[] = []
+    const idToRequest = new Map(requests.map((r) => [r.customId, r]))
+    const rawItems: Array<{customId: string; rawYaml: string}> = []
+    const errorResults: AgentResult[] = []
 
     const resultsStream = await this.client.messages.batches.results(batchId)
     for await (const entry of resultsStream) {
-      if (!idToCustomId.has(entry.custom_id)) {
+      if (!idToRequest.has(entry.custom_id)) {
         logger.warn({customId: entry.custom_id}, 'Unknown custom_id in batch results')
         continue
       }
 
       if (entry.result.type === 'succeeded') {
-        const yaml = extractYamlFromResponse(
-          entry.result.message.content as Array<{text?: string; type: string}>,
-        )
-        results.push({customId: entry.custom_id, status: 'success', yaml})
+        const rawYaml = extractYamlFromResponse(entry.result.message.content as Array<{text?: string; type: string}>)
+        rawItems.push({customId: entry.custom_id, rawYaml})
       } else {
         const errorMsg = ClaudeAgent.formatBatchError(entry.result)
-        results.push({customId: entry.custom_id, error: errorMsg, status: 'error'})
+        errorResults.push({customId: entry.custom_id, error: errorMsg, status: 'error'})
         logger.error({customId: entry.custom_id, resultType: entry.result.type}, 'Batch request failed')
       }
     }
 
-    return results
+    // Shared validation + post-processing (owned by BaseAgent so all agents use it)
+    const processedResults = this.validateAndPostProcess(rawItems)
+
+    // Save failed YAML to tmp for debugging — directory is only created on the first
+    // failure to avoid empty directories. Shared timestamp keeps batch failures together.
+    const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-')
+    const failureDir = path.join('tmp', `${timestamp}-${batchId}`)
+    let failureDirCreated = false
+
+    for (const result of processedResults) {
+      if (result.status === 'validation_error') {
+        logger.warn({customId: result.customId, error: result.error}, 'YAML validation failed')
+
+        const request = idToRequest.get(result.customId)
+        if (request) {
+          if (!failureDirCreated) {
+            // eslint-disable-next-line no-await-in-loop -- lazy directory creation
+            await fsp.mkdir(failureDir, {recursive: true})
+            failureDirCreated = true
+          }
+
+          const filename = `${path.basename(request.filePath)}${METADATA_YML_SUFFIX}`
+          // eslint-disable-next-line no-await-in-loop -- sequential saves within same batch
+          await fsp.writeFile(path.join(failureDir, filename), result.rawYaml ?? '', 'utf8')
+          logger.info({batchId, filePath: path.join(failureDir, filename)}, 'Saved failed YAML to tmp')
+        }
+      }
+    }
+
+    return [...errorResults, ...processedResults]
   }
 
   private async pollUntilComplete(batchId: string, totalRequests: number): Promise<void> {
@@ -159,6 +227,7 @@ export class ClaudeAgent extends BaseAgent {
         messages: [{content: req.userMessage, role: 'user' as const}],
         model: this.model,
         system: this.systemPromptBlocks as Anthropic.MessageCreateParams['system'],
+        ...(this.tools.length > 0 ? {tools: this.tools as unknown as Anthropic.MessageCreateParams['tools']} : {}),
       },
     }))
 

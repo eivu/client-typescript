@@ -1,6 +1,18 @@
 import {describe, expect, it} from '@jest/globals'
 
-import {cleansedAssetName, generateMd5, generateMd5OfString, isEivuYmlFile, md5AsFolders} from '../src/utils'
+import {
+  cleansedAssetName,
+  contentTypeIsAudio,
+  contentTypeIsComic,
+  contentTypeIsImage,
+  contentTypeIsText,
+  contentTypeIsVideo,
+  detectMime,
+  generateMd5,
+  generateMd5OfString,
+  isEivuYmlFile,
+  md5AsFolders,
+} from '../src/utils'
 
 describe('Utils', () => {
   describe('cleansedAssetName', () => {
@@ -112,12 +124,214 @@ describe('Utils', () => {
     })
   })
 
+  describe('detectMime', () => {
+    it('detects JPEG image type', () => {
+      const result = detectMime('test/fixtures/samples/image/ai overlords.jpg')
+      expect(result).toEqual({mediatype: 'image', subtype: 'jpeg', type: 'image/jpeg'})
+    })
+
+    it('detects WebP image type', () => {
+      const result = detectMime('test/fixtures/samples/image/Space_Adventures_033.webp')
+      expect(result).toEqual({mediatype: 'image', subtype: 'webp', type: 'image/webp'})
+    })
+
+    it('detects MP4 video type', () => {
+      const result = detectMime('test/fixtures/samples/video/mov_bbb.mp4')
+      expect(result).toEqual({mediatype: 'video', subtype: 'mp4', type: 'video/mp4'})
+    })
+
+    it('detects MP3 audio type via custom mapping', () => {
+      const result = detectMime('test/fixtures/samples/audio/test.mp3')
+      expect(result).toEqual({mediatype: 'audio', subtype: 'mpeg', type: 'audio/mpeg'})
+    })
+
+    it('detects M4A audio type via custom mapping', () => {
+      const result = detectMime('some/path/song.m4a')
+      expect(result).toEqual({mediatype: 'audio', subtype: 'mpeg', type: 'audio/mpeg'})
+    })
+
+    it('detects plain text type', () => {
+      const result = detectMime('test/fixtures/samples/text/alphabet/a.txt')
+      expect(result).toEqual({mediatype: 'text', subtype: 'plain', type: 'text/plain'})
+    })
+
+    it('detects CBR comic type', () => {
+      const result = detectMime('test/fixtures/samples/comics/Undersea Agent 01 [Tower] (Jan 1966).cbr')
+      expect(result).toEqual({mediatype: 'application', subtype: 'x-cbr', type: 'application/x-cbr'})
+    })
+
+    it('detects CBZ comic type', () => {
+      const result = detectMime('test/fixtures/samples/comics/Undersea Agent 01 [Tower] (Jan 1966).cbz')
+      expect(result).toEqual({mediatype: 'application', subtype: 'x-cbz', type: 'application/x-cbz'})
+    })
+
+    it('returns unknown/unknown for unrecognized extensions', () => {
+      const result = detectMime('some/path/file.unknownextension12345')
+      expect(result).toEqual({mediatype: 'unknown', subtype: 'unknown', type: 'unknown/unknown'})
+    })
+
+    it('detects Atari 5200 ROM type via custom mapping (.a52)', () => {
+      const result = detectMime('roms/game.a52')
+      expect(result).toEqual({
+        mediatype: 'application',
+        subtype: 'x-atari-5200-rom',
+        type: 'application/x-atari-5200-rom',
+      })
+    })
+
+    it('detects Atari Jaguar ROM type via custom mapping (.j64)', () => {
+      const result = detectMime('roms/game.j64')
+      expect(result).toEqual({
+        mediatype: 'application',
+        subtype: 'x-atari-jaguar-rom',
+        type: 'application/x-atari-jaguar-rom',
+      })
+    })
+
+    it('detects Atari Jaguar ROM type via custom mapping (.jag)', () => {
+      const result = detectMime('roms/game.jag')
+      expect(result).toEqual({
+        mediatype: 'application',
+        subtype: 'x-atari-jaguar-rom',
+        type: 'application/x-atari-jaguar-rom',
+      })
+    })
+
+    it('detects NES ROM type via custom mapping (.bsv)', () => {
+      const result = detectMime('roms/game.bsv')
+      expect(result).toEqual({mediatype: 'application', subtype: 'x-nes-rom', type: 'application/x-nes-rom'})
+    })
+
+    it('detects ColecoVision ROM type via custom mapping (.col)', () => {
+      const result = detectMime('roms/game.col')
+      expect(result).toEqual({
+        mediatype: 'application',
+        subtype: 'x-colecovision-rom',
+        type: 'application/x-colecovision-rom',
+      })
+    })
+  })
+
   describe('generateMd5OfString', () => {
     it('should generate correct MD5 hash for a given string', () => {
       const inputString = 'Hello, World!'
       const expectedMd5 = '65A8E27D8879283831B664BD8B7F0AD4' // Precomputed MD5 hash
       const md5 = generateMd5OfString(inputString)
       expect(md5).toBe(expectedMd5)
+    })
+  })
+
+  describe('contentTypeIsVideo', () => {
+    it('returns true for video/mp4', () => {
+      expect(contentTypeIsVideo('video/mp4')).toBe(true)
+    })
+
+    it('returns true for video/webm', () => {
+      expect(contentTypeIsVideo('video/webm')).toBe(true)
+    })
+
+    it('returns false for audio/mpeg', () => {
+      expect(contentTypeIsVideo('audio/mpeg')).toBe(false)
+    })
+
+    it('returns false for image/jpeg', () => {
+      expect(contentTypeIsVideo('image/jpeg')).toBe(false)
+    })
+
+    it('returns false for an empty string', () => {
+      expect(contentTypeIsVideo('')).toBe(false)
+    })
+  })
+
+  describe('contentTypeIsAudio', () => {
+    it('returns true for audio/mpeg', () => {
+      expect(contentTypeIsAudio('audio/mpeg')).toBe(true)
+    })
+
+    it('returns true for audio/flac', () => {
+      expect(contentTypeIsAudio('audio/flac')).toBe(true)
+    })
+
+    it('returns false for video/mp4', () => {
+      expect(contentTypeIsAudio('video/mp4')).toBe(false)
+    })
+
+    it('returns false for image/png', () => {
+      expect(contentTypeIsAudio('image/png')).toBe(false)
+    })
+
+    it('returns false for an empty string', () => {
+      expect(contentTypeIsAudio('')).toBe(false)
+    })
+  })
+
+  describe('contentTypeIsImage', () => {
+    it('returns true for image/jpeg', () => {
+      expect(contentTypeIsImage('image/jpeg')).toBe(true)
+    })
+
+    it('returns true for image/webp', () => {
+      expect(contentTypeIsImage('image/webp')).toBe(true)
+    })
+
+    it('returns false for video/mp4', () => {
+      expect(contentTypeIsImage('video/mp4')).toBe(false)
+    })
+
+    it('returns false for text/plain', () => {
+      expect(contentTypeIsImage('text/plain')).toBe(false)
+    })
+
+    it('returns false for an empty string', () => {
+      expect(contentTypeIsImage('')).toBe(false)
+    })
+  })
+
+  describe('contentTypeIsText', () => {
+    it('returns true for text/plain', () => {
+      expect(contentTypeIsText('text/plain')).toBe(true)
+    })
+
+    it('returns true for text/html', () => {
+      expect(contentTypeIsText('text/html')).toBe(true)
+    })
+
+    it('returns false for application/json', () => {
+      expect(contentTypeIsText('application/json')).toBe(false)
+    })
+
+    it('returns false for image/jpeg', () => {
+      expect(contentTypeIsText('image/jpeg')).toBe(false)
+    })
+
+    it('returns false for an empty string', () => {
+      expect(contentTypeIsText('')).toBe(false)
+    })
+  })
+
+  describe('contentTypeIsComic', () => {
+    it('returns true for application/x-cbr', () => {
+      expect(contentTypeIsComic('application/x-cbr')).toBe(true)
+    })
+
+    it('returns true for application/x-cbz', () => {
+      expect(contentTypeIsComic('application/x-cbz')).toBe(true)
+    })
+
+    it('returns true for application/x-cb7', () => {
+      expect(contentTypeIsComic('application/x-cb7')).toBe(true)
+    })
+
+    it('returns false for application/pdf', () => {
+      expect(contentTypeIsComic('application/pdf')).toBe(false)
+    })
+
+    it('returns false for image/jpeg', () => {
+      expect(contentTypeIsComic('image/jpeg')).toBe(false)
+    })
+
+    it('returns false for an empty string', () => {
+      expect(contentTypeIsComic('')).toBe(false)
     })
   })
 })
