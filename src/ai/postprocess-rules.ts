@@ -65,8 +65,7 @@ export function enforceMasterworkTag(yaml: string): string {
     }
 
     // Derive indent from the metadata_list field line; default to two spaces
-    const indentMatch =
-      indentSourceIndex === -1 ? null : lines[indentSourceIndex].match(/^(\s*)/)
+    const indentMatch = indentSourceIndex === -1 ? null : lines[indentSourceIndex].match(/^(\s*)/)
     const indent = indentMatch ? indentMatch[1] : '  '
 
     if (insertIndex === -1) {
@@ -172,8 +171,24 @@ export function enforceSkillVersion(yaml: string): string {
     const rawInsertAfter = ratingReasoningIndex >= 0 ? ratingReasoningIndex : engineIndex - 1
     if (rawInsertAfter >= 0) {
       const insertAfter = findBlockScalarEnd(lines, rawInsertAfter)
-      const indentMatch = lines[insertAfter + 1]?.match(/^(\s*)/) ?? lines[insertAfter]?.match(/^(\s*)/)
-      const indent = indentMatch ? indentMatch[1] : '  '
+
+      // Find the next non-blank line after the insertion point to derive the correct
+      // sibling indent. /^(\s*)/ always matches (even on ''), so using it directly on
+      // a blank line yields indent '' — the ?? fallback never fires because the match
+      // array is truthy. Scanning past blanks avoids that silent zero-indent bug.
+      let indentSourceLine: string | undefined
+      for (let i = insertAfter + 1; i < lines.length; i++) {
+        if (lines[i].trim() !== '') {
+          indentSourceLine = lines[i]
+          break
+        }
+      }
+
+      // Fall back to the original field line (rawInsertAfter) — reliably at sibling indent
+      if (!indentSourceLine) indentSourceLine = lines[rawInsertAfter]
+
+      const indentMatch = indentSourceLine?.match(/^(\s*)/)
+      const indent = (indentMatch && indentMatch[1]) || '  '
       lines.splice(insertAfter + 1, 0, `${indent}- ai:skill_version: ${CURRENT_SKILL_VERSION}`)
     }
   }

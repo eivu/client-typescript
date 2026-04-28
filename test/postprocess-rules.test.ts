@@ -96,6 +96,31 @@ describe('postprocess-rules', () => {
       expect(svIdx).toBe(engineIdx - 1)
     })
 
+    it('uses correct indent when a blank line separates block scalar body from next field', () => {
+      // Regression: /^(\s*)/ matches '' (empty string) with group 1 = '', so the ??
+      // fallback never fires, and indent becomes '' — inserting at column 0.
+      const yaml = [
+        '  - ai:rating_reasoning: |',
+        '      Line one of reasoning.',
+        '      Line two of reasoning.',
+        '',
+        '  - ai:engine: claude-opus-4-6',
+      ].join('\n')
+
+      const result = enforceSkillVersion(yaml)
+      const lines = result.split('\n')
+      const svIdx = findLineIndex(lines, 'ai:skill_version')
+      const engineIdx = findLineIndex(lines, 'ai:engine')
+
+      expect(svIdx).toBeGreaterThan(-1)
+      // Must be placed after the block scalar body and before ai:engine
+      // (a blank line may remain between the insertion and ai:engine, so we
+      // only assert ordering, not exact adjacency)
+      expect(svIdx).toBeLessThan(engineIdx)
+      // Must carry the correct two-space sibling indent, NOT indent ''
+      expect(lines[svIdx]).toBe(`  - ai:skill_version: ${CURRENT_VERSION}`)
+    })
+
     it('inserts before ai:engine when no rating_reasoning exists (fallback)', () => {
       const yaml = [
         '  - ai:rating: 3.5',
