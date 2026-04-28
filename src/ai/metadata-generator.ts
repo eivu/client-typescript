@@ -1,4 +1,4 @@
-import type {AgentRequest, AgentType, GenerationResult, MetadataGeneratorOptions} from '@src/ai/types'
+import type {AgentRequest, AgentResult, AgentType, GenerationResult, MetadataGeneratorOptions} from '@src/ai/types'
 
 import {type BaseAgent, buildUserMessage} from '@src/ai/base-agent'
 import {ClaudeAgent} from '@src/ai/claude-agent'
@@ -132,7 +132,7 @@ export class MetadataGenerator {
 
       // Triage results: successes/errors go to validResults for writing,
       // validation failures are tracked for retry or permanent failure
-      const validResults: Array<{customId: string; error?: string; status: string; yaml?: string}> = []
+      const validResults: AgentResult[] = []
       const retryIds: string[] = []
 
       for (const result of agentResults) {
@@ -222,7 +222,7 @@ export class MetadataGenerator {
   }
 
   private async writeResults(
-    agentResults: Array<{customId: string; error?: string; status: string; yaml?: string}>,
+    agentResults: AgentResult[],
     idToFilePath: Map<string, {filePath: string; outputPath: string}>,
   ): Promise<GenerationResult[]> {
     const resultPromises: Promise<GenerationResult>[] = []
