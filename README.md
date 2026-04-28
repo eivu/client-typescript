@@ -32,18 +32,17 @@ USAGE
 # Commands
 
 <!-- commands -->
-
-- [`eivu help [COMMAND]`](#eivu-help-command)
-- [`eivu plugins`](#eivu-plugins)
-- [`eivu plugins add PLUGIN`](#eivu-plugins-add-plugin)
-- [`eivu plugins:inspect PLUGIN...`](#eivu-pluginsinspect-plugin)
-- [`eivu plugins install PLUGIN`](#eivu-plugins-install-plugin)
-- [`eivu plugins link PATH`](#eivu-plugins-link-path)
-- [`eivu plugins remove [PLUGIN]`](#eivu-plugins-remove-plugin)
-- [`eivu plugins reset`](#eivu-plugins-reset)
-- [`eivu plugins uninstall [PLUGIN]`](#eivu-plugins-uninstall-plugin)
-- [`eivu plugins unlink [PLUGIN]`](#eivu-plugins-unlink-plugin)
-- [`eivu plugins update`](#eivu-plugins-update)
+* [`eivu help [COMMAND]`](#eivu-help-command)
+* [`eivu plugins`](#eivu-plugins)
+* [`eivu plugins add PLUGIN`](#eivu-plugins-add-plugin)
+* [`eivu plugins:inspect PLUGIN...`](#eivu-pluginsinspect-plugin)
+* [`eivu plugins install PLUGIN`](#eivu-plugins-install-plugin)
+* [`eivu plugins link PATH`](#eivu-plugins-link-path)
+* [`eivu plugins remove [PLUGIN]`](#eivu-plugins-remove-plugin)
+* [`eivu plugins reset`](#eivu-plugins-reset)
+* [`eivu plugins uninstall [PLUGIN]`](#eivu-plugins-uninstall-plugin)
+* [`eivu plugins unlink [PLUGIN]`](#eivu-plugins-unlink-plugin)
+* [`eivu plugins update`](#eivu-plugins-update)
 
 ## `eivu help [COMMAND]`
 
