@@ -36,8 +36,13 @@ const NOMINEE_YEAR_PATTERN = /^(.+?)\s+Nominee\s+(\d{4})$/i
 function titleCaseAward(award: string): string {
   return award
     .split(' ')
-    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : word))
+    .map((word) => (word ? capitalizeFirst(word) : word))
     .join(' ')
+}
+
+/** Capitalizes the first character and lowercases the rest (e.g. "WINNER" → "Winner"). */
+function capitalizeFirst(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
 }
 
 /**
@@ -111,33 +116,37 @@ export function deriveAwardTags(existingTags: Set<string>): string[] {
 export function normalizeAwardTags(yaml: string): string {
   let lines = yaml.split('\n')
 
-  // Step 0: Normalize casing of award keywords in tag lines to Title Case so that
+  // Step 0: Normalize casing of award tag lines to canonical Title Case so that
   // WINNER_PATTERN / NOMINEE_YEAR_PATTERN (and the duplicate filter) operate on
   // consistently-cased values regardless of what the AI emitted.
   //
-  // Winner/Nominee year patterns come FIRST so they normalize those keywords before
-  // the series-suffix patterns run.
+  // Both the award-name PREFIX and the trailing keyword are title-cased. Using a
+  // plain regex backreference replacement (e.g. `$1 Winner $2`) would preserve
+  // the prefix's original casing, leaving inconsistent casing between source tags
+  // (e.g. "eisner award Winner 2020") and derived tags (always "Eisner Award …").
+  // The case-insensitive dedup filter in deriveAwardTags would then block the
+  // correctly-cased derived form from being added, leaving the badly-cased
+  // original as the only copy in the output YAML.
   //
-  // For series tags, the standalone cross-award generic patterns come before the
-  // generic suffix-only patterns so they fully normalize both prefix AND suffix —
-  // e.g. "award recognized series" → "Award Recognized Series" (not "award Recognized Series"),
-  // which would otherwise pass the case-sensitive duplicate filter and create a dupe.
-  const SERIES_CASING_FIXES: Array<{pattern: RegExp; replacement: string}> = [
-    {pattern: /^(\s*- tag:\s*.+?)\s+winner\s+(\d{4})$/i, replacement: '$1 Winner $2'},
-    {pattern: /^(\s*- tag:\s*.+?)\s+nominee\s+(\d{4})$/i, replacement: '$1 Nominee $2'},
-    {pattern: /^(\s*- tag:\s*)award\s+winning\s+series$/i, replacement: '$1Award Winning Series'},
-    {pattern: /^(\s*- tag:\s*)award\s+nominated\s+series$/i, replacement: '$1Award Nominated Series'},
-    {pattern: /^(\s*- tag:\s*)award\s+recognized\s+series$/i, replacement: '$1Award Recognized Series'},
-    {pattern: /^(\s*- tag:\s*.+?)\s+winning\s+series$/i, replacement: '$1 Winning Series'},
-    {pattern: /^(\s*- tag:\s*.+?)\s+nominated\s+series$/i, replacement: '$1 Nominated Series'},
-    {pattern: /^(\s*- tag:\s*.+?)\s+recognized\s+series$/i, replacement: '$1 Recognized Series'},
-  ]
+  // Pattern order: year-suffixed winner/nominee runs first so the trailing
+  // `\d{4}` is consumed before the series-suffix pass looks at the line.
+  const YEAR_SUFFIX_AWARD_RE = /^(\s*- tag:\s*)(.+?)\s+(winner|nominee)\s+(\d{4})$/i
+  const SERIES_SUFFIX_AWARD_RE = /^(\s*- tag:\s*)(.+?)\s+(winning|nominated|recognized)\s+series$/i
 
   lines = lines.map((line) => {
-    for (const {pattern, replacement} of SERIES_CASING_FIXES) {
-      if (pattern.test(line)) {
-        return line.replace(pattern, replacement)
-      }
+    const yearMatch = line.match(YEAR_SUFFIX_AWARD_RE)
+    if (yearMatch) {
+      const [, prefix, rawAward, keyword, year] = yearMatch
+      return `${prefix}${titleCaseAward(rawAward)} ${capitalizeFirst(keyword)} ${year}`
+    }
+
+    const seriesMatch = line.match(SERIES_SUFFIX_AWARD_RE)
+    if (seriesMatch) {
+      const [, prefix, rawAward, keyword] = seriesMatch
+      // titleCaseAward("award") → "Award", so the cross-award generic form
+      // (e.g. "award recognized series" → "Award Recognized Series") is also
+      // covered without needing a separate pattern.
+      return `${prefix}${titleCaseAward(rawAward)} ${capitalizeFirst(keyword)} Series`
     }
 
     return line
@@ -154,8 +163,7 @@ export function normalizeAwardTags(yaml: string): string {
     const m = line.match(STANDALONE_AWARD_KEYWORD_RE)
     if (!m) return line
     const [, prefix, rawAward, keyword] = m
-    const canonicalKw = keyword.charAt(0).toUpperCase() + keyword.slice(1).toLowerCase()
-    return `${prefix}${titleCaseAward(rawAward)} ${canonicalKw}`
+    return `${prefix}${titleCaseAward(rawAward)} ${capitalizeFirst(keyword)}`
   })
 
   // Collect existing tags and track award tag positions

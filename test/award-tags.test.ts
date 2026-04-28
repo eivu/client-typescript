@@ -144,7 +144,7 @@ describe('award-tags', () => {
       expect(lines).toContain('  - tag: Award Winning Series')
     })
 
-    it('title-cases a lowercase award name in inserted tags but leaves the source tag line as-is', () => {
+    it('title-cases the award-name prefix on the source tag AND in inserted tags', () => {
       const yaml = ['tags:', '  - tag: eisner award Winner 2020'].join('\n')
 
       const result = normalizeAwardTags(yaml)
@@ -153,12 +153,13 @@ describe('award-tags', () => {
       expect(result).toContain('  - tag: Eisner Award Nominee 2020')
       expect(result).toContain('  - tag: Eisner Award Winning Series')
 
-      // No derived tag has a lowercase award name prefix
+      // No tag (source or derived) has a lowercase award-name prefix
+      expect(result).not.toContain('  - tag: eisner award Winner 2020')
       expect(result).not.toContain('  - tag: eisner award Nominee 2020')
       expect(result).not.toContain('  - tag: eisner award Winning Series')
 
-      // The original source tag is preserved (only its keyword is normalized: winner → Winner)
-      expect(result).toContain('  - tag: eisner award Winner 2020')
+      // The source tag is normalized to canonical Title Case (prefix + keyword)
+      expect(result).toContain('  - tag: Eisner Award Winner 2020')
     })
 
     it('does not insert duplicates when the same award appears with different casings', () => {
@@ -235,6 +236,86 @@ describe('award-tags', () => {
         const result = normalizeAwardTags(yaml)
         expect(result).toContain(`  - tag: Eisner Award ${title} Series`)
       })
+    })
+  })
+
+  // Regression: the year-suffixed and series-suffix casing fixes used to capture
+  // the YAML prefix and award-name prefix together in `$1`, so backreference-based
+  // replacements (e.g. `$1 Winner $2`) only normalized the keyword and left the
+  // award-name prefix in its original (often lowercase) casing. This produced
+  // inconsistent casing between source and derived tags, and the case-insensitive
+  // dedup filter in deriveAwardTags would block the correctly-cased derived form
+  // from being added — leaving only the badly-cased source tag in the output.
+  describe('normalizeAwardTags – award-name prefix Title Case normalization', () => {
+    describe('year-suffixed forms', () => {
+      it.each([
+        ['eisner award winner 2020', 'Eisner Award Winner 2020'],
+        ['EISNER AWARD WINNER 2020', 'Eisner Award Winner 2020'],
+        ['harvey award nominee 2019', 'Harvey Award Nominee 2019'],
+        ['hugo award Winner 2018', 'Hugo Award Winner 2018'],
+        ['pulitzer prize winner 2015', 'Pulitzer Prize Winner 2015'],
+      ])('normalizes "%s" → "%s"', (input, expected) => {
+        const yaml = ['tags:', `  - tag: ${input}`].join('\n')
+        const result = normalizeAwardTags(yaml)
+        expect(result).toContain(`  - tag: ${expected}`)
+        expect(result).not.toContain(`  - tag: ${input}`)
+      })
+    })
+
+    describe('series-suffix forms', () => {
+      it.each([
+        ['eisner award winning series', 'Eisner Award Winning Series'],
+        ['HARVEY AWARD NOMINATED SERIES', 'Harvey Award Nominated Series'],
+        ['hugo award recognized series', 'Hugo Award Recognized Series'],
+        ['ringo award Nominated Series', 'Ringo Award Nominated Series'],
+        ['ignatz award winning series', 'Ignatz Award Winning Series'],
+      ])('normalizes "%s" → "%s"', (input, expected) => {
+        const yaml = ['tags:', `  - tag: ${input}`].join('\n')
+        const result = normalizeAwardTags(yaml)
+        expect(result).toContain(`  - tag: ${expected}`)
+        expect(result).not.toContain(`  - tag: ${input}`)
+      })
+    })
+
+    it('does not leave a badly-cased source tag when the implied derived tag would otherwise be blocked by dedup', () => {
+      // Before the fix: source tag stayed as "eisner award Winning Series" and
+      // the derived "Eisner Award Winning Series" was blocked by the dedup
+      // filter, leaving only the badly-cased copy in the output.
+      const yaml = [
+        'tags:',
+        '  - tag: Eisner Award Winner 2020',
+        '  - tag: eisner award winning series',
+      ].join('\n')
+
+      const result = normalizeAwardTags(yaml)
+      const lines = result.split('\n')
+
+      const eisnerWinningSeriesLines = lines.filter((l) => /eisner award winning\s+series$/i.test(l))
+      expect(eisnerWinningSeriesLines).toHaveLength(1)
+      expect(eisnerWinningSeriesLines[0]).toBe('  - tag: Eisner Award Winning Series')
+      expect(result).not.toContain('  - tag: eisner award winning series')
+    })
+
+    it('produces a fully-canonical output when the entire input is lowercase', () => {
+      // End-to-end check that prefix + keyword + derived tags are all canonical.
+      const yaml = [
+        'tags:',
+        '  - tag: eisner award winner 2020',
+        '  - tag: harvey award nominee 2019',
+      ].join('\n')
+
+      const result = normalizeAwardTags(yaml)
+
+      // No lowercase award-name prefix should survive anywhere in the output.
+      expect(result).not.toMatch(/^\s*- tag: (?:eisner|harvey|hugo|pulitzer|ringo|ignatz) /m)
+
+      // Source tags are normalized
+      expect(result).toContain('  - tag: Eisner Award Winner 2020')
+      expect(result).toContain('  - tag: Harvey Award Nominee 2019')
+
+      // Derived tags follow
+      expect(result).toContain('  - tag: Eisner Award Winning Series')
+      expect(result).toContain('  - tag: Harvey Award Nominated Series')
     })
   })
 
