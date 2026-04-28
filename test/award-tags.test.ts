@@ -68,32 +68,6 @@ describe('award-tags', () => {
       })
     })
 
-    describe('case-sensitive duplicate prevention', () => {
-      it('does not produce duplicate implied tags when the same award appears with different casings across years', () => {
-        // "eisner award Winner 2020" and "Eisner Award Winner 2021" both normalize
-        // to the same award name — derived tags must be deduplicated.
-        const tags = new Set(['eisner award Winner 2020', 'Eisner Award Winner 2021'])
-        const result = deriveAwardTags(tags)
-
-        // Each implied award-specific tag should appear at most once
-        const nomineeCount = result.filter((t) => t.toLowerCase() === 'eisner award nominee').length
-        const winningSeriesCount = result.filter((t) => t.toLowerCase() === 'eisner award winning series').length
-        const awardWinningSeriesCount = result.filter((t) => t.toLowerCase() === 'award winning series').length
-
-        expect(nomineeCount).toBe(1)
-        expect(winningSeriesCount).toBe(1)
-        expect(awardWinningSeriesCount).toBe(1)
-      })
-
-      it('does not produce duplicate implied tags when nominee and winner tags for the same award differ in casing', () => {
-        const tags = new Set(['eisner award Nominee 2020', 'EISNER AWARD Winner 2021'])
-        const result = deriveAwardTags(tags)
-
-        const recognizedCount = result.filter((t) => t.toLowerCase() === 'eisner award recognized series').length
-        expect(recognizedCount).toBe(1)
-      })
-    })
-
     describe('existing tag filtering', () => {
       it('does not add tags that already exist (exact match)', () => {
         const tags = new Set(['Eisner Award Nominee 2020', 'Eisner Award Winner 2020'])
@@ -125,6 +99,32 @@ describe('award-tags', () => {
         const tags = new Set(['DC Comics', 'Superhero', 'Trade Paperback'])
         expect(deriveAwardTags(tags)).toHaveLength(0)
       })
+    })
+  })
+
+  describe('deriveAwardTags – case-sensitive duplicate prevention', () => {
+    it('does not produce duplicate implied tags when the same award appears with different casings across years', () => {
+      // "eisner award Winner 2020" and "Eisner Award Winner 2021" both normalize
+      // to the same award name — derived tags must be deduplicated.
+      const tags = new Set(['eisner award Winner 2020', 'Eisner Award Winner 2021'])
+      const result = deriveAwardTags(tags)
+
+      // Each implied award-specific tag should appear at most once
+      const nomineeCount = result.filter((t) => t.toLowerCase() === 'eisner award nominee').length
+      const winningSeriesCount = result.filter((t) => t.toLowerCase() === 'eisner award winning series').length
+      const awardWinningSeriesCount = result.filter((t) => t.toLowerCase() === 'award winning series').length
+
+      expect(nomineeCount).toBe(1)
+      expect(winningSeriesCount).toBe(1)
+      expect(awardWinningSeriesCount).toBe(1)
+    })
+
+    it('does not produce duplicate implied tags when nominee and winner tags for the same award differ in casing', () => {
+      const tags = new Set(['eisner award Nominee 2020', 'EISNER AWARD Winner 2021'])
+      const result = deriveAwardTags(tags)
+
+      const recognizedCount = result.filter((t) => t.toLowerCase() === 'eisner award recognized series').length
+      expect(recognizedCount).toBe(1)
     })
   })
 
@@ -210,41 +210,6 @@ describe('award-tags', () => {
       expect(result).not.toContain('  - tag: award recognized series')
     })
 
-    // Regression: standalone `{Award} nominee` / `{Award} winner` (no year) were not
-    // covered by SERIES_CASING_FIXES, so the incorrectly-cased original tag persisted
-    // AND the correctly-cased derived tag was blocked by the case-insensitive dedup filter.
-    describe('standalone nominee/winner normalization (no year)', () => {
-      it('normalizes a fully-lowercase standalone nominee tag to Title Case', () => {
-        const yaml = ['tags:', '  - tag: eisner award nominee'].join('\n')
-        const result = normalizeAwardTags(yaml)
-        expect(result).toContain('  - tag: Eisner Award Nominee')
-        expect(result).not.toContain('  - tag: eisner award nominee')
-      })
-
-      it('normalizes a fully-lowercase standalone winner tag to Title Case', () => {
-        const yaml = ['tags:', '  - tag: harvey award winner'].join('\n')
-        const result = normalizeAwardTags(yaml)
-        expect(result).toContain('  - tag: Harvey Award Winner')
-        expect(result).not.toContain('  - tag: harvey award winner')
-      })
-
-      it('does not duplicate Eisner Award Nominee when a badly-cased standalone and a Winner tag coexist', () => {
-        // Before the fix: "eisner award nominee" blocked the derived "Eisner Award Nominee"
-        // so only one (badly-cased) copy existed. After the fix both the source tag is
-        // normalized and the derived copy is correctly deduplicated.
-        const yaml = [
-          'tags:',
-          '  - tag: Eisner Award Winner 2020',
-          '  - tag: eisner award nominee',
-        ].join('\n')
-        const result = normalizeAwardTags(yaml)
-        const lines = result.split('\n')
-        const nomineeLines = lines.filter((l) => /eisner award nominee$/i.test(l))
-        expect(nomineeLines).toHaveLength(1)
-        expect(nomineeLines[0]).toBe('  - tag: Eisner Award Nominee')
-      })
-    })
-
     // Regression: the suffix-only series patterns must use \s+ (not a literal single
     // space) between the keyword and `series` so that AI-emitted variants with
     // extra whitespace (e.g. "Eisner Award winning  series") still get normalized.
@@ -270,6 +235,41 @@ describe('award-tags', () => {
         const result = normalizeAwardTags(yaml)
         expect(result).toContain(`  - tag: Eisner Award ${title} Series`)
       })
+    })
+  })
+
+  // Regression: standalone `{Award} nominee` / `{Award} winner` (no year) were not
+  // covered by SERIES_CASING_FIXES, so the incorrectly-cased original tag persisted
+  // AND the correctly-cased derived tag was blocked by the case-insensitive dedup filter.
+  describe('normalizeAwardTags – standalone nominee/winner normalization (no year)', () => {
+    it('normalizes a fully-lowercase standalone nominee tag to Title Case', () => {
+      const yaml = ['tags:', '  - tag: eisner award nominee'].join('\n')
+      const result = normalizeAwardTags(yaml)
+      expect(result).toContain('  - tag: Eisner Award Nominee')
+      expect(result).not.toContain('  - tag: eisner award nominee')
+    })
+
+    it('normalizes a fully-lowercase standalone winner tag to Title Case', () => {
+      const yaml = ['tags:', '  - tag: harvey award winner'].join('\n')
+      const result = normalizeAwardTags(yaml)
+      expect(result).toContain('  - tag: Harvey Award Winner')
+      expect(result).not.toContain('  - tag: harvey award winner')
+    })
+
+    it('does not duplicate Eisner Award Nominee when a badly-cased standalone and a Winner tag coexist', () => {
+      // Before the fix: "eisner award nominee" blocked the derived "Eisner Award Nominee"
+      // so only one (badly-cased) copy existed. After the fix both the source tag is
+      // normalized and the derived copy is correctly deduplicated.
+      const yaml = [
+        'tags:',
+        '  - tag: Eisner Award Winner 2020',
+        '  - tag: eisner award nominee',
+      ].join('\n')
+      const result = normalizeAwardTags(yaml)
+      const lines = result.split('\n')
+      const nomineeLines = lines.filter((l) => /eisner award nominee$/i.test(l))
+      expect(nomineeLines).toHaveLength(1)
+      expect(nomineeLines[0]).toBe('  - tag: Eisner Award Nominee')
     })
   })
 })
