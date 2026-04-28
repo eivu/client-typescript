@@ -135,6 +135,55 @@ describe('postprocess-rules', () => {
       expect(svIdx).toBe(engineIdx - 1)
       expect(lines[svIdx]).toBe(`  - ai:skill_version: ${CURRENT_VERSION}`)
     })
+
+    // ── Bug regression: engineIndex === 0 ─────────────────────────────────────
+    // Previously, the fallback computed rawInsertAfter = engineIndex - 1 = -1,
+    // which failed the >= 0 guard and silently never inserted ai:skill_version.
+
+    it('inserts before ai:engine when ai:engine is at line 0 and ai:rating_reasoning is absent', () => {
+      // ai:engine is the FIRST line — engineIndex === 0, so engineIndex - 1 was -1
+      const yaml = [
+        '  - ai:engine: claude-opus-4-6',
+        '  - ai:rating: 3.5',
+      ].join('\n')
+
+      const result = enforceSkillVersion(yaml)
+      const lines = result.split('\n')
+      const svIdx = findLineIndex(lines, 'ai:skill_version')
+      const engineIdx = findLineIndex(lines, 'ai:engine')
+
+      expect(svIdx).toBeGreaterThan(-1)
+      expect(svIdx).toBe(engineIdx - 1)
+      expect(lines[svIdx]).toBe(`  - ai:skill_version: ${CURRENT_VERSION}`)
+    })
+
+    it('falls back to after ai:rating when both ai:rating_reasoning and ai:engine are absent', () => {
+      const yaml = [
+        '  - ai:rating: 3.5',
+        '  - tag: Some Tag',
+      ].join('\n')
+
+      const result = enforceSkillVersion(yaml)
+      const lines = result.split('\n')
+      const svIdx = findLineIndex(lines, 'ai:skill_version')
+      const ratingIdx = findLineIndex(lines, 'ai:rating')
+
+      expect(svIdx).toBeGreaterThan(-1)
+      expect(svIdx).toBe(ratingIdx + 1)
+      expect(lines[svIdx]).toBe(`  - ai:skill_version: ${CURRENT_VERSION}`)
+    })
+
+    it('appends to end of file when no anchor fields exist at all', () => {
+      const yaml = '  - tag: Some Tag'
+
+      const result = enforceSkillVersion(yaml)
+      const lines = result.split('\n')
+      const svIdx = findLineIndex(lines, 'ai:skill_version')
+
+      expect(svIdx).toBeGreaterThan(-1)
+      expect(svIdx).toBe(lines.length - 1)
+      expect(lines[svIdx]).toContain(`ai:skill_version: ${CURRENT_VERSION}`)
+    })
   })
 
   describe('enforceMasterworkTag', () => {

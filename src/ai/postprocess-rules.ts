@@ -140,12 +140,26 @@ function findBlockScalarEnd(lines: string[], fieldIndex: number): number {
 }
 
 /**
+ * Derives the sibling indent from the next non-blank line after `startIndex`,
+ * falling back to the line at `fallbackIndex` if no non-blank line is found.
+ */
+function siblingIndent(lines: string[], startIndex: number, fallbackIndex: number): string {
+  for (let i = startIndex; i < lines.length; i++) {
+    if (lines[i].trim() !== '') {
+      return lines[i].match(/^(\s*)/)?.[1] ?? '  '
+    }
+  }
+
+  return lines[fallbackIndex].match(/^(\s*)/)?.[1] ?? '  '
+}
+
+/**
  * #19 — Force ai:skill_version to the current version.
- * If the line exists, overwrite the value. If missing, add after ai:rating_reasoning.
- *
- * When ai:rating_reasoning uses block scalar syntax (`|` or `>`), the insertion
- * point is advanced past all indented block scalar body lines so the new field
- * lands after the block content, not inside it.
+ * If the line exists, overwrite the value. If missing, insert using cascading fallbacks:
+ *   1. After ai:rating_reasoning (skipping any block scalar body)
+ *   2. Before ai:engine — splice(engineIndex) works even when engineIndex === 0,
+ *      fixing the bug where engineIndex - 1 < 0 caused silent non-insertion.
+ *   3. After ai:rating (if present), otherwise append to end of file.
  */
 export function enforceSkillVersion(yaml: string): string {
   const lines = yaml.split('\n')
@@ -159,38 +173,35 @@ export function enforceSkillVersion(yaml: string): string {
     if (/^\s*- ai:engine:/.test(line)) engineIndex = i
   }
 
-  if (skillVersionIndex >= 0) {
-    // Overwrite existing value
+  const skillLine = `- ai:skill_version: ${CURRENT_SKILL_VERSION}`
+
+  if (skillVersionIndex !== -1) {
     lines[skillVersionIndex] = lines[skillVersionIndex].replace(
       /^(\s*- ai:skill_version:\s*).*$/,
       `$1${CURRENT_SKILL_VERSION}`,
     )
-  } else {
-    // Insert after ai:rating_reasoning (skipping past any block scalar body),
-    // or before ai:engine as a fallback.
-    const rawInsertAfter = ratingReasoningIndex >= 0 ? ratingReasoningIndex : engineIndex - 1
-    if (rawInsertAfter >= 0) {
-      const insertAfter = findBlockScalarEnd(lines, rawInsertAfter)
-
-      // Find the next non-blank line after the insertion point to derive the correct
-      // sibling indent. /^(\s*)/ always matches (even on ''), so using it directly on
-      // a blank line yields indent '' — the ?? fallback never fires because the match
-      // array is truthy. Scanning past blanks avoids that silent zero-indent bug.
-      let indentSourceLine: string | undefined
-      for (let i = insertAfter + 1; i < lines.length; i++) {
-        if (lines[i].trim() !== '') {
-          indentSourceLine = lines[i]
-          break
-        }
-      }
-
-      // Fall back to the original field line (rawInsertAfter) — reliably at sibling indent
-      if (!indentSourceLine) indentSourceLine = lines[rawInsertAfter]
-
-      const indentMatch = indentSourceLine?.match(/^(\s*)/)
-      const indent = (indentMatch && indentMatch[1]) || '  '
-      lines.splice(insertAfter + 1, 0, `${indent}- ai:skill_version: ${CURRENT_SKILL_VERSION}`)
+  } else if (ratingReasoningIndex !== -1) {
+    // Insert after ai:rating_reasoning, skipping past any block scalar body.
+    // /^(\s*)/ always matches (even on ''), so scanning past blanks avoids
+    // the silent zero-indent bug when the next sibling is a blank line.
+    const insertAfter = findBlockScalarEnd(lines, ratingReasoningIndex)
+    const indent = siblingIndent(lines, insertAfter + 1, ratingReasoningIndex)
+    lines.splice(insertAfter + 1, 0, `${indent}${skillLine}`)
+  } else if (engineIndex === -1) {
+    // Both ai:rating_reasoning and ai:engine are absent — try after ai:rating,
+    // and fall back to appending to the end of the file.
+    const ratingIndex = lines.findIndex((l) => /^\s*- ai:rating:/.test(l))
+    const indent = (ratingIndex === -1 ? undefined : lines[ratingIndex])?.match(/^(\s*)/)?.[1] ?? '  '
+    if (ratingIndex === -1) {
+      lines.push(`${indent}${skillLine}`)
+    } else {
+      lines.splice(ratingIndex + 1, 0, `${indent}${skillLine}`)
     }
+  } else {
+    // Insert before ai:engine. splice(engineIndex) works even when engineIndex === 0,
+    // avoiding the previous engineIndex - 1 < 0 silent non-insertion bug.
+    const indent = lines[engineIndex].match(/^(\s*)/)?.[1] ?? '  '
+    lines.splice(engineIndex, 0, `${indent}${skillLine}`)
   }
 
   return lines.join('\n')
