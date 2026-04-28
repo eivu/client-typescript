@@ -23,11 +23,11 @@
  * Ringo Award, Ignatz Award, and any other `X Award` pattern.
  */
 
-/** Matches `{AwardName} Winner {year}` (case-insensitive) */
-const WINNER_PATTERN = /^(.+?)\s+Winner\s+(\d{4})$/i
+/** Matches `{AwardName} Winner {year}` — prefix must end with "Award" or "Prize" (case-insensitive) */
+const WINNER_PATTERN = /^(.+?\b(?:award|prize))\s+Winner\s+(\d{4})$/i
 
-/** Matches `{AwardName} Nominee {year}` (case-insensitive) */
-const NOMINEE_YEAR_PATTERN = /^(.+?)\s+Nominee\s+(\d{4})$/i
+/** Matches `{AwardName} Nominee {year}` — prefix must end with "Award" or "Prize" (case-insensitive) */
+const NOMINEE_YEAR_PATTERN = /^(.+?\b(?:award|prize))\s+Nominee\s+(\d{4})$/i
 
 /**
  * Title-cases an award name prefix so that derived tags have canonical casing
@@ -130,8 +130,8 @@ export function normalizeAwardTags(yaml: string): string {
   //
   // Pattern order: year-suffixed winner/nominee runs first so the trailing
   // `\d{4}` is consumed before the series-suffix pass looks at the line.
-  const YEAR_SUFFIX_AWARD_RE = /^(\s*- tag:\s*)(.+?)\s+(winner|nominee)\s+(\d{4})$/i
-  const SERIES_SUFFIX_AWARD_RE = /^(\s*- tag:\s*)(.+?)\s+(winning|nominated|recognized)\s+series$/i
+  const YEAR_SUFFIX_AWARD_RE = /^(\s*- tag:\s*)(.+?\b(?:award|prize))\s+(winner|nominee)\s+(\d{4})$/i
+  const SERIES_SUFFIX_AWARD_RE = /^(\s*- tag:\s*)(.+?\b(?:award|prize))\s+(winning|nominated|recognized)\s+series$/i
 
   lines = lines.map((line) => {
     const yearMatch = line.match(YEAR_SUFFIX_AWARD_RE)
@@ -158,7 +158,7 @@ export function normalizeAwardTags(yaml: string): string {
   // "eisner award nominee" ends up in existingTagsLower and the case-insensitive dedup filter
   // at the bottom of deriveAwardTags blocks the correctly-cased "Eisner Award Nominee" from
   // being added — leaving the badly-cased original as the only copy in the output YAML.
-  const STANDALONE_AWARD_KEYWORD_RE = /^(\s*- tag:\s*)(.+?)\s+(nominee|winner)$/i
+  const STANDALONE_AWARD_KEYWORD_RE = /^(\s*- tag:\s*)(.+?\b(?:award|prize))\s+(nominee|winner)$/i
   lines = lines.map((line) => {
     const m = line.match(STANDALONE_AWARD_KEYWORD_RE)
     if (!m) return line

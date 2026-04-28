@@ -319,6 +319,33 @@ describe('award-tags', () => {
     })
   })
 
+  // Guard: freeform tags that end in "winner" or "nominee" but lack "Award"/"Prize"
+  // in the prefix must not be altered — they are ordinary user-defined tags.
+  describe('normalizeAwardTags – freeform tags are not modified', () => {
+    it.each([
+      '- tag: biggest winner',
+      '- tag: class winner 2020',
+      '- tag: top nominee',
+      '- tag: top nominee 2022',
+      '- tag: new nominated series',
+      '- tag: fan favorite winning series',
+    ])('leaves "%s" unchanged', (tagLine) => {
+      const yaml = ['tags:', `  ${tagLine}`].join('\n')
+      expect(normalizeAwardTags(yaml)).toBe(yaml)
+    })
+  })
+
+  describe('deriveAwardTags – freeform tags produce no implied award tags', () => {
+    it.each([
+      'biggest winner',
+      'class winner 2020',
+      'top nominee',
+      'top nominee 2022',
+    ])('derives nothing from "%s"', (tag) => {
+      expect(deriveAwardTags(new Set([tag]))).toHaveLength(0)
+    })
+  })
+
   // Regression: standalone `{Award} nominee` / `{Award} winner` (no year) were not
   // covered by SERIES_CASING_FIXES, so the incorrectly-cased original tag persisted
   // AND the correctly-cased derived tag was blocked by the case-insensitive dedup filter.
