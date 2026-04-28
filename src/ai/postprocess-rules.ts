@@ -281,7 +281,18 @@ function smartTitleCase(str: string): string {
 export function enforceGenreTitleCase(yaml: string): string {
   return yaml.replaceAll(
     /^(\s*- (?:id3:)?genre:\s*)(.+)$/gm,
-    (_, prefix: string, value: string) => `${prefix}${smartTitleCase(value.trim())}`,
+    (_, prefix: string, value: string) => {
+      const trimmed = value.trim()
+      // If the value is already quoted (e.g. from sanitizeYamlValues wrapping a value
+      // that contains `: ` or ` #`), strip the quotes before title-casing so that
+      // `charAt(0)` sees the real first letter rather than `"`, then re-add the quotes.
+      if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) {
+        const inner = trimmed.slice(1, -1)
+        return `${prefix}"${smartTitleCase(inner)}"`
+      }
+
+      return `${prefix}${smartTitleCase(trimmed)}`
+    },
   )
 }
 

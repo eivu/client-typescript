@@ -367,6 +367,25 @@ describe('postprocess-rules', () => {
     it('normalises already-cased input', () => {
       expect(enforceGenreTitleCase('  - genre: Hip-Hop')).toBe('  - genre: Hip-Hop')
     })
+
+    it('title-cases a pre-quoted value containing a colon (bug: opening " was treated as first char)', () => {
+      // sanitizeYamlValues wraps values containing `: ` in double-quotes.
+      // Previously, smartTitleCase received `"rock: a history"`, saw `"` as
+      // charAt(0), and produced `"rock: a History"` (first real letter not capitalized).
+      // "a" stays lowercase because it is an article handled by LOWERCASE_WORDS.
+      expect(enforceGenreTitleCase('  - genre: "rock: a history"')).toBe('  - genre: "Rock: a History"')
+    })
+
+    it('preserves outer quotes and normalises casing on a pre-quoted value', () => {
+      // "A" mid-phrase is an article → lowercased to "a" by smartTitleCase.
+      expect(enforceGenreTitleCase('  - genre: "Rock: A History"')).toBe('  - genre: "Rock: a History"')
+    })
+
+    it('title-cases a pre-quoted id3:genre value', () => {
+      expect(enforceGenreTitleCase('  - id3:genre: "blues: the delta sound"')).toBe(
+        '  - id3:genre: "Blues: the Delta Sound"',
+      )
+    })
   })
 })
 
