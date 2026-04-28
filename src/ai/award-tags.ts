@@ -143,6 +143,21 @@ export function normalizeAwardTags(yaml: string): string {
     return line
   })
 
+  // Normalize standalone `{Award} Nominee` / `{Award} Winner` tags that have no year suffix.
+  // SERIES_CASING_FIXES handles the year-suffixed forms (e.g. "nominee 2020" → "Nominee 2020")
+  // but leaves year-free variants (e.g. "eisner award nominee") untouched.  Without this pass,
+  // "eisner award nominee" ends up in existingTagsLower and the case-insensitive dedup filter
+  // at the bottom of deriveAwardTags blocks the correctly-cased "Eisner Award Nominee" from
+  // being added — leaving the badly-cased original as the only copy in the output YAML.
+  const STANDALONE_AWARD_KEYWORD_RE = /^(\s*- tag:\s*)(.+?)\s+(nominee|winner)$/i
+  lines = lines.map((line) => {
+    const m = line.match(STANDALONE_AWARD_KEYWORD_RE)
+    if (!m) return line
+    const [, prefix, rawAward, keyword] = m
+    const canonicalKw = keyword.charAt(0).toUpperCase() + keyword.slice(1).toLowerCase()
+    return `${prefix}${titleCaseAward(rawAward)} ${canonicalKw}`
+  })
+
   // Collect existing tags and track award tag positions
   const existingTags = new Set<string>()
   let lastAwardTagIndex = -1

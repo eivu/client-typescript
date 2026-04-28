@@ -210,6 +210,41 @@ describe('award-tags', () => {
       expect(result).not.toContain('  - tag: award recognized series')
     })
 
+    // Regression: standalone `{Award} nominee` / `{Award} winner` (no year) were not
+    // covered by SERIES_CASING_FIXES, so the incorrectly-cased original tag persisted
+    // AND the correctly-cased derived tag was blocked by the case-insensitive dedup filter.
+    describe('standalone nominee/winner normalization (no year)', () => {
+      it('normalizes a fully-lowercase standalone nominee tag to Title Case', () => {
+        const yaml = ['tags:', '  - tag: eisner award nominee'].join('\n')
+        const result = normalizeAwardTags(yaml)
+        expect(result).toContain('  - tag: Eisner Award Nominee')
+        expect(result).not.toContain('  - tag: eisner award nominee')
+      })
+
+      it('normalizes a fully-lowercase standalone winner tag to Title Case', () => {
+        const yaml = ['tags:', '  - tag: harvey award winner'].join('\n')
+        const result = normalizeAwardTags(yaml)
+        expect(result).toContain('  - tag: Harvey Award Winner')
+        expect(result).not.toContain('  - tag: harvey award winner')
+      })
+
+      it('does not duplicate Eisner Award Nominee when a badly-cased standalone and a Winner tag coexist', () => {
+        // Before the fix: "eisner award nominee" blocked the derived "Eisner Award Nominee"
+        // so only one (badly-cased) copy existed. After the fix both the source tag is
+        // normalized and the derived copy is correctly deduplicated.
+        const yaml = [
+          'tags:',
+          '  - tag: Eisner Award Winner 2020',
+          '  - tag: eisner award nominee',
+        ].join('\n')
+        const result = normalizeAwardTags(yaml)
+        const lines = result.split('\n')
+        const nomineeLines = lines.filter((l) => /eisner award nominee$/i.test(l))
+        expect(nomineeLines).toHaveLength(1)
+        expect(nomineeLines[0]).toBe('  - tag: Eisner Award Nominee')
+      })
+    })
+
     // Regression: the suffix-only series patterns must use \s+ (not a literal single
     // space) between the keyword and `series` so that AI-emitted variants with
     // extra whitespace (e.g. "Eisner Award winning  series") still get normalized.
