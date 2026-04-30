@@ -1,5 +1,7 @@
 import {ComicProcessor} from '@eivu/ts-comic-compress/dist/processor'
 import {Args, Command, Flags} from '@oclif/core'
+import {statSync} from 'node:fs'
+import {dirname, join} from 'node:path'
 
 export default class Compress extends Command {
   static override args = {
@@ -8,10 +10,6 @@ export default class Compress extends Command {
   static override description = 'compress files before uploading to the cloud'
   static override examples = ['<%= config.bin %> <%= command.id %>']
   static override flags = {
-    height: Flags.integer({
-      char: 'h',
-      description: 'target height for images (maintains aspect ratio). If not specified, images are not resized',
-    }),
     moveOriginal: Flags.boolean({
       char: 'm',
       default: false,
@@ -34,10 +32,14 @@ export default class Compress extends Command {
       default: false,
       description: 'rename original files to *_original instead of copying',
     }),
-    skip: Flags.boolean({
+    skipExisting: Flags.boolean({
       char: 's',
       default: false,
       description: 'skip processing file if it already exists in the output folder',
+    }),
+    targetHeight: Flags.integer({
+      char: 'h',
+      description: 'target height for images (maintains aspect ratio). If not specified, images are not resized',
     }),
   }
 
@@ -45,11 +47,30 @@ export default class Compress extends Command {
     const {args, flags} = await this.parse(Compress)
 
     const {path} = args
-    const {outputDir} = flags
+    const {moveOriginal, outputDir: outputDirFlag, parallel, quality, recursive, renameOriginal, skipExisting, targetHeight} = flags
 
     if (!path) {
       this.log('Please provide a path to a file or folder to compress.')
       return
     }
+
+    let outputDir: string
+    if (outputDirFlag) {
+      outputDir = outputDirFlag
+    } else {
+      const baseDir = statSync(path).isFile() ? dirname(path) : path
+      outputDir = join(baseDir, 'converted')
+    }
+
+    const processor = new ComicProcessor({
+      moveOriginal,
+      outputDir,
+      parallel,
+      quality,
+      recursive,
+      renameOriginal,
+      skipExisting,
+      targetHeight,
+    })
   }
 }
