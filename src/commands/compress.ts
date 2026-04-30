@@ -1,9 +1,10 @@
-import {ComicProcessor} from '@eivu/ts-comic-compress/dist/processor'
+import {ComicProcessor} from '@eivu/ts-comic-compress/dist/processor.js'
 import {Args, Command, Flags} from '@oclif/core'
-import * as fs from 'fs-extra'
+import logger from '@src/logger'
+import fs from 'fs-extra'
 import {statSync} from 'node:fs'
 import {dirname, join} from 'node:path'
-import * as path from 'path'
+import * as path from 'node:path'
 
 export default class Compress extends Command {
   static override args = {
@@ -91,27 +92,31 @@ export default class Compress extends Command {
       })
 
       if (!(await fs.pathExists(inputPath))) {
-        logger.error(`Input path does not exist: ${inputPath}`)
-        process.exit(1)
+        const errorMsg = `Input path does not exist: ${inputPath}`
+        logger.error(errorMsg)
+        throw new Error(errorMsg)
       }
 
       const stats = await fs.stat(inputPath)
 
       if (stats.isFile()) {
+        console.log('processing file', inputPath)
         await processor.processFile(inputPath)
       } else if (stats.isDirectory()) {
+        console.log('processing folder', inputPath)
         await processor.processDirectory(inputPath)
       } else {
+        console.log('input path is neither a file nor a directory', inputPath)
         // logger.error(`Input path is neither a file nor a directory: ${inputPath}`)
       }
 
       processor.printSummary()
     } catch (error) {
+      console.log('error', error)
       // logger.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
       // if (error instanceof Error && error.stack) {
       //   logger.error(error.stack);
       // }
-      return
     }
   }
 }
