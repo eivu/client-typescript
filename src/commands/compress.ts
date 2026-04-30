@@ -3,8 +3,7 @@ import {Args, Command, Flags} from '@oclif/core'
 import logger from '@src/logger'
 import fs from 'fs-extra'
 import {statSync} from 'node:fs'
-import {dirname, join} from 'node:path'
-import * as path from 'node:path'
+import {dirname, join, resolve} from 'node:path'
 
 export default class Compress extends Command {
   static override args = {
@@ -78,7 +77,7 @@ export default class Compress extends Command {
     }
 
     try {
-      const inputPath = path.resolve(pathArg)
+      const inputPath = resolve(pathArg)
 
       const processor = new ComicProcessor({
         moveOriginal,
