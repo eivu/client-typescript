@@ -1,15 +1,13 @@
 import {Args, Command, Flags} from '@oclif/core'
-import {Client} from '@src/client'
-import {logResponse} from '@src/utils'
+// import {Client} from '@src/client'
+// import {logResponse} from '@src/utils'
 
 export default class Process extends Command {
   static override args = {
     file: Args.string({description: 'file to read'}),
   }
   static override description = 'describe the command here'
-  static override examples = [
-    '<%= config.bin %> <%= command.id %>',
-  ]
+  static override examples = ['<%= config.bin %> <%= command.id %>']
   static override flags = {
     // flag with no value (-f, --force)
     force: Flags.boolean({char: 'f'}),
