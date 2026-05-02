@@ -113,16 +113,15 @@ export default class Compress extends Command {
         await processor.processDirectory(inputPath)
       } else {
         console.log('input path is neither a file nor a directory', inputPath)
-        // logger.error(`Input path is neither a file nor a directory: ${inputPath}`)
+        logger.error(`Input path is neither a file nor a directory: ${inputPath}`)
       }
 
       processor.printSummary()
     } catch (error) {
-      console.log('error', error)
-      // logger.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
-      // if (error instanceof Error && error.stack) {
-      //   logger.error(error.stack);
-      // }
+      logger.error(`Error: ${error instanceof Error ? error.message : String(error)}`)
+      if (error instanceof Error && error.stack) {
+        logger.error(error.stack)
+      }
     }
   }
 }
