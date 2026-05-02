@@ -5,6 +5,21 @@ import fs from 'fs-extra'
 import {statSync} from 'node:fs'
 import {dirname, join, resolve} from 'node:path'
 
+const COMIC_ARCHIVE_SUFFIXES = ['.cbr', '.cbz'] as const
+
+function isComicArchivePath(filePath: string): boolean {
+  const lower = filePath.toLowerCase()
+  return COMIC_ARCHIVE_SUFFIXES.some((suffix) => lower.endsWith(suffix))
+}
+
+export class IncorrectFileTypeError extends Error {
+  constructor(public readonly filePath: string) {
+    const expected = COMIC_ARCHIVE_SUFFIXES.join(' or ')
+    super(`Incorrect file type: ${filePath}. Expected a path ending in ${expected}.`)
+    this.name = 'IncorrectFileTypeError'
+  }
+}
+
 export default class Compress extends Command {
   static override args = {
     pathArg: Args.string({description: 'path to file or folder with files to compress'}),
@@ -45,7 +60,7 @@ export default class Compress extends Command {
       description: 'skip processing file if it already exists in the output folder',
     }),
     targetHeight: Flags.integer({
-      char: 'h',
+      char: 't',
       description: 'target height for images (maintains aspect ratio). If not specified, images are not resized',
     }),
   }
@@ -69,6 +84,10 @@ export default class Compress extends Command {
     if (!pathArg) {
       this.log('Please provide a path to a file or folder to compress.')
       return
+    }
+
+    if (!isComicArchivePath(pathArg)) {
+      throw new IncorrectFileTypeError(pathArg)
     }
 
     try {
