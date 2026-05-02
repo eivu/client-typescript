@@ -24,6 +24,11 @@ export default class Compress extends Command {
       description: 'run in parallel, utilizing all computing resources',
     }),
     quality: Flags.integer({char: 'q', default: 75, description: 'quality to use for the webp files (0-100)'}),
+    raiseException: Flags.boolean({
+      char: 'e',
+      default: true,
+      description: 'raise an exception if an image is skipped due to size constraints',
+    }),
     recursive: Flags.boolean({
       char: 'r',
       default: false,
@@ -54,6 +59,7 @@ export default class Compress extends Command {
       outputDir: outputDirFlag,
       parallel,
       quality,
+      raiseException,
       recursive,
       renameOriginal,
       skipExisting,
@@ -84,6 +90,7 @@ export default class Compress extends Command {
         outputDir,
         parallel,
         quality,
+        raiseException,
         recursive,
         renameOriginal,
         skipExisting,
