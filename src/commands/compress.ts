@@ -72,10 +72,6 @@ export default class Compress extends Command {
       return
     }
 
-    if (!isComicArchivePath(pathArg)) {
-      throw new IncorrectFileTypeError(pathArg)
-    }
-
     try {
       // if no output directory is specified, default to a "converted" subfolder
       // alongside the input — using the file's parent dir if path is a file, or
@@ -111,14 +107,19 @@ export default class Compress extends Command {
       const stats = await fs.stat(inputPath)
 
       if (stats.isFile()) {
-        console.log('processing file', inputPath)
+        if (!isComicArchivePath(pathArg)) {
+          throw new IncorrectFileTypeError(pathArg)
+        }
+
+        logger.info(`processing file: ${inputPath}`)
         await processor.processFile(inputPath)
       } else if (stats.isDirectory()) {
-        console.log('processing folder', inputPath)
+        logger.info(`processing folder: ${inputPath}`)
         await processor.processDirectory(inputPath)
       } else {
-        console.log('input path is neither a file nor a directory', inputPath)
-        logger.error(`Input path is neither a file nor a directory: ${inputPath}`)
+        const errorMsg = `Input path is neither a file nor a directory: ${inputPath}`
+        logger.error(errorMsg)
+        throw new Error(errorMsg)
       }
 
       processor.printSummary()
