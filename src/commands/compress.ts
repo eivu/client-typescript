@@ -1,24 +1,10 @@
 import {ComicProcessor} from '@eivu/ts-comic-compress/dist/processor.js'
 import {Args, Command, Flags} from '@oclif/core'
+import {IncorrectFileTypeError, isComicArchivePath} from '@src/comic-archive-path'
 import logger from '@src/logger'
 import fs from 'fs-extra'
 import {statSync} from 'node:fs'
 import {dirname, join, resolve} from 'node:path'
-
-const COMIC_ARCHIVE_SUFFIXES = ['.cbr', '.cbz'] as const
-
-function isComicArchivePath(filePath: string): boolean {
-  const lower = filePath.toLowerCase()
-  return COMIC_ARCHIVE_SUFFIXES.some((suffix) => lower.endsWith(suffix))
-}
-
-export class IncorrectFileTypeError extends Error {
-  constructor(public readonly filePath: string) {
-    const expected = COMIC_ARCHIVE_SUFFIXES.join(' or ')
-    super(`Incorrect file type: ${filePath}. Expected a path ending in ${expected}.`)
-    this.name = 'IncorrectFileTypeError'
-  }
-}
 
 export default class Compress extends Command {
   static override args = {
