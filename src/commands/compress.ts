@@ -1,4 +1,4 @@
-import {ComicProcessor} from '@eivu/ts-comic-compress/dist/processor.js'
+import {ComicProcessor} from '@eivu/ts-comic-compress/processor'
 import {Args, Command, Flags} from '@oclif/core'
 import {IncorrectFileTypeError, isComicArchivePath} from '@src/comic-archive-path'
 import logger from '@src/logger'
