@@ -73,62 +73,51 @@ export default class Compress extends Command {
       return
     }
 
-    try {
-      // if no output directory is specified, default to a "converted" subfolder
-      // alongside the input — using the file's parent dir if path is a file, or
-      // the path itself if it's a directory (e.g. path/to/File/xyz.cbr → path/to/File/converted)
-      let outputDir: string
-      if (outputDirFlag) {
-        outputDir = outputDirFlag
-      } else {
-        const baseDir = statSync(pathArg).isFile() ? dirname(pathArg) : pathArg
-        outputDir = join(baseDir, 'converted')
-      }
-
-      const inputPath = resolve(pathArg)
-
-      const processor = new ComicProcessor({
-        moveOriginal,
-        outputDir,
-        parallel,
-        quality,
-        raiseException,
-        recursive,
-        renameOriginal,
-        skipExisting,
-        targetHeight,
-      })
-
-      if (!(await fs.pathExists(inputPath))) {
-        const errorMsg = `Input path does not exist: ${inputPath}`
-        logger.error(errorMsg)
-        throw new Error(errorMsg)
-      }
-
-      const stats = await fs.stat(inputPath)
-
-      if (stats.isFile()) {
-        if (!isComicArchivePath(pathArg)) {
-          throw new IncorrectFileTypeError(pathArg)
-        }
-
-        logger.info(`processing file: ${inputPath}`)
-        await processor.processFile(inputPath)
-      } else if (stats.isDirectory()) {
-        logger.info(`processing folder: ${inputPath}`)
-        await processor.processDirectory(inputPath)
-      } else {
-        const errorMsg = `Input path is neither a file nor a directory: ${inputPath}`
-        logger.error(errorMsg)
-        throw new Error(errorMsg)
-      }
-
-      processor.printSummary()
-    } catch (error) {
-      logger.error(`Error: ${error instanceof Error ? error.message : String(error)}`)
-      if (error instanceof Error && error.stack) {
-        logger.error(error.stack)
-      }
+    // if no output directory is specified, default to a "converted" subfolder
+    // alongside the input — using the file's parent dir if path is a file, or
+    // the path itself if it's a directory (e.g. path/to/File/xyz.cbr → path/to/File/converted)
+    let outputDir: string
+    if (outputDirFlag) {
+      outputDir = outputDirFlag
+    } else {
+      const baseDir = statSync(pathArg).isFile() ? dirname(pathArg) : pathArg
+      outputDir = join(baseDir, 'converted')
     }
+
+    const inputPath = resolve(pathArg)
+
+    const processor = new ComicProcessor({
+      moveOriginal,
+      outputDir,
+      parallel,
+      quality,
+      raiseException,
+      recursive,
+      renameOriginal,
+      skipExisting,
+      targetHeight,
+    })
+
+    if (!(await fs.pathExists(inputPath))) {
+      this.error(`Input path does not exist: ${inputPath}`)
+    }
+
+    const stats = await fs.stat(inputPath)
+
+    if (stats.isFile()) {
+      if (!isComicArchivePath(pathArg)) {
+        throw new IncorrectFileTypeError(pathArg)
+      }
+
+      logger.info(`processing file: ${inputPath}`)
+      await processor.processFile(inputPath)
+    } else if (stats.isDirectory()) {
+      logger.info(`processing folder: ${inputPath}`)
+      await processor.processDirectory(inputPath)
+    } else {
+      this.error(`Input path is neither a file nor a directory: ${inputPath}`)
+    }
+
+    processor.printSummary()
   }
 }
