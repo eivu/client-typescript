@@ -26,6 +26,7 @@ export default class Compress extends Command {
     }),
     quality: Flags.integer({char: 'q', default: 75, description: 'quality to use for the webp files (0-100)'}),
     raiseException: Flags.boolean({
+      allowNo: true,
       char: 'e',
       default: true,
       description: 'raise an exception if an image is skipped due to size constraints',
