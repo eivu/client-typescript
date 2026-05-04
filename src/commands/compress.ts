@@ -73,6 +73,8 @@ export default class Compress extends Command {
       return
     }
 
+    const inputPath = resolve(pathArg)
+
     // if no output directory is specified, default to a "converted" subfolder
     // alongside the input — using the file's parent dir if path is a file, or
     // the path itself if it's a directory (e.g. path/to/File/xyz.cbr → path/to/File/converted)
@@ -80,11 +82,9 @@ export default class Compress extends Command {
     if (outputDirFlag) {
       outputDir = outputDirFlag
     } else {
-      const baseDir = statSync(pathArg).isFile() ? dirname(pathArg) : pathArg
+      const baseDir = statSync(inputPath).isFile() ? dirname(inputPath) : inputPath
       outputDir = join(baseDir, 'converted')
     }
-
-    const inputPath = resolve(pathArg)
 
     const processor = new ComicProcessor({
       moveOriginal,
