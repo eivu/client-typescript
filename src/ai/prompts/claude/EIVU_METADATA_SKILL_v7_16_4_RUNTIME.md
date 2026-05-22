@@ -12,7 +12,7 @@ Determine file type from extension, then **skip irrelevant sections**:
 
 | Extension | Type | Read | Skip |
 |-----------|------|------|------|
-| `.cbr` `.cbz` `.pdf` | **Comics** | Violations 1–28a · YAML§Comics · §A Comics/TV/Movies · §B · §C · §D · §E · §F · Checklist§YAML/Name/Characters/Comics/Awards | Violations 29–33 · YAML§Audio · YAML§Video · §A Audio/Video · Checklist§Audio · Checklist§Video |
+| `.cbr` `.cbz` | **Comics** | Violations 1–28a · YAML§Comics · §A Comics/TV/Movies · §B · §C · §D · §E · §F · Checklist§YAML/Name/Characters/Comics/Awards | Violations 29–33 · YAML§Audio · YAML§Video · §A Audio/Video · Checklist§Audio · Checklist§Video |
 | `.m4a` `.mp3` `.flac` | **Audio** | Violations 7–13, 19–20, 22–24, 29–31, 33 · YAML§Audio · §A Audio · §E · Checklist§YAML/Awards/Audio | Violations 1–6c, 14–18, 21, 25–28a, 32 · YAML§Comics · YAML§Video · §A Comics/TV/Movies · §B · §C · §D · §F · Season tables · Checklist§Name/Characters/Comics/Video |
 | `.mp4` `.mkv` `.avi` | **Video** | Violations 7–13, 19–20, 22–24, 29, 32 · YAML§Video · §A Video/TV/Movies · §E · Checklist§YAML/Awards/Video | Violations 1–6c, 14–18, 21, 25–28a, 30–31, 33 · YAML§Comics · YAML§Audio · §A Comics/Audio · §B · §C · §D · §F · Season tables · Checklist§Name/Characters/Comics/Audio |
 

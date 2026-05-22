@@ -1,6 +1,7 @@
 import {describe, expect, it} from '@jest/globals'
 
 import {
+  enforceAiEngineAfterSkillVersion,
   enforceGenreTitleCase,
   enforceMasterworkTag,
   enforceSkillVersion,
@@ -397,27 +398,29 @@ describe('postprocess-rules', () => {
     // eslint-disable-next-line unicorn/numeric-separators-style -- 5-digit fractional values match the test's expected output strings literally; separators distort that match
     const sampleCost = {cost: 0.01911, costAll: 0.01911, tokensIn: 1234, tokensOut: 5678}
 
-  it('inserts the four fields after ai:skill_version when present', () => {
+  it('inserts the four fields after ai:engine when both engine and skill_version present', () => {
+    // Per v7.16.4 schema ordering (rating → reasoning → skill_version → engine → cost),
+    // cost fields land AFTER engine. Engine-first priority in injectAiCostFields.
     const yaml = [
       '  - ai:rating: 4.0',
       '  - ai:rating_reasoning: Great book.',
-      '  - ai:engine: claude-opus-4-6',
       '  - ai:skill_version: 7.16.4',
+      '  - ai:engine: claude-opus-4-6',
     ].join('\n')
 
     const lines = injectAiCostFields(yaml, sampleCost).split('\n')
-    const svIdx = findLineIndex(lines, 'ai:skill_version')
-    expect(lines[svIdx + 1]).toBe('  - ai:cost: 0.01911')
-    expect(lines[svIdx + 2]).toBe('  - ai:cost_all: 0.01911')
-    expect(lines[svIdx + 3]).toBe('  - ai:tokens_in: 1234')
-    expect(lines[svIdx + 4]).toBe('  - ai:tokens_out: 5678')
-  })
-
-  it('falls back to ai:engine when ai:skill_version is absent', () => {
-    const yaml = ['  - ai:rating: 4.0', '  - ai:engine: claude-opus-4-6'].join('\n')
-    const lines = injectAiCostFields(yaml, sampleCost).split('\n')
     const engineIdx = findLineIndex(lines, 'ai:engine')
     expect(lines[engineIdx + 1]).toBe('  - ai:cost: 0.01911')
+    expect(lines[engineIdx + 2]).toBe('  - ai:cost_all: 0.01911')
+    expect(lines[engineIdx + 3]).toBe('  - ai:tokens_in: 1234')
+    expect(lines[engineIdx + 4]).toBe('  - ai:tokens_out: 5678')
+  })
+
+  it('falls back to ai:skill_version when ai:engine is absent', () => {
+    const yaml = ['  - ai:rating: 4.0', '  - ai:skill_version: 7.16.4'].join('\n')
+    const lines = injectAiCostFields(yaml, sampleCost).split('\n')
+    const svIdx = findLineIndex(lines, 'ai:skill_version')
+    expect(lines[svIdx + 1]).toBe('  - ai:cost: 0.01911')
   })
 
   it('falls back to ai:rating_reasoning when ai:engine/ai:skill_version absent', () => {
@@ -518,6 +521,8 @@ describe('postprocess-rules', () => {
   })
 
   it('preserves full metadata_list structure when injecting into a realistic YAML', () => {
+    // Realistic order from the v7.16.4 schema: skill_version → engine → (cost).
+    // Engine-first priority puts cost AFTER engine.
     const yaml = [
       'name: Watchmen',
       'year: 1987',
@@ -525,8 +530,8 @@ describe('postprocess-rules', () => {
       '  - publisher: DC Comics',
       '  - ai:rating: 5.0',
       '  - ai:rating_reasoning: Hugo Award winner.',
-      '  - ai:engine: claude-opus-4-6',
       '  - ai:skill_version: 7.16.4',
+      '  - ai:engine: claude-opus-4-6',
     ].join('\n')
 
     const lines = injectAiCostFields(yaml, sampleCost).split('\n')
@@ -535,9 +540,59 @@ describe('postprocess-rules', () => {
     expect(lines).toContain('metadata_list:')
     expect(lines).toContain('  - publisher: DC Comics')
     expect(lines).toContain('  - ai:rating: 5.0')
-    const svIdx = findLineIndex(lines, 'ai:skill_version')
-    expect(lines[svIdx + 1]).toBe('  - ai:cost: 0.01911')
+    const engineIdx = findLineIndex(lines, 'ai:engine')
+    expect(lines[engineIdx + 1]).toBe('  - ai:cost: 0.01911')
   })
+  })
+
+  describe('enforceAiEngineAfterSkillVersion', () => {
+    it('relocates ai:engine to come AFTER ai:skill_version when emitted first', () => {
+      const yaml = [
+        '  - ai:rating: 4.0',
+        '  - ai:engine: claude-opus-4-6',
+        '  - ai:skill_version: 7.16.4',
+      ].join('\n')
+
+      const result = enforceAiEngineAfterSkillVersion(yaml)
+      const lines = result.split('\n')
+      const skillIdx = findLineIndex(lines, 'ai:skill_version')
+      const engineIdx = findLineIndex(lines, 'ai:engine')
+
+      expect(engineIdx).toBe(skillIdx + 1)
+      expect(lines[skillIdx]).toBe('  - ai:skill_version: 7.16.4')
+      expect(lines[engineIdx]).toBe('  - ai:engine: claude-opus-4-6')
+    })
+
+    it('is a no-op when ai:engine already comes after ai:skill_version', () => {
+      const yaml = ['  - ai:skill_version: 7.16.4', '  - ai:engine: claude-opus-4-6'].join('\n')
+      expect(enforceAiEngineAfterSkillVersion(yaml)).toBe(yaml)
+    })
+
+    it('is a no-op when ai:engine is missing', () => {
+      const yaml = '  - ai:skill_version: 7.16.4'
+      expect(enforceAiEngineAfterSkillVersion(yaml)).toBe(yaml)
+    })
+
+    it('is a no-op when ai:skill_version is missing', () => {
+      const yaml = '  - ai:engine: claude-opus-4-6'
+      expect(enforceAiEngineAfterSkillVersion(yaml)).toBe(yaml)
+    })
+
+    it('preserves surrounding ai:* fields when relocating ai:engine', () => {
+      const yaml = [
+        '  - ai:rating: 4.0',
+        '  - ai:rating_reasoning: "..."',
+        '  - ai:engine: claude-opus-4-6',
+        '  - ai:skill_version: 7.16.4',
+      ].join('\n')
+
+      const lines = enforceAiEngineAfterSkillVersion(yaml).split('\n')
+      // Expected order: rating → reasoning → skill_version → engine
+      expect(lines[0]).toBe('  - ai:rating: 4.0')
+      expect(lines[1]).toBe('  - ai:rating_reasoning: "..."')
+      expect(lines[2]).toBe('  - ai:skill_version: 7.16.4')
+      expect(lines[3]).toBe('  - ai:engine: claude-opus-4-6')
+    })
   })
 })
 

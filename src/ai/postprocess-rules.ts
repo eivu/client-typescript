@@ -297,6 +297,36 @@ export function enforceGenreTitleCase(yaml: string): string {
 }
 
 /**
+ * #35 — `ai:engine` must come AFTER `ai:skill_version`.
+ *
+ * Per the v7.16.4 skill's schema example, the canonical ai:* field order is:
+ *   ai:rating → ai:rating_reasoning → ai:skill_version → ai:engine → (cost fields) → tag:Masterwork
+ *
+ * The model occasionally emits ai:engine BEFORE ai:skill_version. This rule
+ * relocates it so the resulting yml is consistently ordered. No-op if either
+ * field is missing or ai:engine is already after ai:skill_version.
+ */
+export function enforceAiEngineAfterSkillVersion(yaml: string): string {
+  const lines = yaml.split('\n')
+  let engineIdx = -1
+  let skillIdx = -1
+  for (const [i, line] of lines.entries()) {
+    if (/^\s*- ai:engine:/.test(line)) engineIdx = i
+    if (/^\s*- ai:skill_version:/.test(line)) skillIdx = i
+  }
+
+  if (engineIdx === -1 || skillIdx === -1 || engineIdx > skillIdx) return yaml
+
+  // engine appears before skill_version — relocate engine to right after skill_version
+  const engineLine = lines[engineIdx]
+  lines.splice(engineIdx, 1)
+  // After removing engine (which was at engineIdx < skillIdx), skill_version shifts down by 1
+  const newSkillIdx = skillIdx - 1
+  lines.splice(newSkillIdx + 1, 0, engineLine)
+  return lines.join('\n')
+}
+
+/**
  * Cost fields written into the YAML by `injectAiCostFields`. Computed by
  * `MetadataGenerator` after the retry loop finishes — `cost` and `tokensIn`/`tokensOut`
  * reflect the FINAL successful attempt only, while `costAll` is the sum across every
@@ -311,9 +341,14 @@ export type AiCostFields = {
 
 /**
  * Injects the four ai:* cost/usage fields into metadata_list, mirroring the
- * `enforceSkillVersion` insertion ladder:
- *   1. After `- ai:skill_version:` if present
- *   2. Otherwise after `- ai:engine:` if present
+ * `enforceSkillVersion` insertion ladder. Priority order is **engine-first**
+ * because per the v7.16.4 skill's schema example the canonical ordering is
+ *   ai:skill_version → ai:engine → (cost fields) → tag:Masterwork
+ * so cost should land AFTER engine. Falls back to skill_version → reasoning →
+ * rating when engine is missing.
+ *
+ *   1. After `- ai:engine:` if present
+ *   2. Otherwise after `- ai:skill_version:` if present
  *   3. Otherwise after the `- ai:rating_reasoning:` block (skipping block-scalar body)
  *   4. Otherwise after `- ai:rating:` if present
  *   5. Otherwise appended to the file
@@ -335,9 +370,9 @@ export function injectAiCostFields(yaml: string, fields: AiCostFields): string {
 
   const lines = cleaned.split('\n')
 
-  // Find insertion anchor with cascading fallbacks.
-  let anchorIdx = lines.findIndex((l) => /^\s*- ai:skill_version:/.test(l))
-  if (anchorIdx === -1) anchorIdx = lines.findIndex((l) => /^\s*- ai:engine:/.test(l))
+  // Find insertion anchor with cascading fallbacks (engine-first priority).
+  let anchorIdx = lines.findIndex((l) => /^\s*- ai:engine:/.test(l))
+  if (anchorIdx === -1) anchorIdx = lines.findIndex((l) => /^\s*- ai:skill_version:/.test(l))
 
   let indent: string
   let insertAfterIdx: number
@@ -385,6 +420,7 @@ export function applyMechanicalRules(yaml: string): string {
   result = enforceSkillVersion(result) // #19
   result = zeroPadNameNumbers(result) // #22
   result = enforceGenreTitleCase(result) // #24
+  result = enforceAiEngineAfterSkillVersion(result) // #35 (must run BEFORE Masterwork)
   result = enforceMasterworkTag(result) // #7 (last — depends on clean ai:rating)
   return result
 }

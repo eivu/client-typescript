@@ -96,9 +96,36 @@ export class MetadataGenerator {
     return `${String(index).padStart(5, '0')}-${basename}`.slice(0, 64)
   }
 
-  private static async logValidationFailure(filePath: string, error: string): Promise<void> {
+  /**
+   * Appends a row to `logs/failure.csv` when a file permanently fails after retries.
+   *
+   * Columns (no header — preserved from the original schema for backward compatibility
+   * with anything that parses this file; new cost columns appended at the end):
+   *   timestamp · filePath · error · attempts · cost_total_usd · tokens_in · tokens_out
+   *
+   * The cost columns surface budget visibility for retries — without them, a prompt
+   * regression that causes all files to fail could quietly burn money. Zeroes when
+   * usage was never captured (e.g. agent-level error before billing data arrived).
+   */
+  private static async logValidationFailure(
+    filePath: string,
+    error: string,
+    attempts: number,
+    costAcc: FileCostAccum | undefined,
+  ): Promise<void> {
     await fsp.mkdir('logs', {recursive: true})
-    const data = [new Date().toISOString(), filePath, error]
+    const totalCostUsd = costAcc?.totalCostUsd ?? 0
+    const tokensIn = costAcc?.finalUsage?.inputTokens ?? 0
+    const tokensOut = costAcc?.finalUsage?.outputTokens ?? 0
+    const data = [
+      new Date().toISOString(),
+      filePath,
+      error,
+      String(attempts),
+      totalCostUsd.toFixed(5),
+      String(tokensIn),
+      String(tokensOut),
+    ]
     const csvString = await fastCsv.writeToString([data], {headers: false})
     const logPath = 'logs/failure.csv'
     const fileExists = await fsp.stat(logPath).then((s) => s.size > 0).catch(() => false)
@@ -193,7 +220,12 @@ export class MetadataGenerator {
         const mapping = idToFilePath.get(result.customId)
         if (mapping) {
           // eslint-disable-next-line no-await-in-loop -- must log before next iteration
-          await MetadataGenerator.logValidationFailure(mapping.filePath, result.error ?? 'Validation failed')
+          await MetadataGenerator.logValidationFailure(
+            mapping.filePath,
+            result.error ?? 'Validation failed',
+            count,
+            costByCustomId.get(result.customId),
+          )
           allWriteResults.push({
             error: `Validation failed after ${count} attempt${count === 1 ? '' : 's'}: ${result.error}`,
             filePath: mapping.filePath,
