@@ -1,8 +1,8 @@
-import type {AgentOptions, AgentRequest, AgentResult, BatchProgress} from '@src/ai/types'
+import type {AgentOptions, AgentRequest, AgentResult, BatchProgress, RawAgentUsage} from '@src/ai/types'
 
 import {normalizeAwardTags} from '@src/ai/award-tags'
 import {addMissingParentFranchises} from '@src/ai/franchise-hierarchy'
-import {applyMechanicalRules} from '@src/ai/postprocess-rules'
+import {type AiCostFields, applyMechanicalRules, injectAiCostFields} from '@src/ai/postprocess-rules'
 import {validateEivuYaml} from '@src/ai/validate-yaml'
 import {contentTypeIsAudio, contentTypeIsComic, contentTypeIsVideo, detectMime} from '@src/utils'
 import path from 'node:path'
@@ -92,6 +92,28 @@ export function postProcess(yaml: string, model: string): string {
   result = applyMechanicalRules(result)
 
   return result
+}
+
+/**
+ * Final-stage post-process applied only on the WRITE path (not at validation time)
+ * because the cost data depends on cumulative usage across retry attempts, which
+ * MetadataGenerator's retry loop only knows after all attempts complete.
+ *
+ * Runs `postProcess` first (re-idempotent — same rules), then layers on the
+ * ai:cost / ai:cost_all / ai:tokens_in / ai:tokens_out fields.
+ *
+ * @param yaml - YAML that has already been through validateAndPostProcess
+ * @param model - Model identifier (used by postProcess re-application)
+ * @param costFields - The cost fields to inject; null skips injection entirely
+ * @returns Final YAML ready to write to disk
+ */
+export function postProcessWithCost(
+  yaml: string,
+  model: string,
+  costFields: AiCostFields | null,
+): string {
+  if (!costFields) return yaml
+  return injectAiCostFields(yaml, costFields)
 }
 
 /**
@@ -306,18 +328,24 @@ export abstract class BaseAgent {
    * Returns `success` results (with post-processed YAML) or `validation_error` results
    * (with `rawYaml` preserved so callers can save it for debugging/retry).
    *
-   * @param items - Array of `{customId, rawYaml}` pairs extracted from provider responses
+   * Note: the ai:cost / ai:cost_all / ai:tokens_in / ai:tokens_out fields are NOT
+   * injected here — MetadataGenerator accumulates usage across retries and applies
+   * `postProcessWithCost` immediately before the write.
+   *
+   * @param items - Array of `{customId, rawYaml, usage}` triples extracted from provider responses
    * @returns Array of `AgentResult` — each either `success` or `validation_error`
    */
-  protected validateAndPostProcess(items: Array<{customId: string; rawYaml: string}>): AgentResult[] {
-    return items.map(({customId, rawYaml}) => {
+  protected validateAndPostProcess(
+    items: Array<{customId: string; rawYaml: string; usage: RawAgentUsage}>,
+  ): AgentResult[] {
+    return items.map(({customId, rawYaml, usage}) => {
       const validationResult = validateEivuYaml(rawYaml)
       if ('error' in validationResult) {
-        return {customId, error: validationResult.error, rawYaml, status: 'validation_error' as const}
+        return {customId, error: validationResult.error, rawYaml, status: 'validation_error' as const, usage}
       }
 
       const yaml = postProcess(validationResult.yaml, this.model)
-      return {customId, status: 'success' as const, yaml}
+      return {customId, status: 'success' as const, usage, yaml}
     })
   }
 }

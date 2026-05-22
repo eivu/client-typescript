@@ -1,7 +1,8 @@
-import type {AgentRequest, AgentResult, AgentType, GenerationResult, MetadataGeneratorOptions} from '@src/ai/types'
+import type {AgentRequest, AgentResult, AgentType, GenerationResult, MetadataGeneratorOptions, RawAgentUsage} from '@src/ai/types'
 
-import {type BaseAgent, buildUserMessage} from '@src/ai/base-agent'
+import {type BaseAgent, buildUserMessage, postProcessWithCost} from '@src/ai/base-agent'
 import {ClaudeAgent} from '@src/ai/claude-agent'
+import {computeCost} from '@src/ai/cost'
 import {GeminiAgent} from '@src/ai/gemini-agent'
 import {OpenAIAgent} from '@src/ai/openai-agent'
 import {METADATA_YML_SUFFIX} from '@src/constants'
@@ -10,6 +11,18 @@ import * as fastCsv from 'fast-csv'
 import * as fs from 'node:fs'
 import {promises as fsp} from 'node:fs'
 import path from 'node:path'
+
+/**
+ * Per-file accumulator used by the retry loop to track total cost across all
+ * attempts (`totalCostUsd`) plus the final successful attempt's cost + usage
+ * (`finalCostUsd` / `finalUsage`). `injectAiCostFields` reads these to write
+ * `ai:cost`, `ai:cost_all`, `ai:tokens_in`, `ai:tokens_out` into the yml.
+ */
+type FileCostAccum = {
+  finalCostUsd: number
+  finalUsage: null | RawAgentUsage
+  totalCostUsd: number
+}
 
 const MAX_VALIDATION_ATTEMPTS = 3
 
@@ -116,6 +129,7 @@ export class MetadataGenerator {
     const idToFilePath = new Map(requests.map((r) => [r.customId, {filePath: r.filePath, outputPath: r.outputPath}]))
     const idToRequest = new Map(requests.map((r) => [r.customId, r]))
     const failureCounts = new Map<string, number>()
+    const costByCustomId = new Map<string, FileCostAccum>()
     const allWriteResults: GenerationResult[] = []
     let currentRequests = [...requests]
 
@@ -129,6 +143,22 @@ export class MetadataGenerator {
 
       // eslint-disable-next-line no-await-in-loop -- retry batches must be sequential
       const agentResults = await this.agent.processRequests(currentRequests)
+
+      // Accumulate per-file cost from every attempt — `totalCostUsd` grows on
+      // every call (success OR validation_error); `finalCostUsd`/`finalUsage`
+      // only update on success so the final successful attempt's data wins.
+      for (const result of agentResults) {
+        if (!result.usage) continue
+        const acc = costByCustomId.get(result.customId) ?? {finalCostUsd: 0, finalUsage: null, totalCostUsd: 0}
+        const thisCostUsd = computeCost(this.agent.model, result.usage).totalUsd
+        acc.totalCostUsd += thisCostUsd
+        if (result.status === 'success') {
+          acc.finalCostUsd = thisCostUsd
+          acc.finalUsage = result.usage
+        }
+
+        costByCustomId.set(result.customId, acc)
+      }
 
       // Triage results: successes/errors go to validResults for writing,
       // validation failures are tracked for retry or permanent failure
@@ -179,7 +209,7 @@ export class MetadataGenerator {
       }
 
       // eslint-disable-next-line no-await-in-loop -- must complete before next retry iteration
-      const writeResults = await this.writeResults(validResults, idToFilePath)
+      const writeResults = await this.writeResults(validResults, idToFilePath, costByCustomId)
       allWriteResults.push(...writeResults)
 
       // Build the next batch from files that still have retries left
@@ -224,6 +254,7 @@ export class MetadataGenerator {
   private async writeResults(
     agentResults: AgentResult[],
     idToFilePath: Map<string, {filePath: string; outputPath: string}>,
+    costByCustomId: Map<string, FileCostAccum>,
   ): Promise<GenerationResult[]> {
     const resultPromises: Promise<GenerationResult>[] = []
 
@@ -237,12 +268,26 @@ export class MetadataGenerator {
       const {filePath, outputPath} = mapping
 
       if (result.status === 'success' && result.yaml) {
+        // Inject the ai:cost / ai:cost_all / ai:tokens_in / ai:tokens_out fields
+        // using the accumulated retry-aware cost record. If no cost record exists
+        // (e.g. usage was unavailable from the agent), skip injection rather than
+        // writing zeros that would be indistinguishable from a $0 generation.
+        const acc = costByCustomId.get(result.customId)
+        const yamlToWrite = acc?.finalUsage
+          ? postProcessWithCost(result.yaml, this.agent.model, {
+              cost: acc.finalCostUsd,
+              costAll: acc.totalCostUsd,
+              tokensIn: acc.finalUsage.inputTokens,
+              tokensOut: acc.finalUsage.outputTokens,
+            })
+          : result.yaml
+
         resultPromises.push(
           (async (): Promise<GenerationResult> => {
             try {
-              await fsp.writeFile(outputPath, result.yaml + '\n', 'utf8')
+              await fsp.writeFile(outputPath, yamlToWrite + '\n', 'utf8')
               logger.info({outputPath}, 'Wrote .eivu.yml file')
-              return {filePath, outputPath, status: 'success', yaml: result.yaml}
+              return {filePath, outputPath, status: 'success', yaml: yamlToWrite}
             } catch (error) {
               const message = error instanceof Error ? error.message : String(error)
               logger.error({error: message, outputPath}, 'Failed to write .eivu.yml file')

@@ -1,4 +1,4 @@
-import type {AgentOptions, AgentRequest, AgentResult} from '@src/ai/types'
+import type {AgentOptions, AgentRequest, AgentResult, RawAgentResult, RawAgentUsage} from '@src/ai/types'
 
 import Anthropic from '@anthropic-ai/sdk'
 import {BaseAgent, extractYamlFromResponse} from '@src/ai/base-agent'
@@ -43,7 +43,11 @@ type CachedTextBlock = {
 export class ClaudeAgent extends BaseAgent {
   private client: Anthropic
   private systemPromptBlocks: CachedTextBlock[]
-  private tools: WebSearchTool[]
+  private temperature?: number
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- spike variants pass arbitrary Anthropic Tool shapes
+  private toolChoice?: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- spike variants pass arbitrary Anthropic Tool shapes
+  private tools: any[]
 
   constructor(options: AgentOptions = {}) {
     super(options, CLAUDE_DEFAULTS)
@@ -51,19 +55,23 @@ export class ClaudeAgent extends BaseAgent {
 
     // Web search is critical for accurate metadata — the model must verify
     // what a book collects, its full creative team, character appearances,
-    // and critical reception before generating YAML.
-    const webSearchMaxUses = options.webSearchMaxUses ?? 10
-    this.tools =
-      webSearchMaxUses > 0
-        ? [
-            {
-              // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
-              max_uses: webSearchMaxUses,
-              name: 'web_search' as const,
-              type: 'web_search_20250305' as const,
-            },
-          ]
-        : []
+    // and critical reception before generating YAML. The spike's structured-output
+    // variant overrides this by passing a custom `tools` list.
+    if (options.tools === undefined) {
+      const webSearchMaxUses = options.webSearchMaxUses ?? 10
+      const webSearchTool: WebSearchTool = {
+        // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
+        max_uses: webSearchMaxUses,
+        name: 'web_search' as const,
+        type: 'web_search_20250305' as const,
+      }
+      this.tools = webSearchMaxUses > 0 ? [webSearchTool] : []
+    } else {
+      this.tools = options.tools
+    }
+
+    this.toolChoice = options.toolChoice
+    this.temperature = options.temperature
 
     let skillContent: string
     if (options.skillContent) {
@@ -87,6 +95,40 @@ export class ClaudeAgent extends BaseAgent {
     ]
   }
 
+  private static emptyUsage(startedAt: number): RawAgentUsage {
+    return {
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0,
+      inputTokens: 0,
+      latencyMs: Date.now() - startedAt,
+      outputTokens: 0,
+      webSearchRequests: 0,
+    }
+  }
+
+  /**
+   * Extracts the usage record from a succeeded message in the same shape as
+   * `parseRawSuccess` does, but returned standalone so the production
+   * `collectResults` path can attach usage to each `AgentResult`.
+   */
+  private static extractUsage(message: Anthropic.Message, startedAt: number): RawAgentUsage {
+    const usage = message.usage as {
+      cache_creation_input_tokens?: number
+      cache_read_input_tokens?: number
+      input_tokens: number
+      output_tokens: number
+      server_tool_use?: {web_search_requests?: number}
+    }
+    return {
+      cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
+      cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
+      inputTokens: usage.input_tokens,
+      latencyMs: Date.now() - startedAt,
+      outputTokens: usage.output_tokens,
+      webSearchRequests: usage.server_tool_use?.web_search_requests ?? 0,
+    }
+  }
+
   private static formatBatchError(result: {error?: unknown; type: string}): string {
     if (result.type === 'errored' && result.error) {
       const err = result.error as {message?: string; type?: string}
@@ -94,6 +136,52 @@ export class ClaudeAgent extends BaseAgent {
     }
 
     return `Request ${result.type}`
+  }
+
+  private static parseRawSuccess(
+    customId: string,
+    message: Anthropic.Message,
+    startedAt: number,
+  ): RawAgentResult {
+    // Concatenate all text blocks for rawText; capture the first tool_use input for variant 5.
+    const blocks = message.content as Array<{
+      input?: Record<string, unknown>
+      name?: string
+      text?: string
+      type: string
+    }>
+
+    const rawText = blocks
+      .filter((b) => b.type === 'text' && typeof b.text === 'string')
+      .map((b) => b.text as string)
+      .join('\n')
+
+    const firstToolUse = blocks.find((b) => b.type === 'tool_use')
+
+    // Anthropic exposes web search counts under usage.server_tool_use.web_search_requests
+    // when the web_search tool is enabled. Default to 0 if absent.
+    const usage = message.usage as {
+      cache_creation_input_tokens?: number
+      cache_read_input_tokens?: number
+      input_tokens: number
+      output_tokens: number
+      server_tool_use?: {web_search_requests?: number}
+    }
+
+    return {
+      customId,
+      rawText,
+      status: 'success' as const,
+      ...(firstToolUse ? {toolUseInput: firstToolUse.input ?? {}, toolUseName: firstToolUse.name} : {}),
+      usage: {
+        cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
+        cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
+        inputTokens: usage.input_tokens,
+        latencyMs: Date.now() - startedAt,
+        outputTokens: usage.output_tokens,
+        webSearchRequests: usage.server_tool_use?.web_search_requests ?? 0,
+      },
+    }
   }
 
   async processRequests(requests: AgentRequest[]): Promise<AgentResult[]> {
@@ -119,6 +207,79 @@ export class ClaudeAgent extends BaseAgent {
   }
 
   /**
+   * Submits a batch and returns RAW results (no YAML validation, no post-processing).
+   *
+   * Used only by the Phase 0 measurement spike — production callers should use
+   * `processRequests`. Returns per-request `{rawText, toolUseInput, usage}` so the
+   * spike harness can compute consistency, cost, and timing across variants.
+   *
+   * The raw text is the concatenated content of all text blocks in the response;
+   * `toolUseInput` is the parsed `input` of the FIRST tool_use block (variant 5
+   * uses this to read its forced structured-output tool call).
+   */
+  async processRequestsRaw(requests: AgentRequest[]): Promise<RawAgentResult[]> {
+    if (requests.length === 0) return []
+
+    const results: RawAgentResult[] = []
+
+    for (let i = 0; i < requests.length; i += MAX_BATCH_SIZE) {
+      const chunk = requests.slice(i, i + MAX_BATCH_SIZE)
+      // eslint-disable-next-line no-await-in-loop -- batches must be processed sequentially
+      const chunkResults = await this.submitAndPollBatchRaw(chunk)
+      results.push(...chunkResults)
+    }
+
+    return results
+  }
+
+  private buildBatchParams(req: AgentRequest): Anthropic.MessageCreateParamsNonStreaming {
+    return {
+      // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
+      max_tokens: this.maxTokens,
+      messages: [{content: req.userMessage, role: 'user' as const}],
+      model: this.model,
+      system: this.systemPromptBlocks as Anthropic.MessageCreateParamsNonStreaming['system'],
+      ...(this.temperature === undefined ? {} : {temperature: this.temperature}),
+      ...(this.tools.length > 0
+        ? {tools: this.tools as unknown as Anthropic.MessageCreateParamsNonStreaming['tools']}
+        : {}),
+       
+      ...(this.toolChoice === undefined
+        ? {}
+        : // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
+          {tool_choice: this.toolChoice as Anthropic.MessageCreateParamsNonStreaming['tool_choice']}),
+    }
+  }
+
+  private async collectRawResults(batchId: string, requests: AgentRequest[]): Promise<RawAgentResult[]> {
+    const idToRequest = new Map(requests.map((r) => [r.customId, r]))
+    const results: RawAgentResult[] = []
+    const startedAt = Date.now()
+
+    const resultsStream = await this.client.messages.batches.results(batchId)
+    for await (const entry of resultsStream) {
+      if (!idToRequest.has(entry.custom_id)) {
+        logger.warn({customId: entry.custom_id}, 'Unknown custom_id in batch results')
+        continue
+      }
+
+      if (entry.result.type === 'succeeded') {
+        results.push(ClaudeAgent.parseRawSuccess(entry.custom_id, entry.result.message, startedAt))
+      } else {
+        results.push({
+          customId: entry.custom_id,
+          error: ClaudeAgent.formatBatchError(entry.result),
+          rawText: '',
+          status: 'error' as const,
+          usage: ClaudeAgent.emptyUsage(startedAt),
+        })
+      }
+    }
+
+    return results
+  }
+
+  /**
    * Collects and processes results from a completed Anthropic batch.
    *
    * Raw YAML is extracted from each succeeded entry and passed to the shared
@@ -129,8 +290,9 @@ export class ClaudeAgent extends BaseAgent {
    */
   private async collectResults(batchId: string, requests: AgentRequest[]): Promise<AgentResult[]> {
     const idToRequest = new Map(requests.map((r) => [r.customId, r]))
-    const rawItems: Array<{customId: string; rawYaml: string}> = []
+    const rawItems: Array<{customId: string; rawYaml: string; usage: RawAgentUsage}> = []
     const errorResults: AgentResult[] = []
+    const startedAt = Date.now()
 
     const resultsStream = await this.client.messages.batches.results(batchId)
     for await (const entry of resultsStream) {
@@ -141,10 +303,16 @@ export class ClaudeAgent extends BaseAgent {
 
       if (entry.result.type === 'succeeded') {
         const rawYaml = extractYamlFromResponse(entry.result.message.content as Array<{text?: string; type: string}>)
-        rawItems.push({customId: entry.custom_id, rawYaml})
+        const usage = ClaudeAgent.extractUsage(entry.result.message, startedAt)
+        rawItems.push({customId: entry.custom_id, rawYaml, usage})
       } else {
         const errorMsg = ClaudeAgent.formatBatchError(entry.result)
-        errorResults.push({customId: entry.custom_id, error: errorMsg, status: 'error'})
+        errorResults.push({
+          customId: entry.custom_id,
+          error: errorMsg,
+          status: 'error',
+          usage: ClaudeAgent.emptyUsage(startedAt),
+        })
         logger.error({customId: entry.custom_id, resultType: entry.result.type}, 'Batch request failed')
       }
     }
@@ -221,14 +389,7 @@ export class ClaudeAgent extends BaseAgent {
     const batchRequests = requests.map((req) => ({
       // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
       custom_id: req.customId,
-      params: {
-        // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
-        max_tokens: this.maxTokens,
-        messages: [{content: req.userMessage, role: 'user' as const}],
-        model: this.model,
-        system: this.systemPromptBlocks as Anthropic.MessageCreateParams['system'],
-        ...(this.tools.length > 0 ? {tools: this.tools as unknown as Anthropic.MessageCreateParams['tools']} : {}),
-      },
+      params: this.buildBatchParams(req),
     }))
 
     logger.info({count: requests.length}, 'Creating Anthropic message batch')
@@ -238,5 +399,21 @@ export class ClaudeAgent extends BaseAgent {
     await this.pollUntilComplete(batch.id, requests.length)
 
     return this.collectResults(batch.id, requests)
+  }
+
+  private async submitAndPollBatchRaw(requests: AgentRequest[]): Promise<RawAgentResult[]> {
+    const batchRequests = requests.map((req) => ({
+      // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
+      custom_id: req.customId,
+      params: this.buildBatchParams(req),
+    }))
+
+    logger.info({count: requests.length}, 'Creating Anthropic message batch (raw mode)')
+    const batch = await this.client.messages.batches.create({requests: batchRequests})
+    logger.info({batchId: batch.id}, 'Raw batch created, polling for completion')
+
+    await this.pollUntilComplete(batch.id, requests.length)
+
+    return this.collectRawResults(batch.id, requests)
   }
 }

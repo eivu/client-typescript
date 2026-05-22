@@ -297,6 +297,84 @@ export function enforceGenreTitleCase(yaml: string): string {
 }
 
 /**
+ * Cost fields written into the YAML by `injectAiCostFields`. Computed by
+ * `MetadataGenerator` after the retry loop finishes — `cost` and `tokensIn`/`tokensOut`
+ * reflect the FINAL successful attempt only, while `costAll` is the sum across every
+ * attempt the file went through (including failed retries).
+ */
+export type AiCostFields = {
+  cost: number
+  costAll: number
+  tokensIn: number
+  tokensOut: number
+}
+
+/**
+ * Injects the four ai:* cost/usage fields into metadata_list, mirroring the
+ * `enforceSkillVersion` insertion ladder:
+ *   1. After `- ai:skill_version:` if present
+ *   2. Otherwise after `- ai:engine:` if present
+ *   3. Otherwise after the `- ai:rating_reasoning:` block (skipping block-scalar body)
+ *   4. Otherwise after `- ai:rating:` if present
+ *   5. Otherwise appended to the file
+ *
+ * Idempotent: if the four fields are already present (from a prior write), they're
+ * removed first so the inject becomes an in-place update. This is important because
+ * `gm:ai --force` re-runs over existing files.
+ *
+ * Cost values are formatted with 5 decimals (`0.01911`); token counts are integers.
+ * When there were no retries, `cost === costAll` and both are emitted for downstream
+ * consistency (no "sometimes present" branching for consumers).
+ */
+export function injectAiCostFields(yaml: string, fields: AiCostFields): string {
+  // Strip any prior occurrences first (idempotency for --force re-runs).
+  const cleaned = yaml
+    .split('\n')
+    .filter((l) => !/^\s*- ai:(cost|cost_all|tokens_in|tokens_out):/.test(l))
+    .join('\n')
+
+  const lines = cleaned.split('\n')
+
+  // Find insertion anchor with cascading fallbacks.
+  let anchorIdx = lines.findIndex((l) => /^\s*- ai:skill_version:/.test(l))
+  if (anchorIdx === -1) anchorIdx = lines.findIndex((l) => /^\s*- ai:engine:/.test(l))
+
+  let indent: string
+  let insertAfterIdx: number
+
+  if (anchorIdx === -1) {
+    const reasoningIdx = lines.findIndex((l) => /^\s*- ai:rating_reasoning:/.test(l))
+    if (reasoningIdx === -1) {
+      const ratingIdx = lines.findIndex((l) => /^\s*- ai:rating:/.test(l))
+      if (ratingIdx === -1) {
+        // No ai:* anchors — append at end of file.
+        insertAfterIdx = lines.length - 1
+        indent = '  '
+      } else {
+        insertAfterIdx = ratingIdx
+        indent = lines[ratingIdx].match(/^(\s*)/)?.[1] ?? '  '
+      }
+    } else {
+      insertAfterIdx = findBlockScalarEnd(lines, reasoningIdx)
+      indent = lines[reasoningIdx].match(/^(\s*)/)?.[1] ?? '  '
+    }
+  } else {
+    insertAfterIdx = anchorIdx
+    indent = lines[anchorIdx].match(/^(\s*)/)?.[1] ?? '  '
+  }
+
+  const newLines = [
+    `${indent}- ai:cost: ${fields.cost.toFixed(5)}`,
+    `${indent}- ai:cost_all: ${fields.costAll.toFixed(5)}`,
+    `${indent}- ai:tokens_in: ${fields.tokensIn}`,
+    `${indent}- ai:tokens_out: ${fields.tokensOut}`,
+  ]
+
+  lines.splice(insertAfterIdx + 1, 0, ...newLines)
+  return lines.join('\n')
+}
+
+/**
  * Applies all mechanical post-process rules in sequence.
  * Call this from the main postProcess function.
  */

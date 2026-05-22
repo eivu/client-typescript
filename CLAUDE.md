@@ -2,6 +2,24 @@
 
 Guide for Claude Code (and other AI coding agents) working in this repo. End-user docs live in [README.md](README.md).
 
+## Metadata generation refactor (in progress)
+
+The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call into a modular per-stage / per-media-type pipeline. **Current state: Phase 0 — measurement spike.** No production code in `src/ai/` has been replaced yet.
+
+- **Plan**: `~/.claude/plans/i-d-like-your-help-quirky-fog.md`
+- **Visual reference (open in a browser)**: [tmp/metadata-pipeline-plan.html](tmp/metadata-pipeline-plan.html)
+- **Spike code**: `src/ai/spike/` (harness, variants) + `src/commands/test/spike.ts` (runner)
+- **Spike report (after run)**: `tmp/spike-report.md`
+
+**Vocab to know before touching this code:**
+- **`Stage`** — one Anthropic API call. Has a model, a prompt, optional web-search budget.
+- **`Pipeline`** — an ordered list of stages for one media type (`comics`, `audio`, `video`, `other`).
+- **`PromptAssembler`** — composes per-stage system prompts from fragments under `src/ai/prompts/claude/fragments/`. Output must be byte-identical for the same inputs (cache determinism).
+- **`FallbackProfile`** — internal-only second pipeline per media type, used by `MetadataGenerator` on retry exhaustion. **Deferred** — Phase 0 measurements decide whether to ship it.
+- **Prompt cache** — Anthropic's 5-min ephemeral cache. Smaller per-(media, stage) prompts beat today's monolith on both miss and hit pricing, but `PromptAssembler` MUST produce deterministic output or every call becomes a cache miss.
+
+**Don't add features to the v7.16.4 monolithic skill file** ([src/ai/prompts/claude/EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md](src/ai/prompts/claude/EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md)). It's being decomposed into fragments in Phase 1. Bug fixes are fine; new rules should wait for the fragment migration.
+
 ## What this repo is
 
 `eivu-upload-client` — an oclif-based Node 18+ CLI that does three things:

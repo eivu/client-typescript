@@ -63,6 +63,7 @@ Determine file type from extension, then **skip irrelevant sections**:
 | 31 | 🎵 | Audio files always have `artists`; should have `release` when album is known | omit artists/release | `artists` required; `release` strongly recommended |
 | 32 | 🎬 | Video files always have `artists`; `release` optional | omit artists | `artists` required; `release` only if applicable |
 | 33 | 🎵 | `release.position` = track number on album (integer) | omit or guess | verify track position from authoritative source |
+| 34 | ⚙️ | `ai:cost`, `ai:cost_all`, `ai:tokens_in`, `ai:tokens_out` are POST-PROCESSOR-ONLY | model emits its own values | DO NOT emit these fields; the post-processor injects them with the real billing/usage data |
 
 **Scope key:** 📗 = Comics only · 🎵 = Audio only · 🎬 = Video only · 🎵🎬 = Audio + Video · 🔵 = All media types · ⚙️ = Enforced by post-processor (follow convention but do not spend time verifying)
 
@@ -94,6 +95,7 @@ metadata_list:                  # ONE key per item; same key may repeat
   - ai:rating_reasoning: "..."  # required with ai:rating
   - ai:skill_version: 7.16.4
   - ai:engine: <YOUR-MODEL-NAME>  # self-report: e.g. claude-sonnet-4-6, claude-opus-4-6
+  # ai:cost, ai:cost_all, ai:tokens_in, ai:tokens_out are injected here by the post-processor (rule #34) — DO NOT emit yourself
   - tag: Eivu's AI Masterwork Collection  # only if ai:rating >= 4.0
 ```
 
