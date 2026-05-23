@@ -4,18 +4,24 @@ Guide for Claude Code (and other AI coding agents) working in this repo. End-use
 
 ## Metadata generation refactor (in progress)
 
-The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call into a modular per-stage / per-media-type pipeline. **Current state: Phase 0 — measurement spike.** No production code in `src/ai/` has been replaced yet.
+The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call into a modular per-stage / per-media-type pipeline. **Current state: Phase 0 complete; Phase 1 awaiting primary-variant selection.** No production code in `src/ai/` has been replaced yet.
 
-- **Plan**: `~/.claude/plans/i-d-like-your-help-quirky-fog.md`
+- **Plan**: `~/.claude/plans/i-d-like-your-help-quirky-fog.md` (see "Phase 0 — Result" section)
 - **Visual reference (open in a browser)**: [tmp/metadata-pipeline-plan.html](tmp/metadata-pipeline-plan.html)
 - **Spike code**: `src/ai/spike/` (harness, variants) + `src/commands/test/spike.ts` (runner)
-- **Spike report (after run)**: `tmp/spike-report.md`
+- **Spike reports**: [tmp/spike-report.md](tmp/spike-report.md) (original run, 5 primary variants) · [tmp/spike-confirmatory.md](tmp/spike-confirmatory.md) (baseline + `anchored-rubric-disjoint`)
+- **Spike analysis & HTML report**: [tmp/spike-confirmatory-analysis.md](tmp/spike-confirmatory-analysis.md) · [tmp/spike-confirmatory-report.html](tmp/spike-confirmatory-report.html)
+
+**Phase 0 outcomes (locked in):**
+- **Anchor exemplars ruled out.** Original `anchored-rubric` halved stddev (0.036 vs 0.072), but 6/8 fixtures overlapped with anchor exemplars. The confirmatory `anchored-rubric-disjoint` variant (zero overlap) tied baseline at 0.072 — the "win" was anchor-copying. No `core/scoring-anchors.md` fragment in Phase 1.
+- **`FallbackProfile` ruled out.** Measured 0/48 = 0.0% end-to-end failure across both spike runs; well under the 5% threshold. In-pipeline retry-up-to-3x is sufficient. No fallback pipelines authored in Phase 2.
+- **Production primary pending user decision.** Four variants tied at mean stddev 0.072: `baseline` (1.00× cost), `two-stage` (0.98×), `multi-sample` (2.80× — dropped on cost), `structured-output` (0.77× + parse-fail-proof by tool-enum). Selection between `baseline`, `two-stage`, `structured-output` is open.
 
 **Vocab to know before touching this code:**
 - **`Stage`** — one Anthropic API call. Has a model, a prompt, optional web-search budget.
 - **`Pipeline`** — an ordered list of stages for one media type (`comics`, `audio`, `video`, `other`).
 - **`PromptAssembler`** — composes per-stage system prompts from fragments under `src/ai/prompts/claude/fragments/`. Output must be byte-identical for the same inputs (cache determinism).
-- **`FallbackProfile`** — internal-only second pipeline per media type, used by `MetadataGenerator` on retry exhaustion. **Deferred** — Phase 0 measurements decide whether to ship it.
+- **`FallbackProfile`** — internal-only second pipeline per media type, used by `MetadataGenerator` on retry exhaustion. **Ruled out by Phase 0** (0% failure rate measured); concept preserved in the plan for future reactivation if production telemetry surfaces a real failure mode.
 - **Prompt cache** — Anthropic's 5-min ephemeral cache. Smaller per-(media, stage) prompts beat today's monolith on both miss and hit pricing, but `PromptAssembler` MUST produce deterministic output or every call becomes a cache miss.
 
 **Don't add features to the v7.16.4 monolithic skill file** ([src/ai/prompts/claude/EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md](src/ai/prompts/claude/EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md)). It's being decomposed into fragments in Phase 1. Bug fixes are fine; new rules should wait for the fragment migration.
