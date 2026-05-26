@@ -5,6 +5,7 @@ import {anchoredRubricVariant} from '@src/ai/spike/variants/anchored-rubric.js'
 import {baselineVariant} from '@src/ai/spike/variants/baseline.js'
 import {haikuComicsResearchVariant} from '@src/ai/spike/variants/haiku-comics-research.js'
 import {multiSampleVariant} from '@src/ai/spike/variants/multi-sample.js'
+import {phase1FragmentsVariant} from '@src/ai/spike/variants/phase1-fragments.js'
 import {structuredOutputVariant} from '@src/ai/spike/variants/structured-output.js'
 import {twoStageVariant} from '@src/ai/spike/variants/two-stage.js'
 
@@ -13,6 +14,9 @@ import {twoStageVariant} from '@src/ai/spike/variants/two-stage.js'
  * Variant 6 (haiku-comics-research) is the model-tier sweep run AFTER the
  * consistency winner is picked — not included by default.
  * anchored-rubric-disjoint is a confirmatory follow-up to anchored-rubric.
+ * phase1-fragments is the Phase 1 landing-verification variant (post-decomposition
+ * baseline equivalent — same model, same user message, same tools, system prompt
+ * assembled per-media via PromptAssembler).
  */
 export const PRIMARY_VARIANTS: Variant[] = [
   baselineVariant,
@@ -22,7 +26,12 @@ export const PRIMARY_VARIANTS: Variant[] = [
   structuredOutputVariant,
 ]
 
-export const ALL_VARIANTS: Variant[] = [...PRIMARY_VARIANTS, haikuComicsResearchVariant, anchoredRubricDisjointVariant]
+export const ALL_VARIANTS: Variant[] = [
+  ...PRIMARY_VARIANTS,
+  haikuComicsResearchVariant,
+  anchoredRubricDisjointVariant,
+  phase1FragmentsVariant,
+]
 
 export function variantByName(name: string): undefined | Variant {
   return ALL_VARIANTS.find((v) => v.name === name)

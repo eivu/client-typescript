@@ -1,7 +1,8 @@
 import type {AgentOptions, AgentRequest, AgentResult, RawAgentResult, RawAgentUsage} from '@src/ai/types'
 
 import Anthropic from '@anthropic-ai/sdk'
-import {BaseAgent, extractYamlFromResponse} from '@src/ai/base-agent'
+import {BaseAgent, extractYamlFromResponse, getMediaCategory} from '@src/ai/base-agent'
+import {assemble} from '@src/ai/prompt-assembler'
 import {METADATA_YML_SUFFIX} from '@src/constants'
 import logger from '@src/logger'
 import * as fs from 'node:fs'
@@ -42,7 +43,26 @@ type CachedTextBlock = {
  */
 export class ClaudeAgent extends BaseAgent {
   private client: Anthropic
-  private systemPromptBlocks: CachedTextBlock[]
+  /**
+   * Set when caller passes `skillContent` or `skillPath` — the spike harness and
+   * all existing unit tests take this path. One static block is reused across
+   * every batch request, matching the pre-Phase-1 behavior.
+   */
+  private staticSystemBlocks?: CachedTextBlock[]
+  /**
+   * Phase 1 assembler mode (default): one CachedTextBlock per media category.
+   * Each batch request looks up the block matching its file's media type so the
+   * Anthropic prompt cache stays per-(media-type, model) — files of the same
+   * category share a cache lane, files of different categories don't compete.
+   * 'other' falls back to the v7.16.4 monolith so unknown extensions still get
+   * a complete ruleset.
+   */
+  private systemBlocksByMedia?: {
+    audio: CachedTextBlock
+    comics: CachedTextBlock
+    other?: CachedTextBlock
+    video: CachedTextBlock
+  }
   private temperature?: number
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- spike variants pass arbitrary Anthropic Tool shapes
   private toolChoice?: any
@@ -73,26 +93,24 @@ export class ClaudeAgent extends BaseAgent {
     this.toolChoice = options.toolChoice
     this.temperature = options.temperature
 
-    let skillContent: string
-    if (options.skillContent) {
-      skillContent = options.skillContent
-    } else {
-      const skillPath = options.skillPath ?? path.join(process.cwd(), DEFAULT_SKILL_PATH)
-      if (!fs.existsSync(skillPath)) {
-        throw new Error(`EIVU metadata skill file not found: ${skillPath}`)
+    const staticContent = ClaudeAgent.resolveStaticContent(options)
+    if (staticContent === undefined) {
+      this.systemBlocksByMedia = {
+        audio: ClaudeAgent.makeBlock(assemble({mediaType: 'audio'})),
+        comics: ClaudeAgent.makeBlock(assemble({mediaType: 'comics'})),
+        video: ClaudeAgent.makeBlock(assemble({mediaType: 'video'})),
       }
 
-      skillContent = fs.readFileSync(skillPath, 'utf8')
+      // The monolith stays on disk in Phase 1 as the 'other' fallback. If a future
+      // refactor removes it, callers of `eivu gm:ai` on non-media files will get
+      // a clear error rather than an incorrect per-media slice.
+      const monolithPath = path.join(process.cwd(), DEFAULT_SKILL_PATH)
+      if (fs.existsSync(monolithPath)) {
+        this.systemBlocksByMedia.other = ClaudeAgent.makeBlock(fs.readFileSync(monolithPath, 'utf8'))
+      }
+    } else {
+      this.staticSystemBlocks = [ClaudeAgent.makeBlock(staticContent)]
     }
-
-    this.systemPromptBlocks = [
-      {
-        // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
-        cache_control: {type: 'ephemeral' as const},
-        text: skillContent,
-        type: 'text' as const,
-      },
-    ]
   }
 
   private static emptyUsage(startedAt: number): RawAgentUsage {
@@ -136,6 +154,15 @@ export class ClaudeAgent extends BaseAgent {
     }
 
     return `Request ${result.type}`
+  }
+
+  private static makeBlock(text: string): CachedTextBlock {
+    return {
+      // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
+      cache_control: {type: 'ephemeral' as const},
+      text,
+      type: 'text' as const,
+    }
   }
 
   private static parseRawSuccess(
@@ -182,6 +209,22 @@ export class ClaudeAgent extends BaseAgent {
         webSearchRequests: usage.server_tool_use?.web_search_requests ?? 0,
       },
     }
+  }
+
+  /**
+   * Returns the static skill text when the caller supplied one (spike harness +
+   * existing tests use `skillContent`/`skillPath`); returns undefined when the
+   * agent should fall through to assembler mode.
+   */
+  private static resolveStaticContent(options: AgentOptions): string | undefined {
+    if (options.skillContent !== undefined) return options.skillContent
+    if (options.skillPath === undefined) return undefined
+
+    if (!fs.existsSync(options.skillPath)) {
+      throw new Error(`EIVU metadata skill file not found: ${options.skillPath}`)
+    }
+
+    return fs.readFileSync(options.skillPath, 'utf8')
   }
 
   async processRequests(requests: AgentRequest[]): Promise<AgentResult[]> {
@@ -238,7 +281,7 @@ export class ClaudeAgent extends BaseAgent {
       max_tokens: this.maxTokens,
       messages: [{content: req.userMessage, role: 'user' as const}],
       model: this.model,
-      system: this.systemPromptBlocks as Anthropic.MessageCreateParamsNonStreaming['system'],
+      system: this.selectSystemBlocks(req.filePath) as Anthropic.MessageCreateParamsNonStreaming['system'],
       ...(this.temperature === undefined ? {} : {temperature: this.temperature}),
       ...(this.tools.length > 0
         ? {tools: this.tools as unknown as Anthropic.MessageCreateParamsNonStreaming['tools']}
@@ -383,6 +426,35 @@ export class ClaudeAgent extends BaseAgent {
         totalRequests,
       })
     }
+  }
+
+  /**
+   * Returns the system prompt block(s) for a given request. In spike/test mode
+   * (static skill content), the same block is returned for every request. In
+   * assembler mode (Phase 1 production default), the block matching the file's
+   * media category is returned — comics/audio/video use their assembled fragment
+   * prompts, 'other' falls back to the v7.16.4 monolith.
+   */
+  private selectSystemBlocks(filePath: string): CachedTextBlock[] {
+    if (this.staticSystemBlocks) return this.staticSystemBlocks
+    if (!this.systemBlocksByMedia) {
+      throw new Error('ClaudeAgent has no system prompt configured')
+    }
+
+    const category = getMediaCategory(filePath)
+    if (category === 'comic') return [this.systemBlocksByMedia.comics]
+    if (category === 'audio') return [this.systemBlocksByMedia.audio]
+    if (category === 'video') return [this.systemBlocksByMedia.video]
+
+    // 'other' — non-media files (rare in practice). Use the monolith if available.
+    const fallback = this.systemBlocksByMedia.other
+    if (!fallback) {
+      throw new Error(
+        `No system prompt available for media category 'other' and v7.16.4 monolith not found at ${DEFAULT_SKILL_PATH}`,
+      )
+    }
+
+    return [fallback]
   }
 
   private async submitAndPollBatch(requests: AgentRequest[]): Promise<AgentResult[]> {

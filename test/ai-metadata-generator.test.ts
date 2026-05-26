@@ -410,6 +410,48 @@ describe('AI metadata', () => {
         }),
     ).toThrow('EIVU metadata skill file not found')
   })
+
+  it('boots in assembler mode when no skillContent/skillPath given', () => {
+    // No skillContent/skillPath → ClaudeAgent calls PromptAssembler.assemble() for
+    // comics/audio/video and tries to load the v7.16.4 monolith as the 'other'
+    // fallback. If any fragment is missing or the assembler throws, construction
+    // throws — so a successful construction is itself a regression guard.
+    const agent = new ClaudeAgent({apiKey: 'test-key'})
+    expect(agent.model).toBe('claude-opus-4-6')
+  })
+
+  it('selects the per-media assembled prompt by file extension', () => {
+    const agent = new ClaudeAgent({apiKey: 'test-key'})
+    // selectSystemBlocks is private; cast to access in the test.
+    const select = (agent as unknown as {selectSystemBlocks: (fp: string) => Array<{text: string}>})
+      .selectSystemBlocks.bind(agent)
+
+    const comicsBlocks = select('/tmp/example.cbz')
+    expect(comicsBlocks[0].text).toContain('## §B — CHARACTER ENTRIES')
+    expect(comicsBlocks[0].text).not.toContain('### Audio Tracks')
+
+    const audioBlocks = select('/tmp/example.mp3')
+    expect(audioBlocks[0].text).toContain('### Audio Tracks')
+    expect(audioBlocks[0].text).not.toContain('## §B — CHARACTER ENTRIES')
+
+    const videoBlocks = select('/tmp/example.mp4')
+    expect(videoBlocks[0].text).toContain('### Video Files (.mp4, .mkv, .avi, etc.)')
+    expect(videoBlocks[0].text).not.toContain('## §B — CHARACTER ENTRIES')
+  })
+
+  it('reuses the static skill block across requests in spike mode', () => {
+    const agent = new ClaudeAgent({
+      apiKey: 'test-key',
+      skillContent: MINIMAL_SKILL_CONTENT,
+    })
+    const select = (agent as unknown as {selectSystemBlocks: (fp: string) => Array<{text: string}>})
+      .selectSystemBlocks.bind(agent)
+
+    const a = select('/tmp/example.cbz')
+    const b = select('/tmp/example.mp3')
+    expect(a).toBe(b) // same reference — single static block reused
+    expect(a[0].text).toBe(MINIMAL_SKILL_CONTENT)
+  })
   })
 
   describe('OpenAIAgent', () => {

@@ -4,18 +4,22 @@ Guide for Claude Code (and other AI coding agents) working in this repo. End-use
 
 ## Metadata generation refactor (in progress)
 
-The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call into a modular per-stage / per-media-type pipeline. **Current state: Phase 0 complete; Phase 1 awaiting primary-variant selection.** No production code in `src/ai/` has been replaced yet.
+The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call into a modular per-stage / per-media-type pipeline. **Current state: Phase 0 complete; baseline (Opus 4.6, single-stage) chosen as Phase 2 primary; Phase 1 fragment migration landed — `ClaudeAgent` now assembles per-media-type prompts from fragments under [src/ai/prompts/claude/fragments/](src/ai/prompts/claude/fragments/), with the v7.16.4 monolith retained as the `'other'` (non-media) fallback and as a spike-compatibility option (`skillContent`/`skillPath`).** Phase 2 (pipeline + model tiering) has not started.
 
-- **Plan**: `~/.claude/plans/i-d-like-your-help-quirky-fog.md` (see "Phase 0 — Result" section)
+- **Plan**: `~/.claude/plans/i-d-like-your-help-quirky-fog.md` (see "Phase 0 — Result" and "Phase 1" sections)
 - **Visual reference (open in a browser)**: [tmp/metadata-pipeline-plan.html](tmp/metadata-pipeline-plan.html)
 - **Spike code**: `src/ai/spike/` (harness, variants) + `src/commands/test/spike.ts` (runner)
 - **Spike reports**: [tmp/spike-report.md](tmp/spike-report.md) (original run, 5 primary variants) · [tmp/spike-confirmatory.md](tmp/spike-confirmatory.md) (baseline + `anchored-rubric-disjoint`)
 - **Spike analysis & HTML report**: [tmp/spike-confirmatory-analysis.md](tmp/spike-confirmatory-analysis.md) · [tmp/spike-confirmatory-report.html](tmp/spike-confirmatory-report.html)
+- **Phase 1 fragment mapping**: [tmp/phase1-fragment-mapping.md](tmp/phase1-fragment-mapping.md)
+- **Phase 1 verification gate**: `npx tsx src/ai/spike/phase1-equivalence.ts` — content-equivalence diff of assembled output vs v7.16.4 slice per media type. Must report PASS.
 
 **Phase 0 outcomes (locked in):**
 - **Anchor exemplars ruled out.** Original `anchored-rubric` halved stddev (0.036 vs 0.072), but 6/8 fixtures overlapped with anchor exemplars. The confirmatory `anchored-rubric-disjoint` variant (zero overlap) tied baseline at 0.072 — the "win" was anchor-copying. No `core/scoring-anchors.md` fragment in Phase 1.
 - **`FallbackProfile` ruled out.** Measured 0/48 = 0.0% end-to-end failure across both spike runs; well under the 5% threshold. In-pipeline retry-up-to-3x is sufficient. No fallback pipelines authored in Phase 2.
-- **Production primary pending user decision.** Four variants tied at mean stddev 0.072: `baseline` (1.00× cost), `two-stage` (0.98×), `multi-sample` (2.80× — dropped on cost), `structured-output` (0.77× + parse-fail-proof by tool-enum). Selection between `baseline`, `two-stage`, `structured-output` is open.
+- **Production primary: `baseline`** (Opus 4.6, single-stage, full YAML in one call). Selected 2026-05-23 after cost reconciliation: the four-way 0.072-stddev tie became a 1-3% cost tie at calibrated rates (~$0.02/file comics, ~$0.014/file audio, ~$0.011/file video — see [src/ai/cost.ts](src/ai/cost.ts)). Baseline wins on simplicity, lowest call-shape risk, and pure-refactor Phase 1.
+- **Model-tiering deferred** to a Phase 2 sub-experiment AFTER fragment migration lands. Comics stays on Opus; audio/video will be re-tested on Sonnet 4.6 once the assembled-prompt path is stable.
+- **`submit_rating` tool deferred** to Phase 3+ as an optional rating-enum hardening polish (hybrid: emit YAML AND call submit_rating). Not required for Phase 2.
 
 **Vocab to know before touching this code:**
 - **`Stage`** — one Anthropic API call. Has a model, a prompt, optional web-search budget.
@@ -24,7 +28,7 @@ The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call in
 - **`FallbackProfile`** — internal-only second pipeline per media type, used by `MetadataGenerator` on retry exhaustion. **Ruled out by Phase 0** (0% failure rate measured); concept preserved in the plan for future reactivation if production telemetry surfaces a real failure mode.
 - **Prompt cache** — Anthropic's 5-min ephemeral cache. Smaller per-(media, stage) prompts beat today's monolith on both miss and hit pricing, but `PromptAssembler` MUST produce deterministic output or every call becomes a cache miss.
 
-**Don't add features to the v7.16.4 monolithic skill file** ([src/ai/prompts/claude/EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md](src/ai/prompts/claude/EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md)). It's being decomposed into fragments in Phase 1. Bug fixes are fine; new rules should wait for the fragment migration.
+**Where to add new rules / change existing rules:** edit the per-media fragments under [src/ai/prompts/claude/fragments/](src/ai/prompts/claude/fragments/), not the v7.16.4 monolith ([src/ai/prompts/claude/EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md](src/ai/prompts/claude/EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md)). The monolith is now only used for the `'other'` (non-media) fallback and as a spike-compatibility input — production comics/audio/video calls go through [src/ai/prompt-assembler.ts](src/ai/prompt-assembler.ts). After editing fragments, run `npx tsx src/ai/spike/phase1-equivalence.ts` (allow-list any intentional new content there) and update the snapshot via `npx jest src/ai/prompt-assembler.test.ts -u`.
 
 ## What this repo is
 
