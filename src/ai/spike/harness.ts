@@ -164,6 +164,10 @@ function inferModelForCost(variantName: string, fixtureCategory: 'audio' | 'comi
     return fixtureCategory === 'comic' ? 'claude-opus-4-6' : 'claude-sonnet-4-6'
   }
 
+  if (variantName === 'phase2-haiku-non-comics') {
+    return fixtureCategory === 'comic' ? 'claude-opus-4-6' : 'claude-haiku-4-5'
+  }
+
   if (variantName === 'two-stage' || variantName === 'haiku-comics-research') {
     // Stage 2 (Opus) is the dominant cost driver for these variants
     return 'claude-opus-4-6'
