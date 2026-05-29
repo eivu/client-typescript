@@ -116,7 +116,7 @@ export async function runHarness(options: HarnessOptions = {}): Promise<HarnessR
 
       for (const [idx, job] of jobs.entries()) {
         const result = variantResults[idx]
-        const model = inferModelForCost(variant.name)
+        const model = inferModelForCost(variant.name, job.fixture.category)
         const cost = result.usage.inputTokens > 0 ? computeCost(model, result.usage) : zeroCost()
 
         runs.push({
@@ -151,8 +151,19 @@ export async function runHarness(options: HarnessOptions = {}): Promise<HarnessR
  * with whichever model processed them, and the post-hoc reconstruction is
  * approximate). For more precise per-stage cost, the variants would need
  * to return per-stage usage — left as a Phase 0.1 enhancement if needed.
+ *
+ * Phase 2 variants use per-(variant, fixture-category) dispatch so the cost
+ * column reflects the model that actually ran:
+ *   - `phase2-opus-4-7` uses Opus 4.7 across all categories.
+ *   - `phase2-sonnet-non-comics` uses Opus 4.6 for comics and Sonnet 4.6 for
+ *     audio/video/other.
  */
-function inferModelForCost(variantName: string): string {
+function inferModelForCost(variantName: string, fixtureCategory: 'audio' | 'comic' | 'video'): string {
+  if (variantName === 'phase2-opus-4-7') return 'claude-opus-4-7'
+  if (variantName === 'phase2-sonnet-non-comics') {
+    return fixtureCategory === 'comic' ? 'claude-opus-4-6' : 'claude-sonnet-4-6'
+  }
+
   if (variantName === 'two-stage' || variantName === 'haiku-comics-research') {
     // Stage 2 (Opus) is the dominant cost driver for these variants
     return 'claude-opus-4-6'

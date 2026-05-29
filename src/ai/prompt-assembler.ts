@@ -104,3 +104,34 @@ export function assemble({fragmentsRoot, mediaType}: AssembleOptions): string {
 export function _resetFragmentCacheForTests(): void {
   fragmentCache.clear()
 }
+
+/**
+ * Returns the ordered list of fragment paths the assembler would read for the
+ * given media type. Used by `gm:pipeline-show` so it can render the per-stage
+ * fragment composition without having to duplicate the ordering logic. The
+ * paths returned here MUST match the read order in `assemble()` exactly — if
+ * one drifts from the other, the discoverability commands will lie.
+ */
+export function fragmentsFor(mediaType: AssemblerMediaType): string[] {
+  const parts = [
+    'core/header.md',
+    'core/routing-note.md',
+    'core/yaml-syntax.md',
+    'core/engine-self-report.md',
+    `media/${mediaType}/identification.md`,
+  ]
+
+  if (mediaType === 'comics') {
+    parts.push('media/comics/characters.md', 'media/comics/franchises.md')
+  }
+
+  parts.push(
+    `media/${mediaType}/violations.md`,
+    'core/violations-universal.md',
+    'core/scoring-rubric.md',
+    `media/${mediaType}/checklist.md`,
+    'core/checklist-universal.md',
+  )
+
+  return parts
+}

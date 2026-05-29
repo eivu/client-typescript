@@ -336,16 +336,25 @@ export abstract class BaseAgent {
    * @returns Array of `AgentResult` — each either `success` or `validation_error`
    */
   protected validateAndPostProcess(
-    items: Array<{customId: string; rawYaml: string; usage: RawAgentUsage}>,
+    items: Array<{customId: string; model?: string; pipeline?: string; rawYaml: string; usage: RawAgentUsage}>,
   ): AgentResult[] {
-    return items.map(({customId, rawYaml, usage}) => {
+    return items.map(({customId, model, pipeline, rawYaml, usage}) => {
+      const effectiveModel = model ?? this.model
       const validationResult = validateEivuYaml(rawYaml)
       if ('error' in validationResult) {
-        return {customId, error: validationResult.error, rawYaml, status: 'validation_error' as const, usage}
+        return {
+          customId,
+          error: validationResult.error,
+          model: effectiveModel,
+          pipeline,
+          rawYaml,
+          status: 'validation_error' as const,
+          usage,
+        }
       }
 
-      const yaml = postProcess(validationResult.yaml, this.model)
-      return {customId, status: 'success' as const, usage, yaml}
+      const yaml = postProcess(validationResult.yaml, effectiveModel)
+      return {customId, model: effectiveModel, pipeline, status: 'success' as const, usage, yaml}
     })
   }
 }

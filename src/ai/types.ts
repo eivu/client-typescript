@@ -1,3 +1,5 @@
+import type {Pipeline, PipelineName} from '@src/ai/pipeline'
+
 /** Supported AI agent providers for metadata generation. */
 export type AgentType = 'claude' | 'gemini' | 'openai'
 
@@ -12,6 +14,19 @@ export type AgentRequest = {
 export type AgentResult = {
   customId: string
   error?: string
+  /**
+   * Model that actually executed this request. In pipeline mode that's
+   * `pipeline.stages[0].model`; in static (spike) mode it's the agent-level
+   * model. Optional only because legacy error paths may not have it set;
+   * MetadataGenerator treats it as the truth for cost + ai:engine.
+   */
+  model?: string
+  /**
+   * Pipeline name that handled this request (`comics`, `audio`, `video`,
+   * `other`, or `static` for spike runs). Used by telemetry to attribute
+   * cost + tokens to the right pipeline.
+   */
+  pipeline?: string
   /** Preserved for validation_error results so callers can save/log the raw AI output for debugging. */
   rawYaml?: string
   status: 'error' | 'success' | 'validation_error'
@@ -52,6 +67,16 @@ export type AgentOptions = {
   maxTokens?: number
   model?: string
   onProgress?: (progress: BatchProgress) => void
+  /**
+   * Pre-built pipelines to use verbatim, bypassing the default
+   * `buildAllPipelines()` construction in `ClaudeAgent`. Provided by spike
+   * variants that need per-pipeline overrides (e.g. Sonnet for audio/video
+   * while comics stays on Opus). When set, `model` / `maxTokens` /
+   * `webSearchMaxUses` are NOT propagated to pipelines — the caller owns the
+   * full pipeline shape. Static-mode options (`skillContent`/`skillPath`)
+   * take precedence over this if both are set.
+   */
+  pipelines?: Partial<Record<PipelineName, Pipeline>>
   pollIntervalMs?: number
   skillContent?: string
   skillPath?: string

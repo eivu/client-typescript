@@ -10,14 +10,19 @@ export type Cost = {
 }
 
 /**
- * Posted Anthropic per-million-token rates (USD).
+ * Posted Anthropic per-million-token rates (USD), pre-batch-discount.
  * Cached input tokens bill at 10% of normal input rate.
  * Cache creation input tokens bill at 125% of normal input rate (one-time write cost).
  * Web search billed per request at $10/1000 = $0.01 per request.
+ *
+ * Source: https://docs.anthropic.com/en/docs/about-claude/pricing (verified
+ * 2026-05-26). Opus 4.6/4.7 share the same pricing tier; Opus 4.1 (deprecated)
+ * was at the older 3× rate ($15/$75) and is not in this table.
  */
 const PRICING = {
   'claude-haiku-4-5': {input: 1, output: 5},
-  'claude-opus-4-6': {input: 15, output: 75},
+  'claude-opus-4-6': {input: 5, output: 25},
+  'claude-opus-4-7': {input: 5, output: 25},
   'claude-sonnet-4-6': {input: 3, output: 15},
 } as const
 
@@ -37,19 +42,27 @@ const BATCHES_API_DISCOUNT = 0.5
  *
  * The posted-rate calculation (PRICING + CACHE_* + BATCHES_API_DISCOUNT) was
  * compared against the actual dashboard charge on 2026-05-21:
- *   - 208 requests across 20 batches today (full spike + smoke + ad-hoc)
+ *   - 208 requests across 20 batches (full spike + smoke + ad-hoc)
  *   - 27.4M total tokens (195K uncached input + 8.8M cache write + 18M cache read + 393K output)
- *   - Posted-rate computation: $122.36
+ *   - Posted-rate computation at correct $5/$25 Opus 4.6 rates: $40.79
  *   - Anthropic dashboard actual: $2.72
- *   - Ratio: $2.72 / $122.36 = 0.0222
+ *   - Ratio: $2.72 / $40.79 = 0.0667
  *
- * The leading hypothesis for the gap: Anthropic reports cumulative tokens
- * across internal agentic-loop sub-turns (each web_search round-trip re-reads
- * the cached prefix and re-writes growing context), but does NOT bill all
- * those reported counts. Until we get an admin key to query usage_report
- * directly, all cost values surfaced to users multiply through this factor.
+ * **2026-05-26 correction:** the original calibration was performed with
+ * `claude-opus-4-6` mistakenly listed at the legacy Opus 4.1 rates ($15/$75).
+ * The 3× inflated computation gave ratio 0.0222, which produced correct Opus
+ * 4.6 bills but understated Sonnet and Haiku costs by 3×. PRICING now uses
+ * the actual posted rates ($5/$25 for Opus 4.x ≥ 4.5) and this factor was
+ * rescaled to 0.0667 so end-to-end Opus 4.6 cost output is unchanged.
+ *
+ * The leading hypothesis for the residual gap: Anthropic reports cumulative
+ * tokens across internal agentic-loop sub-turns (each web_search round-trip
+ * re-reads the cached prefix and re-writes growing context), but does NOT
+ * bill all those reported counts. Until we get an admin key to query
+ * usage_report directly, all cost values surfaced to users multiply through
+ * this factor.
  */
-const EMPIRICAL_BILLING_FACTOR = 0.0222
+const EMPIRICAL_BILLING_FACTOR = 0.0667
 
 const ZERO_COST: Cost = {cachedInputUsd: 0, inputUsd: 0, outputUsd: 0, totalUsd: 0, webSearchUsd: 0}
 

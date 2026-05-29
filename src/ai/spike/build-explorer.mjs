@@ -26,27 +26,16 @@ if (!fs.existsSync(inputPath)) {
 const data = JSON.parse(fs.readFileSync(inputPath, 'utf8'))
 
 /**
- * Empirical billing-adjustment factor — mirrors EMPIRICAL_BILLING_FACTOR in
- * src/ai/cost.ts. Pre-calibration JSON files have raw (posted-rate × batch-discount)
- * costs baked in; the actual Anthropic bill is ~45× smaller, so scale on load.
+ * Cost calibration is applied INSIDE `src/ai/cost.ts:computeCost()` before
+ * costs land in the JSON, so this script does NOT scale costs again. A
+ * previous version applied a 0.0222 factor here on top of the already-calibrated
+ * JSON values, double-discounting Opus 4.6 costs by ~45×.
+ *
+ * If you need to re-render an OLD pre-calibration JSON (anything generated
+ * before src/ai/cost.ts started applying EMPIRICAL_BILLING_FACTOR), multiply
+ * the loaded costs by the JSON's-era factor manually before passing to this
+ * script.
  */
-const CALIBRATION_FACTOR = 0.0222
-function calibrateCost(c) {
-  if (!c) return c
-  return {
-    cachedInputUsd: (c.cachedInputUsd ?? 0) * CALIBRATION_FACTOR,
-    inputUsd: (c.inputUsd ?? 0) * CALIBRATION_FACTOR,
-    outputUsd: (c.outputUsd ?? 0) * CALIBRATION_FACTOR,
-    totalUsd: (c.totalUsd ?? 0) * CALIBRATION_FACTOR,
-    webSearchUsd: (c.webSearchUsd ?? 0) * CALIBRATION_FACTOR,
-  }
-}
-
-for (const run of data.runs) {
-  run.cost = calibrateCost(run.cost)
-}
-
-if (data.totalCost) data.totalCost = calibrateCost(data.totalCost)
 
 const dataJson = JSON.stringify(data)
 

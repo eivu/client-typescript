@@ -4,15 +4,27 @@ Guide for Claude Code (and other AI coding agents) working in this repo. End-use
 
 ## Metadata generation refactor (in progress)
 
-The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call into a modular per-stage / per-media-type pipeline. **Current state: Phase 0 complete; baseline (Opus 4.6, single-stage) chosen as Phase 2 primary; Phase 1 fragment migration landed — `ClaudeAgent` now assembles per-media-type prompts from fragments under [src/ai/prompts/claude/fragments/](src/ai/prompts/claude/fragments/), with the v7.16.4 monolith retained as the `'other'` (non-media) fallback and as a spike-compatibility option (`skillContent`/`skillPath`).** Phase 2 (pipeline + model tiering) has not started.
+The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call into a modular per-stage / per-media-type pipeline. **Current state: Phase 0 complete; Phase 1 fragment migration landed; Phase 2 pipeline scaffolding landed; Phase 2 Sonnet sub-experiment landed; Phase 4 telemetry + discoverability landed — `ClaudeAgent` now constructs per-media `Pipeline` objects ([src/ai/pipelines/](src/ai/pipelines/)) that own model + system prompt + web-search budget, resolves them per request via [src/ai/pipeline-resolver.ts](src/ai/pipeline-resolver.ts), and emits per-call rows to [logs/metadata-runs.csv](logs/) for downstream inspection via `gm:report`.** Production pipelines: comics + other on Opus 4.6, audio + video on Sonnet 4.6 (landed 2026-05-28 after Phase 2 sub-experiment — see [tmp/phase2-comparison-analysis.md](tmp/phase2-comparison-analysis.md)).
 
-- **Plan**: `~/.claude/plans/i-d-like-your-help-quirky-fog.md` (see "Phase 0 — Result" and "Phase 1" sections)
+- **Plan**: `~/.claude/plans/i-d-like-your-help-quirky-fog.md` (see "Phase 0 — Result", "Phase 1", and "Phase 2" sections)
 - **Visual reference (open in a browser)**: [tmp/metadata-pipeline-plan.html](tmp/metadata-pipeline-plan.html)
 - **Spike code**: `src/ai/spike/` (harness, variants) + `src/commands/test/spike.ts` (runner)
-- **Spike reports**: [tmp/spike-report.md](tmp/spike-report.md) (original run, 5 primary variants) · [tmp/spike-confirmatory.md](tmp/spike-confirmatory.md) (baseline + `anchored-rubric-disjoint`)
-- **Spike analysis & HTML report**: [tmp/spike-confirmatory-analysis.md](tmp/spike-confirmatory-analysis.md) · [tmp/spike-confirmatory-report.html](tmp/spike-confirmatory-report.html)
+- **Spike reports**: [tmp/spike-report.md](tmp/spike-report.md) (original run, 5 primary variants) · [tmp/spike-confirmatory.md](tmp/spike-confirmatory.md) (baseline + `anchored-rubric-disjoint`) · [tmp/phase1-comparison.md](tmp/phase1-comparison.md) (post-Phase-1 sanity check)
+- **Spike analysis & HTML reports**: [tmp/spike-confirmatory-analysis.md](tmp/spike-confirmatory-analysis.md) · [tmp/spike-confirmatory-report.html](tmp/spike-confirmatory-report.html) · [tmp/phase1-comparison-analysis.md](tmp/phase1-comparison-analysis.md) · [tmp/phase1-comparison-explorer.html](tmp/phase1-comparison-explorer.html)
 - **Phase 1 fragment mapping**: [tmp/phase1-fragment-mapping.md](tmp/phase1-fragment-mapping.md)
 - **Phase 1 verification gate**: `npx tsx src/ai/spike/phase1-equivalence.ts` — content-equivalence diff of assembled output vs v7.16.4 slice per media type. Must report PASS.
+
+**Open follow-ups:**
+- **Phase 3 (validation hardening)** — upgrade [src/ai/validate-yaml.ts](src/ai/validate-yaml.ts) to a Zod schema with per-field validation.
+- **Phase 2 follow-up — Haiku 4.5 for non-comics** (optional) — only worth running after production telemetry confirms Sonnet 4.6 holds up for audio/video. ~$0.30 calibrated.
+- **Phase 2 follow-up — Opus 4.8 smoke test** (optional, deferred) — revisit 2-3 weeks after release. Kickoff prompt at [tmp/phase2-opus-4-8-kickoff-prompt.md](tmp/phase2-opus-4-8-kickoff-prompt.md).
+
+**Telemetry (Phase 4):** every completed agent call appends one row to [logs/metadata-runs.csv](logs/) via [src/ai/telemetry.ts](src/ai/telemetry.ts). 15 columns (append-only, headerless): `timestamp · run_id · file · pipeline · stage · model · tokens_in · tokens_out · cached_input_tokens · cache_write_tokens · web_searches · latency_ms · status · attempt · cost_usd`. A UUID per `MetadataGenerator.generate()` invocation (`run_id`) groups every file from one `gm:ai` run. Per-call `model` is the actual pipeline model (Sonnet for audio/video, Opus for comics/other) — same value used for the `ai:engine` field and cost computation. Inspect with `gm:report <run-id>` (or `gm:report` for the latest run).
+
+**Discoverability commands (Phase 4):**
+- `gm:pipeline-list` ([src/commands/generate-metadata/pipeline-list.ts](src/commands/generate-metadata/pipeline-list.ts)) — table of all production pipelines with model, web-search budget, max tokens, prompt size.
+- `gm:pipeline-show <name>` ([src/commands/generate-metadata/pipeline-show.ts](src/commands/generate-metadata/pipeline-show.ts)) — tree view of one pipeline's stage config + the fragment composition list. `--prompt` dumps the full assembled system prompt (useful when debugging an Anthropic prompt-cache miss).
+- `gm:report [run-id]` ([src/commands/generate-metadata/report.ts](src/commands/generate-metadata/report.ts)) — summary line + per-pipeline breakdown + per-file table for one run.
 
 **Phase 0 outcomes (locked in):**
 - **Anchor exemplars ruled out.** Original `anchored-rubric` halved stddev (0.036 vs 0.072), but 6/8 fixtures overlapped with anchor exemplars. The confirmatory `anchored-rubric-disjoint` variant (zero overlap) tied baseline at 0.072 — the "win" was anchor-copying. No `core/scoring-anchors.md` fragment in Phase 1.
@@ -22,13 +34,16 @@ The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call in
 - **`submit_rating` tool deferred** to Phase 3+ as an optional rating-enum hardening polish (hybrid: emit YAML AND call submit_rating). Not required for Phase 2.
 
 **Vocab to know before touching this code:**
-- **`Stage`** — one Anthropic API call. Has a model, a prompt, optional web-search budget.
-- **`Pipeline`** — an ordered list of stages for one media type (`comics`, `audio`, `video`, `other`).
-- **`PromptAssembler`** — composes per-stage system prompts from fragments under `src/ai/prompts/claude/fragments/`. Output must be byte-identical for the same inputs (cache determinism).
+- **`Stage`** ([src/ai/pipeline.ts](src/ai/pipeline.ts)) — one Anthropic API call. Carries `model`, `maxTokens`, `systemPrompt` (pre-assembled), `buildUserMessage`, `webSearchMaxUses`.
+- **`Pipeline`** ([src/ai/pipeline.ts](src/ai/pipeline.ts)) — ordered `Stage[]` for one media type (`comics`, `audio`, `video`, `other`). Phase 2 primary uses single-stage pipelines; the `stages` array shape is in place for a possible future two-stage reactivation.
+- **`PromptAssembler`** ([src/ai/prompt-assembler.ts](src/ai/prompt-assembler.ts)) — composes per-media system prompts from fragments under `src/ai/prompts/claude/fragments/`. Output must be byte-identical for the same inputs (cache determinism). Pipeline factories call this once at construction.
+- **`resolvePipeline`** ([src/ai/pipeline-resolver.ts](src/ai/pipeline-resolver.ts)) — maps a file path to its pipeline via `getMediaCategory()`. Pure lookup, never reads from disk.
 - **`FallbackProfile`** — internal-only second pipeline per media type, used by `MetadataGenerator` on retry exhaustion. **Ruled out by Phase 0** (0% failure rate measured); concept preserved in the plan for future reactivation if production telemetry surfaces a real failure mode.
-- **Prompt cache** — Anthropic's 5-min ephemeral cache. Smaller per-(media, stage) prompts beat today's monolith on both miss and hit pricing, but `PromptAssembler` MUST produce deterministic output or every call becomes a cache miss.
+- **Prompt cache** — Anthropic's 5-min ephemeral cache. Smaller per-(media, stage) prompts beat today's monolith on both miss and hit pricing, but the assembled output MUST be deterministic per (media-type, model) or every call becomes a cache miss.
 
-**Where to add new rules / change existing rules:** edit the per-media fragments under [src/ai/prompts/claude/fragments/](src/ai/prompts/claude/fragments/), not the v7.16.4 monolith ([src/ai/prompts/claude/EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md](src/ai/prompts/claude/EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md)). The monolith is now only used for the `'other'` (non-media) fallback and as a spike-compatibility input — production comics/audio/video calls go through [src/ai/prompt-assembler.ts](src/ai/prompt-assembler.ts). After editing fragments, run `npx tsx src/ai/spike/phase1-equivalence.ts` (allow-list any intentional new content there) and update the snapshot via `npx jest src/ai/prompt-assembler.test.ts -u`.
+**Where to add new rules / change existing rules:** edit the per-media fragments under [src/ai/prompts/claude/fragments/](src/ai/prompts/claude/fragments/), not the v7.16.4 monolith ([src/ai/prompts/claude/EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md](src/ai/prompts/claude/EIVU_METADATA_SKILL_v7_16_4_RUNTIME.md)). The monolith is now only used as the `'other'` pipeline's system prompt (non-media files) and as a spike-compatibility input — production comics/audio/video calls go through [src/ai/prompt-assembler.ts](src/ai/prompt-assembler.ts) via the per-media pipelines in [src/ai/pipelines/](src/ai/pipelines/). After editing fragments, run `npx tsx src/ai/spike/phase1-equivalence.ts` (allow-list any intentional new content there) and update the snapshot via `npx jest src/ai/prompt-assembler.test.ts -u`.
+
+**Where to change per-pipeline behavior (model, web budget, max tokens):** edit the relevant file under [src/ai/pipelines/](src/ai/pipelines/) — e.g. to swap `audio.ts` to Sonnet, change the `model` field in `AUDIO_DEFAULTS`. Each pipeline factory accepts overrides (`PipelineFactoryOptions`) for spike variants + tests; production uses the hardcoded defaults.
 
 ## What this repo is
 
@@ -87,6 +102,9 @@ The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call in
   - [src/commands/compress.ts](src/commands/compress.ts) — comic compression wrapper
   - [src/commands/generate-metadata/ai.ts](src/commands/generate-metadata/ai.ts) — AI metadata generation (alias `gm:ai`)
   - [src/commands/generate-metadata/post-process.ts](src/commands/generate-metadata/post-process.ts) — post-process pipeline (aliases `gm:post-process`, `gm:pp`)
+  - [src/commands/generate-metadata/report.ts](src/commands/generate-metadata/report.ts) — summarize a `gm:ai` run from telemetry (alias `gm:report`)
+  - [src/commands/generate-metadata/pipeline-list.ts](src/commands/generate-metadata/pipeline-list.ts) — list production pipelines (alias `gm:pipeline-list`)
+  - [src/commands/generate-metadata/pipeline-show.ts](src/commands/generate-metadata/pipeline-show.ts) — inspect a pipeline's stage config + fragments (alias `gm:pipeline-show`)
   - [src/commands/process.ts](src/commands/process.ts) — placeholder, not wired up; do not document or rely on
   - [src/commands/test/](src/commands/test/) — internal debug commands (upload-file, upload-folder, upload-remote-file, ai)
 - [src/client.ts](src/client.ts) — `Client.uploadFile`, `uploadFolder`, `uploadRemoteFile`, `bulkUpdateCloudFiles`. Owns the upload state machine (reserve → transfer → complete) and skip rules (`SKIPPABLE_EXTENSIONS`, `SKIPPABLE_FOLDERS`).
@@ -100,6 +118,7 @@ The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call in
   - [gemini-agent.ts](src/ai/gemini-agent.ts), [openai-agent.ts](src/ai/openai-agent.ts) — stubs, not implemented
   - [metadata-generator.ts](src/ai/metadata-generator.ts) — agent factory, file iteration, retry-on-validation-failure (max 3), CSV failure logging
   - [postprocess-rules.ts](src/ai/postprocess-rules.ts), [validate-yaml.ts](src/ai/validate-yaml.ts), [award-tags.ts](src/ai/award-tags.ts), [franchise-hierarchy.ts](src/ai/franchise-hierarchy.ts)
+  - [telemetry.ts](src/ai/telemetry.ts) — per-call CSV append to `logs/metadata-runs.csv`; consumed by `gm:report`
   - [prompts/claude/](src/ai/prompts/claude/) — system prompts and skill content
 - [src/services/api.config.ts](src/services/api.config.ts) — pre-auth axios instances (`api`, `check`) with `ECONNREFUSED` interceptor that throws "EIVU OFFLINE".
 - [src/env.ts](src/env.ts) — `getEnv()` validates all required env vars on first call and caches; `resetEnv()` for tests.
@@ -135,7 +154,7 @@ The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call in
 
 - **Eivu upload server** — REST API at `${EIVU_UPLOAD_SERVER_HOST}/api/upload/v1/buckets/${EIVU_BUCKET_UUID}/`, auth header `Token ${EIVU_USER_TOKEN}`. See [src/services/api.config.ts](src/services/api.config.ts).
 - **S3-compatible storage** — Wasabi by default, configured via `EIVU_ENDPOINT` / `EIVU_REGION` / `EIVU_ACCESS_KEY_ID` / `EIVU_SECRET_ACCESS_KEY` / `EIVU_BUCKET_NAME`.
-- **Anthropic Claude** — model `claude-opus-4-6`, Messages Batches API + web search tool. Requires `ANTHROPIC_API_KEY` for the `gm:ai` command only.
+- **Anthropic Claude** — Messages Batches API + web search tool. Per-media model tiering: comics + other on `claude-opus-4-6`, audio + video on `claude-sonnet-4-6` (see [src/ai/pipelines/](src/ai/pipelines/)). Requires `ANTHROPIC_API_KEY` for the `gm:ai` command only.
 
 ## Gotchas
 

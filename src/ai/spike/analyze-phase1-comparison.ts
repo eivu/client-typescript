@@ -19,11 +19,12 @@ import * as fs from 'node:fs'
 import path from 'node:path'
 
 /**
- * Mirrors `EMPIRICAL_BILLING_FACTOR` in src/ai/cost.ts and the factor in
- * build-explorer.mjs. Raw cost in the JSON is at posted (pre-batch-discount)
- * rates; actual Anthropic billing is ~45× smaller.
+ * Cost calibration is now applied inside `src/ai/cost.ts:computeCost()`, so
+ * JSON costs are already billing-adjusted. This script no longer scales them
+ * again — the previous 0.0222 multiplier here double-discounted Opus 4.6
+ * costs by ~45×.
  */
-const CALIBRATION_FACTOR = 0.0222
+const CALIBRATION_FACTOR = 1
 
 const INPUT_PATH = path.join(process.cwd(), 'tmp', 'phase1-comparison.json')
 const OUTPUT_PATH = path.join(process.cwd(), 'tmp', 'phase1-comparison-analysis.md')

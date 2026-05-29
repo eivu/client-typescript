@@ -5,9 +5,11 @@ import {ClaudeAgent} from '@src/ai/claude-agent'
 import {computeCost} from '@src/ai/cost'
 import {GeminiAgent} from '@src/ai/gemini-agent'
 import {OpenAIAgent} from '@src/ai/openai-agent'
+import {appendRunRows, type TelemetryRow} from '@src/ai/telemetry'
 import {METADATA_YML_SUFFIX} from '@src/constants'
 import logger from '@src/logger'
 import * as fastCsv from 'fast-csv'
+import {randomUUID} from 'node:crypto'
 import * as fs from 'node:fs'
 import {promises as fsp} from 'node:fs'
 import path from 'node:path'
@@ -148,8 +150,9 @@ export class MetadataGenerator {
       return skippedResults
     }
 
+    const runId = randomUUID()
     logger.info(
-      {skipped: skippedResults.length, toProcess: requests.length, total: filePaths.length},
+      {runId, skipped: skippedResults.length, toProcess: requests.length, total: filePaths.length},
       'Processing files for AI metadata generation',
     )
 
@@ -165,7 +168,7 @@ export class MetadataGenerator {
     // After exhausting retries, the file is logged to logs/failure.csv.
     for (let attempt = 1; attempt <= MAX_VALIDATION_ATTEMPTS && currentRequests.length > 0; attempt++) {
       if (attempt > 1) {
-        logger.info({attempt, count: currentRequests.length}, 'Retrying files that failed YAML validation')
+        logger.info({attempt, count: currentRequests.length, runId}, 'Retrying files that failed YAML validation')
       }
 
       // eslint-disable-next-line no-await-in-loop -- retry batches must be sequential
@@ -174,10 +177,14 @@ export class MetadataGenerator {
       // Accumulate per-file cost from every attempt — `totalCostUsd` grows on
       // every call (success OR validation_error); `finalCostUsd`/`finalUsage`
       // only update on success so the final successful attempt's data wins.
+      // Per-call cost uses `result.model` so pipeline-mode pricing (Sonnet for
+      // audio/video, Opus for comics) is accurate; falls back to the
+      // agent-level model for the rare result that doesn't carry one.
       for (const result of agentResults) {
         if (!result.usage) continue
         const acc = costByCustomId.get(result.customId) ?? {finalCostUsd: 0, finalUsage: null, totalCostUsd: 0}
-        const thisCostUsd = computeCost(this.agent.model, result.usage).totalUsd
+        const modelForCost = result.model ?? this.agent.model
+        const thisCostUsd = computeCost(modelForCost, result.usage).totalUsd
         acc.totalCostUsd += thisCostUsd
         if (result.status === 'success') {
           acc.finalCostUsd = thisCostUsd
@@ -186,6 +193,14 @@ export class MetadataGenerator {
 
         costByCustomId.set(result.customId, acc)
       }
+
+      // Emit one telemetry row per agent result. Logged from here (not the
+      // agent) so the row carries retry-loop context (`attempt`) and the
+      // generator's UUID (`runId`) that groups every file from one
+      // `generate()` invocation. Failures inside the telemetry layer must
+      // not crash the generation run — log and continue.
+      // eslint-disable-next-line no-await-in-loop -- single append per batch keeps disk traffic bounded and ordered
+      await this.emitTelemetry(agentResults, idToFilePath, runId, attempt)
 
       // Triage results: successes/errors go to validResults for writing,
       // validation failures are tracked for retry or permanent failure
@@ -254,7 +269,7 @@ export class MetadataGenerator {
     const succeeded = results.filter((r) => r.status === 'success').length
     const errored = results.filter((r) => r.status === 'error').length
     const skipped = results.filter((r) => r.status === 'skipped').length
-    logger.info({errored, skipped, succeeded, total: results.length}, 'AI metadata generation complete')
+    logger.info({errored, runId, skipped, succeeded, total: results.length}, 'AI metadata generation complete')
 
     return results
   }
@@ -281,6 +296,63 @@ export class MetadataGenerator {
     }
 
     return {requests, skippedResults}
+  }
+
+  /**
+   * Writes one telemetry row per agent result for the current batch attempt.
+   * Each row carries the file path, pipeline name, model, full token + latency
+   * breakdown, status, attempt number, and calibrated cost. Rows for skipped
+   * files are NOT emitted — telemetry is per API call, not per generation
+   * request. Errors here are logged and swallowed so a telemetry failure
+   * can never abort an otherwise-successful run.
+   */
+  private async emitTelemetry(
+    agentResults: AgentResult[],
+    idToFilePath: Map<string, {filePath: string; outputPath: string}>,
+    runId: string,
+    attempt: number,
+  ): Promise<void> {
+    const rows: TelemetryRow[] = []
+    const timestamp = new Date().toISOString()
+
+    for (const result of agentResults) {
+      const mapping = idToFilePath.get(result.customId)
+      const usage: RawAgentUsage = result.usage ?? {
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        inputTokens: 0,
+        latencyMs: 0,
+        outputTokens: 0,
+        webSearchRequests: 0,
+      }
+      const model = result.model ?? this.agent.model
+      const costUsd = result.usage ? computeCost(model, result.usage).totalUsd : 0
+
+      rows.push({
+        attempt,
+        cachedInputTokens: usage.cacheReadInputTokens,
+        cacheWriteTokens: usage.cacheCreationInputTokens,
+        costUsd,
+        file: mapping?.filePath ?? result.customId,
+        latencyMs: usage.latencyMs,
+        model,
+        pipeline: result.pipeline ?? 'unknown',
+        runId,
+        stage: 0,
+        status: result.status,
+        timestamp,
+        tokensIn: usage.inputTokens,
+        tokensOut: usage.outputTokens,
+        webSearches: usage.webSearchRequests,
+      })
+    }
+
+    try {
+      await appendRunRows(rows)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      logger.warn({error: message, runId}, 'Failed to append telemetry rows to logs/metadata-runs.csv')
+    }
   }
 
   private async writeResults(

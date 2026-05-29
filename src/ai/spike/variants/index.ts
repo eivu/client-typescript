@@ -6,6 +6,8 @@ import {baselineVariant} from '@src/ai/spike/variants/baseline.js'
 import {haikuComicsResearchVariant} from '@src/ai/spike/variants/haiku-comics-research.js'
 import {multiSampleVariant} from '@src/ai/spike/variants/multi-sample.js'
 import {phase1FragmentsVariant} from '@src/ai/spike/variants/phase1-fragments.js'
+import {phase2Opus47Variant} from '@src/ai/spike/variants/phase2-opus-4-7.js'
+import {phase2SonnetNonComicsVariant} from '@src/ai/spike/variants/phase2-sonnet-non-comics.js'
 import {structuredOutputVariant} from '@src/ai/spike/variants/structured-output.js'
 import {twoStageVariant} from '@src/ai/spike/variants/two-stage.js'
 
@@ -17,6 +19,8 @@ import {twoStageVariant} from '@src/ai/spike/variants/two-stage.js'
  * phase1-fragments is the Phase 1 landing-verification variant (post-decomposition
  * baseline equivalent — same model, same user message, same tools, system prompt
  * assembled per-media via PromptAssembler).
+ * phase2-opus-4-7 and phase2-sonnet-non-comics are the Phase 2 model-tiering
+ * sub-experiment variants (full Opus 4.7 swap vs. Sonnet for non-comics).
  */
 export const PRIMARY_VARIANTS: Variant[] = [
   baselineVariant,
@@ -31,6 +35,8 @@ export const ALL_VARIANTS: Variant[] = [
   haikuComicsResearchVariant,
   anchoredRubricDisjointVariant,
   phase1FragmentsVariant,
+  phase2Opus47Variant,
+  phase2SonnetNonComicsVariant,
 ]
 
 export function variantByName(name: string): undefined | Variant {
