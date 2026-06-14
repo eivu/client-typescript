@@ -24,6 +24,14 @@ export type TelemetryRow = {
   timestamp: string
   tokensIn: number
   tokensOut: number
+  /**
+   * Phase 3 — semicolon-joined `ValidationCode` strings from
+   * `src/ai/validate-yaml.ts` for `validation_error` rows. Empty string on
+   * success/error rows so the column is always present. Added at column 16;
+   * older rows (pre-Phase-3) have 15 cells, so `gm:report.readRows` accepts
+   * `length >= TELEMETRY_COLUMNS.length - 1` to keep them parseable.
+   */
+  validationCodes: string
   webSearches: number
 }
 
@@ -49,6 +57,7 @@ export const TELEMETRY_COLUMNS: ReadonlyArray<keyof TelemetryRow> = [
   'status',
   'attempt',
   'costUsd',
+  'validationCodes',
 ]
 
 export const DEFAULT_TELEMETRY_LOG_PATH = path.join('logs', 'metadata-runs.csv')

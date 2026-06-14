@@ -36,6 +36,15 @@ export type AgentResult = {
    * ai:cost / ai:tokens_in / ai:tokens_out fields into the final YAML.
    */
   usage?: RawAgentUsage
+  /**
+   * Phase 3 — populated on `validation_error` results so MetadataGenerator can
+   * forward stable codes (`rating_off_step`, `missing_reasoning`, etc.) into
+   * telemetry + failure.csv. Empty/undefined on success and on non-validation
+   * errors. The retry loop uses this to decide whether to re-prompt; once
+   * deterministic-fix routing exists, codes with `retriable: false` will be
+   * handed to postprocess instead.
+   */
+  validationCodes?: string[]
   yaml?: string
 }
 

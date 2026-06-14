@@ -21,6 +21,7 @@ function makeRow(overrides: Partial<TelemetryRow> = {}): TelemetryRow {
     timestamp: '2026-05-28T00:00:00.000Z',
     tokensIn: 1024,
     tokensOut: 512,
+    validationCodes: '',
     webSearches: 3,
     ...overrides,
   }
@@ -39,14 +40,14 @@ describe('telemetry', () => {
     await fsp.rm(tmpDir, {force: true, recursive: true})
   })
 
-  it('writes all 15 columns in the documented order', async () => {
-    await appendRunRows([makeRow()], logPath)
+  it('writes all 16 columns in the documented order', async () => {
+    await appendRunRows([makeRow({validationCodes: 'rating_off_step;missing_reasoning'})], logPath)
 
     const csv = await fsp.readFile(logPath, 'utf8')
     const cells = csv.trim().split(',')
 
-    expect(TELEMETRY_COLUMNS).toHaveLength(15)
-    expect(cells).toHaveLength(15)
+    expect(TELEMETRY_COLUMNS).toHaveLength(16)
+    expect(cells).toHaveLength(16)
     expect(cells[TELEMETRY_COLUMNS.indexOf('timestamp')]).toBe('2026-05-28T00:00:00.000Z')
     expect(cells[TELEMETRY_COLUMNS.indexOf('runId')]).toBe('run-abc-123')
     expect(cells[TELEMETRY_COLUMNS.indexOf('pipeline')]).toBe('comics')
@@ -55,6 +56,7 @@ describe('telemetry', () => {
     expect(cells[TELEMETRY_COLUMNS.indexOf('costUsd')]).toBe('0.012345')
     expect(cells[TELEMETRY_COLUMNS.indexOf('status')]).toBe('success')
     expect(cells[TELEMETRY_COLUMNS.indexOf('attempt')]).toBe('1')
+    expect(cells[TELEMETRY_COLUMNS.indexOf('validationCodes')]).toBe('rating_off_step;missing_reasoning')
   })
 
   it('lazily creates the parent logs/ directory on first write', async () => {

@@ -21,6 +21,7 @@ function makeRow(overrides: Partial<TelemetryRow> = {}): TelemetryRow {
     timestamp: '2026-05-28T00:00:00.000Z',
     tokensIn: 1024,
     tokensOut: 512,
+    validationCodes: '',
     webSearches: 4,
     ...overrides,
   }

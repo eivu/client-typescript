@@ -110,6 +110,7 @@ export default class GenerateMetadataReport extends Command {
       timestamp: get('timestamp'),
       tokensIn: Number(get('tokensIn')),
       tokensOut: Number(get('tokensOut')),
+      validationCodes: get('validationCodes'),
       webSearches: Number(get('webSearches')),
     }
   }
@@ -124,7 +125,12 @@ export default class GenerateMetadataReport extends Command {
         .on('end', () => resolve(acc))
         .on('error', reject)
     })
-    return cellRows.filter((r) => r.length >= TELEMETRY_COLUMNS.length).map((r) => GenerateMetadataReport.parseRow(r))
+    // Accept rows missing the trailing Phase 3 `validationCodes` column so
+    // pre-Phase-3 telemetry still parses; `parseRow` reads via `get()` which
+    // returns '' for missing cells (the no-validation-issue default).
+    return cellRows
+      .filter((r) => r.length >= TELEMETRY_COLUMNS.length - 1)
+      .map((r) => GenerateMetadataReport.parseRow(r))
   }
 
   public static renderReport(runId: string, runRows: ParsedRow[], logPath: string): string {

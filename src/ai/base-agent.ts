@@ -3,7 +3,7 @@ import type {AgentOptions, AgentRequest, AgentResult, BatchProgress, RawAgentUsa
 import {normalizeAwardTags} from '@src/ai/award-tags'
 import {addMissingParentFranchises} from '@src/ai/franchise-hierarchy'
 import {type AiCostFields, applyMechanicalRules, injectAiCostFields} from '@src/ai/postprocess-rules'
-import {validateEivuYaml} from '@src/ai/validate-yaml'
+import {summarizeIssues, validateEivuYaml} from '@src/ai/validate-yaml'
 import {contentTypeIsAudio, contentTypeIsComic, contentTypeIsVideo, detectMime} from '@src/utils'
 import path from 'node:path'
 
@@ -341,19 +341,20 @@ export abstract class BaseAgent {
     return items.map(({customId, model, pipeline, rawYaml, usage}) => {
       const effectiveModel = model ?? this.model
       const validationResult = validateEivuYaml(rawYaml)
-      if ('error' in validationResult) {
+      if ('errors' in validationResult) {
         return {
           customId,
-          error: validationResult.error,
+          error: summarizeIssues(validationResult.errors),
           model: effectiveModel,
           pipeline,
           rawYaml,
           status: 'validation_error' as const,
           usage,
+          validationCodes: validationResult.errors.map((e) => e.code),
         }
       }
 
-      const yaml = postProcess(validationResult.yaml, effectiveModel)
+      const yaml = postProcess(validationResult.sanitizedYaml, effectiveModel)
       return {customId, model: effectiveModel, pipeline, status: 'success' as const, usage, yaml}
     })
   }

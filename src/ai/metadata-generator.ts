@@ -102,31 +102,34 @@ export class MetadataGenerator {
    * Appends a row to `logs/failure.csv` when a file permanently fails after retries.
    *
    * Columns (no header — preserved from the original schema for backward compatibility
-   * with anything that parses this file; new cost columns appended at the end):
-   *   timestamp · filePath · error · attempts · cost_total_usd · tokens_in · tokens_out
+   * with anything that parses this file; new columns appended at the end):
+   *   timestamp · filePath · error · attempts · cost_total_usd · tokens_in · tokens_out · validation_codes
    *
-   * The cost columns surface budget visibility for retries — without them, a prompt
-   * regression that causes all files to fail could quietly burn money. Zeroes when
-   * usage was never captured (e.g. agent-level error before billing data arrived).
+   * `validation_codes` (Phase 3) is a semicolon-joined list of the stable
+   * `ValidationCode` strings emitted by `validateEivuYaml` for the LAST attempt
+   * (the one that triggered the permanent failure). Empty for non-validation
+   * errors so the column is always present.
    */
-  private static async logValidationFailure(
-    filePath: string,
-    error: string,
-    attempts: number,
-    costAcc: FileCostAccum | undefined,
-  ): Promise<void> {
+  private static async logValidationFailure(args: {
+    attempts: number
+    costAcc: FileCostAccum | undefined
+    error: string
+    filePath: string
+    validationCodes: string[]
+  }): Promise<void> {
     await fsp.mkdir('logs', {recursive: true})
-    const totalCostUsd = costAcc?.totalCostUsd ?? 0
-    const tokensIn = costAcc?.finalUsage?.inputTokens ?? 0
-    const tokensOut = costAcc?.finalUsage?.outputTokens ?? 0
+    const totalCostUsd = args.costAcc?.totalCostUsd ?? 0
+    const tokensIn = args.costAcc?.finalUsage?.inputTokens ?? 0
+    const tokensOut = args.costAcc?.finalUsage?.outputTokens ?? 0
     const data = [
       new Date().toISOString(),
-      filePath,
-      error,
-      String(attempts),
+      args.filePath,
+      args.error,
+      String(args.attempts),
       totalCostUsd.toFixed(5),
       String(tokensIn),
       String(tokensOut),
+      args.validationCodes.join(';'),
     ]
     const csvString = await fastCsv.writeToString([data], {headers: false})
     const logPath = 'logs/failure.csv'
@@ -222,10 +225,21 @@ export class MetadataGenerator {
         // (which can happen if count and attempt diverge — e.g. agent batch anomalies, future
         // refactors, or a tunable MAX) is added to retryIds but never retried, never logged to
         // failure.csv, and never added to allWriteResults — silently disappearing from output.
+        // First three codes give actionable signal in logs without flooding when
+        // the schema emits many issues for one file (e.g. a malformed metadata_list
+        // can fire `non_mapping_item` per item). Full list still flows into
+        // failure.csv so post-hoc analysis sees everything.
+        const codes = result.validationCodes ?? []
         if (count < MAX_VALIDATION_ATTEMPTS && attempt < MAX_VALIDATION_ATTEMPTS) {
           retryIds.push(result.customId)
           logger.warn(
-            {attempt: count, customId: result.customId, error: result.error, maxAttempts: MAX_VALIDATION_ATTEMPTS},
+            {
+              attempt: count,
+              codes: codes.slice(0, 3),
+              customId: result.customId,
+              error: result.error,
+              maxAttempts: MAX_VALIDATION_ATTEMPTS,
+            },
             'YAML validation failed, will retry',
           )
           continue
@@ -235,12 +249,13 @@ export class MetadataGenerator {
         const mapping = idToFilePath.get(result.customId)
         if (mapping) {
           // eslint-disable-next-line no-await-in-loop -- must log before next iteration
-          await MetadataGenerator.logValidationFailure(
-            mapping.filePath,
-            result.error ?? 'Validation failed',
-            count,
-            costByCustomId.get(result.customId),
-          )
+          await MetadataGenerator.logValidationFailure({
+            attempts: count,
+            costAcc: costByCustomId.get(result.customId),
+            error: result.error ?? 'Validation failed',
+            filePath: mapping.filePath,
+            validationCodes: codes,
+          })
           allWriteResults.push({
             error: `Validation failed after ${count} attempt${count === 1 ? '' : 's'}: ${result.error}`,
             filePath: mapping.filePath,
@@ -250,7 +265,7 @@ export class MetadataGenerator {
         }
 
         logger.error(
-          {attempts: count, customId: result.customId, error: result.error},
+          {attempts: count, codes: codes.slice(0, 3), customId: result.customId, error: result.error},
           'YAML validation failed permanently, logged to logs/failure.csv',
         )
       }
@@ -343,6 +358,7 @@ export class MetadataGenerator {
         timestamp,
         tokensIn: usage.inputTokens,
         tokensOut: usage.outputTokens,
+        validationCodes: (result.validationCodes ?? []).join(';'),
         webSearches: usage.webSearchRequests,
       })
     }
