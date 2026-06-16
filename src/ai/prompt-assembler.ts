@@ -52,10 +52,9 @@ function readFragment(absoluteRoot: string, relPath: string): string {
 }
 
 /**
- * Assemble a per-media-type system prompt by concatenating fragments in a fixed
- * order with a fixed `\n\n---\n\n` separator. Output is byte-deterministic for
- * the same `mediaType`, which is what keeps the Anthropic ephemeral prompt cache
- * hot across files of the same category.
+ * Single source of truth for fragment ordering. Both `assemble()` (which reads
+ * the files) and `fragmentsFor()` (which lists the paths for `gm:pipeline-show`)
+ * derive from this list, so they can never drift out of sync.
  *
  * Order (matches `tmp/phase1-fragment-mapping.md`):
  *   1. core/header.md
@@ -71,48 +70,7 @@ function readFragment(absoluteRoot: string, relPath: string): string {
  *  11. media/<type>/checklist.md
  *  12. core/checklist-universal.md
  */
-export function assemble({fragmentsRoot, mediaType}: AssembleOptions): string {
-  const root = resolveRoot(fragmentsRoot)
-
-  const parts: string[] = [
-    readFragment(root, 'core/header.md'),
-    readFragment(root, 'core/routing-note.md'),
-    readFragment(root, 'core/yaml-syntax.md'),
-    readFragment(root, 'core/engine-self-report.md'),
-    readFragment(root, `media/${mediaType}/identification.md`),
-  ]
-
-  if (mediaType === 'comics') {
-    parts.push(
-      readFragment(root, 'media/comics/characters.md'),
-      readFragment(root, 'media/comics/franchises.md'),
-    )
-  }
-
-  parts.push(
-    readFragment(root, `media/${mediaType}/violations.md`),
-    readFragment(root, 'core/violations-universal.md'),
-    readFragment(root, 'core/scoring-rubric.md'),
-    readFragment(root, `media/${mediaType}/checklist.md`),
-    readFragment(root, 'core/checklist-universal.md'),
-  )
-
-  return parts.join(SEPARATOR)
-}
-
-/** Test-only: clear the fragment cache so tests can simulate fresh reads. */
-export function _resetFragmentCacheForTests(): void {
-  fragmentCache.clear()
-}
-
-/**
- * Returns the ordered list of fragment paths the assembler would read for the
- * given media type. Used by `gm:pipeline-show` so it can render the per-stage
- * fragment composition without having to duplicate the ordering logic. The
- * paths returned here MUST match the read order in `assemble()` exactly — if
- * one drifts from the other, the discoverability commands will lie.
- */
-export function fragmentsFor(mediaType: AssemblerMediaType): string[] {
+function fragmentPathsFor(mediaType: AssemblerMediaType): string[] {
   const parts = [
     'core/header.md',
     'core/routing-note.md',
@@ -134,4 +92,33 @@ export function fragmentsFor(mediaType: AssemblerMediaType): string[] {
   )
 
   return parts
+}
+
+/**
+ * Assemble a per-media-type system prompt by concatenating fragments in a fixed
+ * order with a fixed `\n\n---\n\n` separator. Output is byte-deterministic for
+ * the same `mediaType`, which is what keeps the Anthropic ephemeral prompt cache
+ * hot across files of the same category. The fragment order comes from
+ * `fragmentPathsFor()`, shared with `fragmentsFor()`.
+ */
+export function assemble({fragmentsRoot, mediaType}: AssembleOptions): string {
+  const root = resolveRoot(fragmentsRoot)
+  return fragmentPathsFor(mediaType)
+    .map((relPath) => readFragment(root, relPath))
+    .join(SEPARATOR)
+}
+
+/** Test-only: clear the fragment cache so tests can simulate fresh reads. */
+export function _resetFragmentCacheForTests(): void {
+  fragmentCache.clear()
+}
+
+/**
+ * Returns the ordered list of fragment paths the assembler would read for the
+ * given media type. Used by `gm:pipeline-show` so it can render the per-stage
+ * fragment composition. Shares `fragmentPathsFor()` with `assemble()`, so the
+ * listed paths always match the read order exactly.
+ */
+export function fragmentsFor(mediaType: AssemblerMediaType): string[] {
+  return fragmentPathsFor(mediaType)
 }
