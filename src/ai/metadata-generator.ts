@@ -6,6 +6,7 @@ import {computeCost} from '@src/ai/cost'
 import {GeminiAgent} from '@src/ai/gemini-agent'
 import {OpenAIAgent} from '@src/ai/openai-agent'
 import {appendRunRows, type TelemetryRow} from '@src/ai/telemetry'
+import {zeroUsage} from '@src/ai/types'
 import {METADATA_YML_SUFFIX} from '@src/constants'
 import logger from '@src/logger'
 import * as fastCsv from 'fast-csv'
@@ -332,14 +333,7 @@ export class MetadataGenerator {
 
     for (const result of agentResults) {
       const mapping = idToFilePath.get(result.customId)
-      const usage: RawAgentUsage = result.usage ?? {
-        cacheCreationInputTokens: 0,
-        cacheReadInputTokens: 0,
-        inputTokens: 0,
-        latencyMs: 0,
-        outputTokens: 0,
-        webSearchRequests: 0,
-      }
+      const usage: RawAgentUsage = result.usage ?? zeroUsage()
       const model = result.model ?? this.agent.model
       const costUsd = result.usage ? computeCost(model, result.usage).totalUsd : 0
 

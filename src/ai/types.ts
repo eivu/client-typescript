@@ -125,6 +125,23 @@ export type RawAgentUsage = {
 }
 
 /**
+ * A `RawAgentUsage` with all token/web-search counts zeroed. The single source
+ * for the "no usage recorded" record used by error paths, telemetry fallbacks,
+ * and the spike harness. `latencyMs` is the one field a caller may want to set
+ * (e.g. `ClaudeAgent` reports elapsed time even when a request produced no tokens).
+ */
+export function zeroUsage(latencyMs = 0): RawAgentUsage {
+  return {
+    cacheCreationInputTokens: 0,
+    cacheReadInputTokens: 0,
+    inputTokens: 0,
+    latencyMs,
+    outputTokens: 0,
+    webSearchRequests: 0,
+  }
+}
+
+/**
  * Result of one raw (un-validated, un-post-processed) batch request.
  * Returned only by `ClaudeAgent.processRequestsRaw` — production code uses `AgentResult`.
  * `rawText` is the concatenated text-block content; `toolUseInput` is the parsed input of

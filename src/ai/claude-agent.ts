@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import {BaseAgent, extractYamlFromResponse} from '@src/ai/base-agent'
 import {resolvePipeline} from '@src/ai/pipeline-resolver'
 import {buildAllPipelines} from '@src/ai/pipelines/index'
+import {zeroUsage} from '@src/ai/types'
 import {METADATA_YML_SUFFIX} from '@src/constants'
 import logger from '@src/logger'
 import * as fs from 'node:fs'
@@ -137,14 +138,7 @@ export class ClaudeAgent extends BaseAgent {
   }
 
   private static emptyUsage(startedAt: number): RawAgentUsage {
-    return {
-      cacheCreationInputTokens: 0,
-      cacheReadInputTokens: 0,
-      inputTokens: 0,
-      latencyMs: Date.now() - startedAt,
-      outputTokens: 0,
-      webSearchRequests: 0,
-    }
+    return zeroUsage(Date.now() - startedAt)
   }
 
   /**

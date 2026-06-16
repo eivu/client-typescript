@@ -1,5 +1,6 @@
 import type {RawAgentUsage} from '@src/ai/types'
 
+import {zeroUsage} from '@src/ai/types'
 import * as fs from 'node:fs'
 import path from 'node:path'
 
@@ -24,14 +25,7 @@ export function loadBaselineSkill(): string {
 
 /** Sums multiple usage records, taking the max of latencies (parallel-equivalent timing). */
 export function sumUsage(...usages: RawAgentUsage[]): RawAgentUsage {
-  const acc: RawAgentUsage = {
-    cacheCreationInputTokens: 0,
-    cacheReadInputTokens: 0,
-    inputTokens: 0,
-    latencyMs: 0,
-    outputTokens: 0,
-    webSearchRequests: 0,
-  }
+  const acc: RawAgentUsage = zeroUsage()
 
   for (const u of usages) {
     acc.cacheCreationInputTokens += u.cacheCreationInputTokens
@@ -45,14 +39,8 @@ export function sumUsage(...usages: RawAgentUsage[]): RawAgentUsage {
   return acc
 }
 
-/** Returns a zero-usage record for error cases. */
-export function zeroUsage(): RawAgentUsage {
-  return {
-    cacheCreationInputTokens: 0,
-    cacheReadInputTokens: 0,
-    inputTokens: 0,
-    latencyMs: 0,
-    outputTokens: 0,
-    webSearchRequests: 0,
-  }
-}
+/**
+ * Returns a zero-usage record for error cases. Re-exported from `@src/ai/types`
+ * so existing spike imports (`@experiments/spike/skill-loader`) keep working.
+ */
+export {zeroUsage} from '@src/ai/types'
