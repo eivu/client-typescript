@@ -141,6 +141,12 @@ Each rule keeps its splice-and-format logic; only the anchor search is shared.
 
 **Verification:** [test/postprocess-rules.test.ts](../test/postprocess-rules.test.ts) full pass; eyeball spot-check on a real generated `.eivu.yml`.
 
+**DEVIATION (landed):** `findAiAnchor` was applied to only **two** of the four named rules — `enforceMasterworkTag` and `injectAiCostFields` — because only those two actually share the contract (cascading search → insert AFTER anchor → indent from the anchor's field line → block-scalar-aware for `ai:rating_reasoning`). The other two were left untouched on purpose, since folding them in would change their output (a behavior change B.3 forbids):
+- `enforceSkillVersion` inserts BEFORE `ai:engine` (splice at `engineIndex`, not `engineIndex + 1`) and derives indent via `siblingIndent` (the next non-blank line), not the anchor's own field line.
+- `enforceAiEngineAfterSkillVersion` *relocates* an existing `ai:engine` line rather than inserting a new one — it has no cascading search or indent derivation to share.
+
+The signature also landed as `null | {indent; insertAfterIndex}` (lint's union-ordering rule) and the anchor keys are camelCase (`ratingReasoning`, `skillVersion`) to satisfy the `camelcase` rule. A `NOTE` comment in `postprocess-rules.ts` records why the two excluded rules stay separate.
+
 ### B.4 Collapse pipeline factories under [src/ai/pipelines/](../src/ai/pipelines/) (LOW-MED)
 
 Today: four factory files (`audio.ts`, `comics.ts`, `video.ts`, `other.ts`) with the same shape varying only in `name`, `model`, and how `systemPrompt` is sourced.

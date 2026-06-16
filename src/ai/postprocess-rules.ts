@@ -41,38 +41,15 @@ export function enforceMasterworkTag(yaml: string): string {
   const hasMasterwork = lines.some((l) => l.toLowerCase().includes(masterworkTagLower))
 
   if (ratingValue >= 4 && !hasMasterwork) {
-    // Insertion priority: ai:engine → ai:rating_reasoning → ai:rating → last line
-    let insertIndex = lines.findIndex((l) => /^\s*- ai:engine:/.test(l))
-    // indentSourceIndex tracks the metadata_list field line used for indent derivation.
-    // This must stay separate from insertIndex because when ai:rating_reasoning uses a
-    // block scalar, insertIndex is advanced to the last block body line (deeply indented),
-    // while indentSourceIndex stays on the field line itself (correct sibling indentation).
-    let indentSourceIndex = insertIndex
+    // Insertion priority: ai:engine → ai:rating_reasoning → ai:rating → last line.
+    const anchor = findAiAnchor(lines, ['engine', 'ratingReasoning', 'rating'])
+    const indent = anchor?.indent ?? '  '
 
-    if (insertIndex === -1) {
-      // ai:engine absent — fall back to ai:rating_reasoning (may be a block scalar)
-      const reasoningIndex = lines.findIndex((l) => /^\s*- ai:rating_reasoning:/.test(l))
-      if (reasoningIndex !== -1) {
-        insertIndex = findBlockScalarEnd(lines, reasoningIndex)
-        indentSourceIndex = reasoningIndex // use the field line indent, not the block body end
-      }
-    }
-
-    if (insertIndex === -1) {
-      // Also missing ai:rating_reasoning — fall back to the ai:rating line itself
-      insertIndex = lines.findIndex((l) => /^\s*- ai:rating:/.test(l))
-      indentSourceIndex = insertIndex
-    }
-
-    // Derive indent from the metadata_list field line; default to two spaces
-    const indentMatch = indentSourceIndex === -1 ? null : lines[indentSourceIndex].match(/^(\s*)/)
-    const indent = indentMatch ? indentMatch[1] : '  '
-
-    if (insertIndex === -1) {
+    if (anchor === null) {
       // Last resort: append to end of file
       lines.push(`${indent}- tag: ${MASTERWORK_TAG}`)
     } else {
-      lines.splice(insertIndex + 1, 0, `${indent}- tag: ${MASTERWORK_TAG}`)
+      lines.splice(anchor.insertAfterIndex + 1, 0, `${indent}- tag: ${MASTERWORK_TAG}`)
     }
   } else if (ratingValue < 4 && hasMasterwork) {
     // Remove erroneous Masterwork tag (case-insensitive to catch non-canonical casing)
@@ -137,6 +114,50 @@ function findBlockScalarEnd(lines: string[], fieldIndex: number): number {
   }
 
   return lastBodyIndex
+}
+
+/** The `ai:*` metadata_list fields usable as insertion anchors, with their line matchers. */
+type AiAnchorKey = 'engine' | 'rating' | 'ratingReasoning' | 'skillVersion'
+
+const AI_ANCHOR_PATTERNS: Record<AiAnchorKey, RegExp> = {
+  engine: /^\s*- ai:engine:/,
+  rating: /^\s*- ai:rating:/,
+  ratingReasoning: /^\s*- ai:rating_reasoning:/,
+  skillVersion: /^\s*- ai:skill_version:/,
+}
+
+/**
+ * Cascading search for an `ai:*` insertion anchor inside metadata_list, shared by
+ * the rules that insert a new sibling field AFTER an existing `ai:*` line
+ * (`enforceMasterworkTag`, `injectAiCostFields`).
+ *
+ * Walks `preference` in order; the first present field becomes the anchor. Returns
+ * the index to splice AFTER plus the sibling indent derived from the anchor's field
+ * line. For an `ai:rating_reasoning` anchor written as a block scalar (`|`/`>`),
+ * `insertAfterIndex` is advanced past the block body so the new line lands after the
+ * scalar rather than inside it, while `indent` stays on the field line itself.
+ *
+ * Returns null when none of the preferred fields are present — the caller owns the
+ * end-of-file fallback (the two callers differ slightly in how they append).
+ *
+ * NOTE: `enforceSkillVersion` and `enforceAiEngineAfterSkillVersion` deliberately do
+ * NOT use this helper. The former inserts BEFORE `ai:engine` and derives indent via
+ * `siblingIndent` (different semantics); the latter relocates an existing line rather
+ * than inserting. Forcing either onto this contract would change their output.
+ */
+function findAiAnchor(
+  lines: string[],
+  preference: AiAnchorKey[],
+): null | {indent: string; insertAfterIndex: number} {
+  for (const key of preference) {
+    const idx = lines.findIndex((l) => AI_ANCHOR_PATTERNS[key].test(l))
+    if (idx === -1) continue
+    const indent = lines[idx].match(/^(\s*)/)?.[1] ?? '  '
+    const insertAfterIndex = key === 'ratingReasoning' ? findBlockScalarEnd(lines, idx) : idx
+    return {indent, insertAfterIndex}
+  }
+
+  return null
 }
 
 /**
@@ -371,32 +392,10 @@ export function injectAiCostFields(yaml: string, fields: AiCostFields): string {
   const lines = cleaned.split('\n')
 
   // Find insertion anchor with cascading fallbacks (engine-first priority).
-  let anchorIdx = lines.findIndex((l) => /^\s*- ai:engine:/.test(l))
-  if (anchorIdx === -1) anchorIdx = lines.findIndex((l) => /^\s*- ai:skill_version:/.test(l))
-
-  let indent: string
-  let insertAfterIdx: number
-
-  if (anchorIdx === -1) {
-    const reasoningIdx = lines.findIndex((l) => /^\s*- ai:rating_reasoning:/.test(l))
-    if (reasoningIdx === -1) {
-      const ratingIdx = lines.findIndex((l) => /^\s*- ai:rating:/.test(l))
-      if (ratingIdx === -1) {
-        // No ai:* anchors — append at end of file.
-        insertAfterIdx = lines.length - 1
-        indent = '  '
-      } else {
-        insertAfterIdx = ratingIdx
-        indent = lines[ratingIdx].match(/^(\s*)/)?.[1] ?? '  '
-      }
-    } else {
-      insertAfterIdx = findBlockScalarEnd(lines, reasoningIdx)
-      indent = lines[reasoningIdx].match(/^(\s*)/)?.[1] ?? '  '
-    }
-  } else {
-    insertAfterIdx = anchorIdx
-    indent = lines[anchorIdx].match(/^(\s*)/)?.[1] ?? '  '
-  }
+  const anchor = findAiAnchor(lines, ['engine', 'skillVersion', 'ratingReasoning', 'rating'])
+  // No ai:* anchors — append at end of file.
+  const insertAfterIdx = anchor?.insertAfterIndex ?? lines.length - 1
+  const indent = anchor?.indent ?? '  '
 
   const newLines = [
     `${indent}- ai:cost: ${fields.cost.toFixed(5)}`,
