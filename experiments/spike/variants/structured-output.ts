@@ -1,15 +1,15 @@
 import type {RawAgentResult} from '@src/ai/types'
 
-import {buildUserMessage} from '@src/ai/base-agent.js'
-import {ClaudeAgent} from '@src/ai/claude-agent.js'
 import {
   buildStructuredOutputSystemPrompt,
   SUBMIT_RATING_TOOL,
   SUBMIT_RATING_TOOL_CHOICE,
-} from '@src/ai/spike/content/structured-output-tool.js'
-import {extractRatingFromToolInput} from '@src/ai/spike/extract-rating.js'
-import {loadBaselineSkill, zeroUsage} from '@src/ai/spike/skill-loader.js'
-import {type Variant, type VariantJob, type VariantRunResult} from '@src/ai/spike/types.js'
+} from '@experiments/spike/content/structured-output-tool.js'
+import {extractRatingFromToolInput} from '@experiments/spike/extract-rating.js'
+import {loadBaselineSkill, zeroUsage} from '@experiments/spike/skill-loader.js'
+import {type Variant, type VariantJob, type VariantRunResult} from '@experiments/spike/types.js'
+import {buildUserMessage} from '@src/ai/base-agent.js'
+import {ClaudeAgent} from '@src/ai/claude-agent.js'
 
 const SPIKE_MAX_TOKENS = 8192
 

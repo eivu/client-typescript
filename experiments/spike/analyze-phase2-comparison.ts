@@ -1,24 +1,24 @@
 /**
- * Phase 2 Haiku-for-non-comics analysis: computes per-fixture and per-variant
- * stats from tmp/phase2-haiku-comparison.json and writes a markdown decision
- * report to tmp/phase2-haiku-comparison-analysis.md.
+ * Phase 2 model-tiering comparison analysis: computes per-fixture and
+ * per-variant stats from tmp/phase2-comparison.json and writes a markdown
+ * decision report to tmp/phase2-comparison-analysis.md.
  *
- * Same structure as `analyze-phase2-comparison.ts`; control is again
- * `phase1-fragments` (Opus 4.6 across the board). Other variants are
- * `phase2-sonnet-non-comics` (re-baselining the prior decision) and
- * `phase2-haiku-non-comics` (the new candidate).
+ * Handles N variants (vs the phase1 analysis script's 2-variant assumption).
+ * Treats the first variant in the input as the control; subsequent variants
+ * are compared against it. Default control is `phase1-fragments` (Phase 1
+ * production behavior).
  *
  * Usage:
- *   npx tsx src/ai/spike/analyze-phase2-haiku-comparison.ts
+ *   npx tsx experiments/spike/analyze-phase2-comparison.ts
  */
 
-import type {SpikeRun} from '@src/ai/spike/types.js'
+import type {SpikeRun} from '@experiments/spike/types.js'
 
 import * as fs from 'node:fs'
 import path from 'node:path'
 
-const INPUT_PATH = path.join(process.cwd(), 'tmp', 'phase2-haiku-comparison.json')
-const OUTPUT_PATH = path.join(process.cwd(), 'tmp', 'phase2-haiku-comparison-analysis.md')
+const INPUT_PATH = path.join(process.cwd(), 'tmp', 'phase2-comparison.json')
+const OUTPUT_PATH = path.join(process.cwd(), 'tmp', 'phase2-comparison-analysis.md')
 
 const CONTROL_VARIANT = 'phase1-fragments'
 
@@ -137,7 +137,7 @@ function aggregateVariant(data: HarnessJson, variantName: string): VariantAggreg
 function buildHeader(data: HarnessJson): string[] {
   const date = new Date().toISOString().slice(0, 10)
   return [
-    '# Phase 2 Haiku-for-non-comics — analysis',
+    '# Phase 2 model-tiering comparison — analysis',
     '',
     `_Generated: ${date} · ${data.runs.length} runs · ${fmtCost(data.totalCost.totalUsd)} calibrated_`,
     '',
@@ -274,12 +274,12 @@ function buildNarrative(rows: PerFixtureRow[], control: VariantAggregate, others
   const lines = [
     '## Narrative',
     '',
-    'Phase 2 landed Sonnet 4.6 for audio + video (2026-05-28) after the prior model-tiering sub-experiment confirmed non-comics media tolerates the lighter model. This follow-up tests whether non-comics can go one tier further to Haiku 4.5 — another ~3× cost cut if it holds, but with notably weaker reasoning capacity.',
+    'Phase 2 introduced a `Pipeline` abstraction over the per-media assembled prompts from Phase 1 — each pipeline owns its model, system prompt, max-token budget, and web-search budget. The Phase 2 primary kept all four pipelines on Opus 4.6 (matching Phase 1 production); this sub-experiment is the model-tiering test the original plan deferred until after fragment migration landed.',
     '',
     'Three variants are compared:',
-    '- **`phase1-fragments`** (control): Opus 4.6 across every media type. Pre-Sonnet-swap baseline; lets us check that the Sonnet-vs-Opus delta from the prior run is reproducible.',
-    '- **`phase2-sonnet-non-comics`**: comics on Opus 4.6, audio/video on Sonnet 4.6. Current production behavior (since 2026-05-28). Included as a re-baseline so Anthropic-side drift between runs surfaces here rather than getting mis-attributed to Haiku.',
-    '- **`phase2-haiku-non-comics`** (new): comics on Opus 4.6, audio/video on Haiku 4.5. Haiku is $1/$5 per MTok vs Sonnet $3/$15 — roughly 3× cheaper than Sonnet per token. The risk is the same as the Sonnet test (rating stability under web-research workflows) but with a wider gap from the control model.',
+    '- **`phase1-fragments`** (control): Opus 4.6 across every media type. This is the post-Phase-1 / Phase-2-primary production behavior.',
+    '- **`phase2-opus-4-7`**: full Opus 4.7 swap. Tests whether the agentic-coding-focused upgrade carries over to eivu\'s web-research-then-emit-YAML workflow. Opus 4.7 uses a new tokenizer that produces up to ~35% more tokens for the same prompt, so cost per file is expected to rise even at identical per-token pricing.',
+    '- **`phase2-sonnet-non-comics`**: comics on Opus 4.6, audio/video on Sonnet 4.6. Tests whether the lighter non-comics research workflow tolerates a cheaper model. Sonnet 4.6 is $3/$15 per MTok vs Opus $5/$25 — roughly 40% cheaper per token.',
     '',
   ]
 
@@ -370,12 +370,11 @@ function buildArtifacts(): string[] {
   return [
     '## Artifacts',
     '',
-    '- Raw runs JSON: `tmp/phase2-haiku-comparison.json`',
-    '- Markdown report (standard spike format): `tmp/phase2-haiku-comparison.md`',
-    '- HTML explorer: `tmp/phase2-haiku-comparison-explorer.html` (run `node src/ai/spike/build-explorer.mjs tmp/phase2-haiku-comparison.json tmp/phase2-haiku-comparison-explorer.html`)',
+    '- Raw runs JSON: `tmp/phase2-comparison.json`',
+    '- Markdown report (standard spike format): `tmp/phase2-comparison.md`',
+    '- HTML explorer: `tmp/phase2-comparison-explorer.html` (run `node experiments/spike/build-explorer.mjs tmp/phase2-comparison.json tmp/phase2-comparison-explorer.html`)',
     '- Pipeline definitions: `src/ai/pipelines/`',
-    '- Spike variant: `src/ai/spike/variants/phase2-haiku-non-comics.ts`',
-    '- Prior sub-experiment analysis: `tmp/phase2-comparison-analysis.md`',
+    '- Spike variants: `experiments/spike/variants/phase2-opus-4-7.ts` · `experiments/spike/variants/phase2-sonnet-non-comics.ts`',
     '',
   ]
 }
@@ -397,7 +396,7 @@ function buildMarkdown(data: HarnessJson, rows: PerFixtureRow[], control: Varian
 function main(): void {
   if (!fs.existsSync(INPUT_PATH)) {
     process.stderr.write(`Input not found: ${INPUT_PATH}\n`)
-    process.stderr.write('Run the spike first: npx tsx src/ai/spike/run-phase2-haiku-comparison.ts\n')
+    process.stderr.write('Run the spike first: tmp/run-phase2-spike.sh (under screen)\n')
     process.exitCode = 2
     return
   }

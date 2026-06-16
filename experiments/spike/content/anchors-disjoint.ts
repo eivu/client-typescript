@@ -8,7 +8,7 @@
  * the model literally copying anchor ratings onto matching fixtures.
  *
  * This anchor set is intentionally disjoint from the 8 fixtures in
- * src/ai/spike/fixtures.ts. If anchored-rubric-disjoint still beats baseline
+ * experiments/spike/fixtures.ts. If anchored-rubric-disjoint still beats baseline
  * on stddev, the lever is real and we ship anchors in Phase 2. If it ties,
  * the original win was overlap artifact.
  *

@@ -1,4 +1,4 @@
-import type {Fixture} from '@src/ai/spike/types.js'
+import type {Fixture} from '@experiments/spike/types.js'
 
 /**
  * Phase 0 spike fixtures. Filename-only — no binary files required because

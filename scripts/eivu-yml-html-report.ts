@@ -17,7 +17,7 @@ import {validateEivuYaml} from '../src/ai/validate-yaml.js'
 
 type RenderedFile = {
   fileName: string
-  parsed: Record<string, unknown> | null
+  parsed: null | Record<string, unknown>
   rawYaml: string
   validationCodes: string[]
 }
@@ -64,7 +64,7 @@ function loadYmlFiles(paths: string[]): RenderedFile[] {
     const fileName = path.basename(p).replace(/\.eivu\.yml$/, '')
     const result = validateEivuYaml(rawYaml)
     const validationCodes = 'errors' in result ? result.errors.map((e) => e.code) : []
-    let parsed: Record<string, unknown> | null = null
+    let parsed: null | Record<string, unknown> = null
     try {
       const p = YAML.parse(rawYaml)
       if (p && typeof p === 'object' && !Array.isArray(p)) parsed = p as Record<string, unknown>
@@ -178,6 +178,7 @@ function renderTagPills(items: string[], cls = 'pill'): string {
   return items.map((s) => `<span class="${cls}">${escapeHtml(s)}</span>`).join(' ')
 }
 
+// eslint-disable-next-line complexity
 function renderCard(f: RenderedFile, telemetry: TelemetryRow[]): string {
   const grouped = groupMetadata(f.parsed?.metadata_list)
   const name = (f.parsed?.name as string) ?? f.fileName
@@ -197,14 +198,14 @@ function renderCard(f: RenderedFile, telemetry: TelemetryRow[]): string {
 
   const characters = grouped.character ?? []
   const tags = grouped.tag ?? []
-  const people: Array<{role: string; name: string}> = []
+  const people: Array<{name: string; role: string;}> = []
   for (const k of PEOPLE_KEYS) {
-    for (const name of grouped[k] ?? []) people.push({role: k.replace('_', ' '), name})
+    for (const name of grouped[k] ?? []) people.push({name, role: k.replace('_', ' ')})
   }
 
-  const orgs: Array<{role: string; name: string}> = []
+  const orgs: Array<{name: string; role: string;}> = []
   for (const k of ORG_KEYS) {
-    for (const name of grouped[k] ?? []) orgs.push({role: k, name})
+    for (const name of grouped[k] ?? []) orgs.push({name, role: k})
   }
 
   const classFields: Array<{label: string; value: string}> = []
@@ -474,25 +475,17 @@ function renderPage(files: RenderedFile[], telemetryByFile: Map<string, Telemetr
 </html>`
 }
 
-async function main(): Promise<void> {
-  const {folder, out, runId} = readArgs(process.argv)
-  const ymlPaths = collectYmlFiles(folder)
-  if (ymlPaths.length === 0) {
-    console.error(`No .eivu.yml files found in ${folder}`)
-    process.exit(1)
-  }
-
-  const files = loadYmlFiles(ymlPaths)
-  const telemetryByFile = runId
-    ? await readTelemetryForRun(path.join('logs', 'metadata-runs.csv'), runId)
-    : new Map<string, TelemetryRow[]>()
-
-  const html = renderPage(files, telemetryByFile, runId)
-  fs.writeFileSync(out, html, 'utf8')
-  console.log(`Wrote ${out} (${files.length} files, ${files.filter((f) => f.validationCodes.length > 0).length} failed validation)`)
+const {folder, out, runId} = readArgs(process.argv)
+const ymlPaths = collectYmlFiles(folder)
+if (ymlPaths.length === 0) {
+  throw new Error(`No .eivu.yml files found in ${folder}`)
 }
 
-main().catch((e) => {
-  console.error(e)
-  process.exit(1)
-})
+const files = loadYmlFiles(ymlPaths)
+const telemetryByFile = runId
+  ? await readTelemetryForRun(path.join('logs', 'metadata-runs.csv'), runId)
+  : new Map<string, TelemetryRow[]>()
+
+const html = renderPage(files, telemetryByFile, runId)
+fs.writeFileSync(out, html, 'utf8')
+console.log(`Wrote ${out} (${files.length} files, ${files.filter((f) => f.validationCodes.length > 0).length} failed validation)`)

@@ -9,15 +9,15 @@
  * path requires a dist/ rebuild.
  *
  * Usage (from repo root):
- *   ANTHROPIC_API_KEY=sk-... npx tsx src/ai/spike/run-phase1-comparison.ts
+ *   ANTHROPIC_API_KEY=sk-... npx tsx experiments/spike/run-phase1-comparison.ts
  *
  * Outputs:
  *   tmp/phase1-comparison.json — full raw runs (consumable by build-explorer.mjs)
  *   tmp/phase1-comparison.md   — human-readable summary
  */
 
-import {runHarness} from '@src/ai/spike/harness.js'
-import {renderReport, summarize} from '@src/ai/spike/report.js'
+import {runHarness} from '@experiments/spike/harness.js'
+import {renderReport, summarize} from '@experiments/spike/report.js'
 import {promises as fsp} from 'node:fs'
 import path from 'node:path'
 
@@ -52,7 +52,7 @@ async function main(): Promise<void> {
   process.stdout.write(`Spike complete. ${result.runs.length} runs · $${result.totalCost.totalUsd.toFixed(4)} total (pre-calibration).\n`)
   process.stdout.write(`JSON:     ${JSON_PATH}\n`)
   process.stdout.write(`Markdown: ${MARKDOWN_PATH}\n`)
-  process.stdout.write(`\nNext:     node src/ai/spike/build-explorer.mjs ${JSON_PATH} tmp/phase1-comparison-explorer.html\n`)
+  process.stdout.write(`\nNext:     node experiments/spike/build-explorer.mjs ${JSON_PATH} tmp/phase1-comparison-explorer.html\n`)
 }
 
 try {

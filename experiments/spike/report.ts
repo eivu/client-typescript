@@ -1,5 +1,5 @@
-import type {HarnessResult} from '@src/ai/spike/harness.js'
-import type {Fixture, SpikeCost, SpikeRun} from '@src/ai/spike/types.js'
+import type {HarnessResult} from '@experiments/spike/harness.js'
+import type {Fixture, SpikeCost, SpikeRun} from '@experiments/spike/types.js'
 
 /** Per-variant summary statistics derived from raw runs. */
 export type VariantSummary = {

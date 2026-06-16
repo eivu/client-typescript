@@ -7,13 +7,13 @@
  * style: TL;DR, summary table, per-fixture table, narrative, recommendation).
  *
  * Usage:
- *   npx tsx src/ai/spike/analyze-phase1-comparison.ts
+ *   npx tsx experiments/spike/analyze-phase1-comparison.ts
  *
  * Input:  tmp/phase1-comparison.json
  * Output: tmp/phase1-comparison-analysis.md
  */
 
-import type {SpikeRun} from '@src/ai/spike/types.js'
+import type {SpikeRun} from '@experiments/spike/types.js'
 
 import * as fs from 'node:fs'
 import path from 'node:path'
@@ -209,7 +209,7 @@ function buildTldrSection(rows: PerFixtureRow[], baseline: VariantAggregate, pha
     '',
     `Mean per-fixture stddev for \`phase1-fragments\` ${stddevVerb}. Calibrated cost ${costVerb}. ${identicalFixtures}/${rows.length} fixtures produce bit-identical results across the two variants.`,
     '',
-    '**Interpretation guide:** Phase 1 is a pure refactor — the assembled prompts are content-equivalent to the v7.16.4 monolith (verified by `src/ai/spike/phase1-equivalence.ts`). The expected outcome is "approximately tied" on consistency and cost. A large divergence in either direction would warrant investigation.',
+    '**Interpretation guide:** Phase 1 is a pure refactor — the assembled prompts are content-equivalent to the v7.16.4 monolith (verified by `experiments/spike/phase1-equivalence.ts`). The expected outcome is "approximately tied" on consistency and cost. A large divergence in either direction would warrant investigation.',
     '',
   ]
 }
@@ -367,7 +367,7 @@ function buildNarrativeSection(
     '',
     'Phase 1 decomposed the v7.16.4 monolithic skill file (589 lines, one big system prompt sent to every file regardless of media type) into ~13 fragments under `src/ai/prompts/claude/fragments/`. The `PromptAssembler` concatenates the applicable fragments per media type in a fixed deterministic order, producing a byte-stable per-(media-type) prompt. `ClaudeAgent.buildBatchParams` selects the right pre-assembled block at request time using `getMediaCategory(filePath)`.',
     '',
-    'Content-equivalence was verified before the migration: `src/ai/spike/phase1-equivalence.ts` extracts the per-media slice of v7.16.4 and diffs it against the assembled output, allow-listing only the routing-note replacement. All three media types pass.',
+    'Content-equivalence was verified before the migration: `experiments/spike/phase1-equivalence.ts` extracts the per-media slice of v7.16.4 and diffs it against the assembled output, allow-listing only the routing-note replacement. All three media types pass.',
     '',
     "This spike is the post-migration sanity check. The expected outcome is that `phase1-fragments` produces results approximately indistinguishable from `baseline` — the prompt content is the same, only the delivery shape changed. Any large divergence would point at a content drop, a fragment-ordering bug, or a cache-key issue.",
     '',
@@ -415,8 +415,8 @@ function buildArtifactsSection(): string[] {
     '',
     '- Raw runs JSON: `tmp/phase1-comparison.json`',
     '- Markdown report (standard spike format): `tmp/phase1-comparison.md`',
-    '- HTML explorer: `tmp/phase1-comparison-explorer.html` (run `node src/ai/spike/build-explorer.mjs tmp/phase1-comparison.json tmp/phase1-comparison-explorer.html`)',
-    '- Phase 1 verification gate: `src/ai/spike/phase1-equivalence.ts`',
+    '- HTML explorer: `tmp/phase1-comparison-explorer.html` (run `node experiments/spike/build-explorer.mjs tmp/phase1-comparison.json tmp/phase1-comparison-explorer.html`)',
+    '- Phase 1 verification gate: `experiments/spike/phase1-equivalence.ts`',
     '- Fragment library: `src/ai/prompts/claude/fragments/`',
     '- Assembler: `src/ai/prompt-assembler.ts`',
     '',

@@ -3,7 +3,7 @@
  * each media type against the equivalent slice of v7.16.4 monolith.
  *
  * Run from the repo root with:
- *   npx tsx src/ai/spike/phase1-equivalence.ts
+ *   npx tsx experiments/spike/phase1-equivalence.ts
  *
  * Exit code is 0 on equivalence (allow-listed differences only), 1 on any
  * unexpected line in either direction. The script prints a per-media-type

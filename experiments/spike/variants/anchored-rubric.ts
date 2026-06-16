@@ -1,42 +1,32 @@
 import type {RawAgentResult} from '@src/ai/types'
 
+import {RATING_ANCHORS_FRAGMENT} from '@experiments/spike/content/anchors.js'
+import {extractRatingFromYaml} from '@experiments/spike/extract-rating.js'
+import {loadBaselineSkill, zeroUsage} from '@experiments/spike/skill-loader.js'
+import {type Variant, type VariantJob, type VariantRunResult} from '@experiments/spike/types.js'
 import {buildUserMessage} from '@src/ai/base-agent.js'
 import {ClaudeAgent} from '@src/ai/claude-agent.js'
-import {extractRatingFromYaml} from '@src/ai/spike/extract-rating.js'
-import {zeroUsage} from '@src/ai/spike/skill-loader.js'
-import {type Variant, type VariantJob, type VariantRunResult} from '@src/ai/spike/types.js'
 
 const SPIKE_MAX_TOKENS = 8192
-const OPUS_4_7 = 'claude-opus-4-7'
 
 /**
- * Phase 2 variant: full Opus 4.7 swap across every pipeline (comics, audio,
- * video, other). Same call shape, web budget, and assembled prompts as
- * `phase1-fragments` — only the model identifier changes.
- *
- * Question this answers: does the agentic-coding-focused 4.7 upgrade help
- * eivu's web-research-then-emit-YAML workflow enough to justify the ~35%
- * tokenization tax (per Anthropic's pricing docs, Opus 4.7 uses a new
- * tokenizer that produces up to 35% more tokens for the same fixed text)?
- *
- * Cost note: the harness's per-fixture cost is computed via the model passed
- * to `computeCost` — see `inferModelForCost(variant, fixture)` in `harness.ts`.
- * Opus 4.7 has identical per-token pricing to 4.6 (Anthropic's pricing page),
- * so the cost delta in the report comes entirely from observed token-count
- * differences in the API response.
+ * Variant 2: Anchored rubric. Same monolithic call as baseline, but the system
+ * prompt appends a §E.1 fragment with 3 concrete exemplars per integer rating.
+ * The exemplars give the model fixed reference points to calibrate against,
+ * which is the standard lever for reducing scoring variance in human raters.
  */
-export const phase2Opus47Variant: Variant = {
-  description:
-    'Phase 2 model swap: Opus 4.7 across all media types via per-pipeline override. Same prompts as phase1-fragments.',
-  name: 'phase2-opus-4-7',
+export const anchoredRubricVariant: Variant = {
+  description: 'Baseline + §E.1 anchor exemplars (3 per integer rating, 15 total). Tests rubric calibration.',
+  name: 'anchored-rubric',
   async runBatch(jobs: VariantJob[]): Promise<VariantRunResult[]> {
     if (jobs.length === 0) return []
 
-    // Assembler mode + global model override: ClaudeAgent's constructor
-    // forwards `model` to every pipeline factory.
+    const augmentedSkill = loadBaselineSkill() + '\n\n' + RATING_ANCHORS_FRAGMENT
+
     const agent = new ClaudeAgent({
       maxTokens: SPIKE_MAX_TOKENS,
-      model: OPUS_4_7,
+      model: 'claude-opus-4-6',
+      skillContent: augmentedSkill,
       webSearchMaxUses: 10,
     })
 

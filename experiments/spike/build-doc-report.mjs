@@ -12,7 +12,7 @@
  *   - Full raw YAML (collapsible)
  *
  * Usage:
- *   node src/ai/spike/build-doc-report.mjs [input.json] [output.html]
+ *   node experiments/spike/build-doc-report.mjs [input.json] [output.html]
  *
  * Defaults: tmp/adhoc-report.json -> tmp/adhoc-doc-report.html
  *

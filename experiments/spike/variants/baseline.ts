@@ -1,35 +1,33 @@
 import type {RawAgentResult} from '@src/ai/types'
 
+import {extractRatingFromYaml} from '@experiments/spike/extract-rating.js'
+import {loadBaselineSkill, zeroUsage} from '@experiments/spike/skill-loader.js'
+import {type Variant, type VariantJob, type VariantRunResult} from '@experiments/spike/types.js'
 import {buildUserMessage} from '@src/ai/base-agent.js'
 import {ClaudeAgent} from '@src/ai/claude-agent.js'
-import {RATING_ANCHORS_DISJOINT_FRAGMENT} from '@src/ai/spike/content/anchors-disjoint.js'
-import {extractRatingFromYaml} from '@src/ai/spike/extract-rating.js'
-import {loadBaselineSkill, zeroUsage} from '@src/ai/spike/skill-loader.js'
-import {type Variant, type VariantJob, type VariantRunResult} from '@src/ai/spike/types.js'
 
 const SPIKE_MAX_TOKENS = 8192
 
 /**
- * Confirmatory variant: anchored rubric with a DISJOINT exemplar set.
+ * Variant 1: Baseline. Current production pipeline with no changes.
+ * - Model: claude-opus-4-6
+ * - System prompt: v7.16.4 monolithic skill file (ephemeral cache)
+ * - User message: existing buildUserMessage media-routed prompt
+ * - Tools: web_search (max 10)
  *
- * Same call shape as anchored-rubric, but the §E.1 fragment uses 15 anchors
- * that have zero overlap with the 8 spike fixtures. This isolates whether
- * the variance reduction in the original spike came from genuine rubric
- * calibration vs. the model copying anchor ratings onto matching fixtures.
+ * This variant is the control — every other variant is measured relative to it
+ * for stddev, cost, parse-failure rate, and end-to-end failure rate.
  */
-export const anchoredRubricDisjointVariant: Variant = {
-  description:
-    'Baseline + §E.1 anchor exemplars with ZERO fixture overlap. Confirmatory follow-up to anchored-rubric to rule out anchor-copying.',
-  name: 'anchored-rubric-disjoint',
+export const baselineVariant: Variant = {
+  description: 'Current pipeline: Opus 4.6 + v7.16.4 monolithic skill + web_search(max=10). Control.',
+  name: 'baseline',
   async runBatch(jobs: VariantJob[]): Promise<VariantRunResult[]> {
     if (jobs.length === 0) return []
-
-    const augmentedSkill = loadBaselineSkill() + '\n\n' + RATING_ANCHORS_DISJOINT_FRAGMENT
 
     const agent = new ClaudeAgent({
       maxTokens: SPIKE_MAX_TOKENS,
       model: 'claude-opus-4-6',
-      skillContent: augmentedSkill,
+      skillContent: loadBaselineSkill(),
       webSearchMaxUses: 10,
     })
 

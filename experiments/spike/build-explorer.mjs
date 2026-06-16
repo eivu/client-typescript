@@ -4,7 +4,7 @@
  * Builds a self-contained HTML explorer for a Phase 0 spike report.
  *
  * Usage:
- *   node src/ai/spike/build-explorer.mjs [input.json] [output.html]
+ *   node experiments/spike/build-explorer.mjs [input.json] [output.html]
  *
  * Defaults: tmp/spike-report.json → tmp/spike-explorer.html
  *

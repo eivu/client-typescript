@@ -68,7 +68,7 @@
   },
   "files": [
     "./bin",
-    "./dist",
+    "./dist/src",
     "./oclif.manifest.json"
   ],
   "homepage": "https://github.com/eivu/client-typescript",
@@ -76,12 +76,12 @@
     "oclif"
   ],
   "license": "MIT",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "type": "module",
   "oclif": {
     "bin": "eivu",
     "dirname": "eivu",
-    "commands": "./dist/commands",
+    "commands": "./dist/src/commands",
     "plugins": [
       "@oclif/plugin-help",
       "@oclif/plugin-plugins"

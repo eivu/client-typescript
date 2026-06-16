@@ -9,14 +9,15 @@
     "noEmit": false,
     "outDir": "dist",
     "paths": {
+      "@experiments/*": ["experiments/*"],
       "@src/*": ["src/*"],
       "@test/*": ["test/*"]
     },
-    "rootDir": "src",
+    "rootDir": ".",
     "strict": true,
     "target": "es2022"
   },
-  "include": ["./src/**/*"],
+  "include": ["./src/**/*", "./experiments/**/*"],
   "ts-node": {
     "esm": true
   }

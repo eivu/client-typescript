@@ -1,5 +1,5 @@
-import {computeCost, sumCosts, zeroCost} from '@src/ai/spike/cost.js'
-import {FIXTURES} from '@src/ai/spike/fixtures.js'
+import {computeCost, sumCosts, zeroCost} from '@experiments/spike/cost.js'
+import {FIXTURES} from '@experiments/spike/fixtures.js'
 import {
   type Fixture,
   type SpikeCost,
@@ -7,8 +7,8 @@ import {
   type Variant,
   type VariantJob,
   type VariantRunResult,
-} from '@src/ai/spike/types.js'
-import {ALL_VARIANTS, PRIMARY_VARIANTS, variantByName} from '@src/ai/spike/variants/index.js'
+} from '@experiments/spike/types.js'
+import {ALL_VARIANTS, PRIMARY_VARIANTS, variantByName} from '@experiments/spike/variants/index.js'
 import logger from '@src/logger.js'
 
 /** Options for the spike harness. */

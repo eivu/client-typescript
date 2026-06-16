@@ -1,5 +1,8 @@
 import type {RawAgentResult} from '@src/ai/types'
 
+import {extractRatingFromYaml} from '@experiments/spike/extract-rating.js'
+import {zeroUsage} from '@experiments/spike/skill-loader.js'
+import {type Variant, type VariantJob, type VariantRunResult} from '@experiments/spike/types.js'
 import {buildUserMessage} from '@src/ai/base-agent.js'
 import {ClaudeAgent} from '@src/ai/claude-agent.js'
 import {
@@ -8,9 +11,6 @@ import {
   buildOtherPipeline,
   buildVideoPipeline,
 } from '@src/ai/pipelines/index.js'
-import {extractRatingFromYaml} from '@src/ai/spike/extract-rating.js'
-import {zeroUsage} from '@src/ai/spike/skill-loader.js'
-import {type Variant, type VariantJob, type VariantRunResult} from '@src/ai/spike/types.js'
 
 const SPIKE_MAX_TOKENS = 8192
 const OPUS_4_6 = 'claude-opus-4-6'

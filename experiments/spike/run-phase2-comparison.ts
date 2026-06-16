@@ -8,15 +8,15 @@
  *   - phase2-sonnet-non-comics (Sonnet 4.6 for audio/video, Opus 4.6 comics)
  *
  * Usage (from repo root):
- *   ANTHROPIC_API_KEY=sk-... npx tsx src/ai/spike/run-phase2-comparison.ts
+ *   ANTHROPIC_API_KEY=sk-... npx tsx experiments/spike/run-phase2-comparison.ts
  *
  * Outputs:
  *   tmp/phase2-comparison.json — full raw runs (consumable by build-explorer.mjs)
  *   tmp/phase2-comparison.md   — standard spike report
  */
 
-import {runHarness} from '@src/ai/spike/harness.js'
-import {renderReport, summarize} from '@src/ai/spike/report.js'
+import {runHarness} from '@experiments/spike/harness.js'
+import {renderReport, summarize} from '@experiments/spike/report.js'
 import {promises as fsp} from 'node:fs'
 import path from 'node:path'
 
@@ -54,8 +54,8 @@ async function main(): Promise<void> {
   process.stdout.write(`JSON:     ${JSON_PATH}\n`)
   process.stdout.write(`Markdown: ${MARKDOWN_PATH}\n`)
   process.stdout.write(`\nNext:\n`)
-  process.stdout.write(`  node src/ai/spike/build-explorer.mjs ${JSON_PATH} tmp/phase2-comparison-explorer.html\n`)
-  process.stdout.write(`  npx tsx src/ai/spike/analyze-phase2-comparison.ts\n`)
+  process.stdout.write(`  node experiments/spike/build-explorer.mjs ${JSON_PATH} tmp/phase2-comparison-explorer.html\n`)
+  process.stdout.write(`  npx tsx experiments/spike/analyze-phase2-comparison.ts\n`)
 }
 
 try {

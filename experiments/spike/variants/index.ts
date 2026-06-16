@@ -1,16 +1,16 @@
-import type {Variant} from '@src/ai/spike/types.js'
+import type {Variant} from '@experiments/spike/types.js'
 
-import {anchoredRubricDisjointVariant} from '@src/ai/spike/variants/anchored-rubric-disjoint.js'
-import {anchoredRubricVariant} from '@src/ai/spike/variants/anchored-rubric.js'
-import {baselineVariant} from '@src/ai/spike/variants/baseline.js'
-import {haikuComicsResearchVariant} from '@src/ai/spike/variants/haiku-comics-research.js'
-import {multiSampleVariant} from '@src/ai/spike/variants/multi-sample.js'
-import {phase1FragmentsVariant} from '@src/ai/spike/variants/phase1-fragments.js'
-import {phase2HaikuNonComicsVariant} from '@src/ai/spike/variants/phase2-haiku-non-comics.js'
-import {phase2Opus47Variant} from '@src/ai/spike/variants/phase2-opus-4-7.js'
-import {phase2SonnetNonComicsVariant} from '@src/ai/spike/variants/phase2-sonnet-non-comics.js'
-import {structuredOutputVariant} from '@src/ai/spike/variants/structured-output.js'
-import {twoStageVariant} from '@src/ai/spike/variants/two-stage.js'
+import {anchoredRubricDisjointVariant} from '@experiments/spike/variants/anchored-rubric-disjoint.js'
+import {anchoredRubricVariant} from '@experiments/spike/variants/anchored-rubric.js'
+import {baselineVariant} from '@experiments/spike/variants/baseline.js'
+import {haikuComicsResearchVariant} from '@experiments/spike/variants/haiku-comics-research.js'
+import {multiSampleVariant} from '@experiments/spike/variants/multi-sample.js'
+import {phase1FragmentsVariant} from '@experiments/spike/variants/phase1-fragments.js'
+import {phase2HaikuNonComicsVariant} from '@experiments/spike/variants/phase2-haiku-non-comics.js'
+import {phase2Opus47Variant} from '@experiments/spike/variants/phase2-opus-4-7.js'
+import {phase2SonnetNonComicsVariant} from '@experiments/spike/variants/phase2-sonnet-non-comics.js'
+import {structuredOutputVariant} from '@experiments/spike/variants/structured-output.js'
+import {twoStageVariant} from '@experiments/spike/variants/two-stage.js'
 
 /**
  * Variants 1-5 are the primary consistency comparison set.
