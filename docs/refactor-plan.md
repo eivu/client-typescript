@@ -94,7 +94,7 @@ B.4, B.5, and B.6 each touch production code paths whose behavior unit tests can
 
 **Tolerance thresholds (per fixture, same as Phase E):**
 - `|Δmean rating| ≤ 0.25`
-- `|Δstddev| ≤ 0.05`
+- `|Δstddev| ≤ 0.25` — **recalibrated from 0.05 during B.4** (see deviation note). At n=3 reruns with 0.5-step ratings, stddev is quantized to {0, 0.236, 0.471, …}; a single half-step rerun flip is ≈0.236 of stddev change (ordinary model noise). 0.05 was mathematically unsatisfiable and produced spurious failures. 0.25 tolerates the one-flip quantum while still catching a real consistency blowup (≥2 flips / a 1.0 swing → Δstddev ≥ 0.47).
 - `parse-failure delta = 0`
 - `|Δweb-search-count| / pre ≤ 30%`
 
@@ -318,7 +318,7 @@ The script:
    - mean web-search count per call
 3. Reports PASS if every fixture is within tolerance:
    - |Δmean| ≤ 0.25 (half a rating step)
-   - |Δstddev| ≤ 0.05
+   - |Δstddev| ≤ 0.25 (recalibrated from 0.05 during B.4 — the n=3 rerun quantum; see B.4 deviation note)
    - parse-failure delta = 0
    - |Δweb-search-count| / pre ≤ 30%
 

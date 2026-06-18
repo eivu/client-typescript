@@ -16,19 +16,27 @@
  *
  * Tolerance (per fixture — all must hold for a PASS):
  *   |Δmean rating|        ≤ 0.25   (half a rating step)
- *   |Δstddev|             ≤ 0.05
+ *   |Δstddev|             ≤ 0.25   (one n=3 rerun quantum — see note below)
  *    parse-failure delta  =  0
  *   |Δmean web-searches| / pre ≤ 0.30  (30%; skipped when pre mean is 0)
  *
  * These are deliberately looser than statistical equivalence because production
  * data is non-deterministic (web-search results drift day to day). Exit code is
  * 0 on PASS, 1 on any per-fixture regression, 2 on a usage error (missing file).
+ *
+ * stddev tolerance — why 0.25, not 0.05: ratings move in 0.5 steps and the gate
+ * runs 3 reruns, so a fixture's stddev is quantized to {0, 0.236, 0.471, …}. A
+ * single half-step disagreement between two runs is √(2/9)·0.5 ≈ 0.236 of stddev
+ * change — ordinary day-to-day model noise. 0.25 tolerates that one-flip quantum
+ * while still catching a genuine consistency blowup (≥2 flips or a 1.0 swing pushes
+ * Δstddev to ≥0.47). A tighter threshold is mathematically unsatisfiable at n=3 and
+ * produces spurious failures; revisit this constant if the rerun count changes.
  */
 import * as fs from 'node:fs'
 
 const TOLERANCE = {
   meanRating: 0.25,
-  stddev: 0.05,
+  stddev: 0.25,
   webSearchRatio: 0.3,
 } as const
 
