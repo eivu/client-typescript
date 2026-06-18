@@ -14,28 +14,38 @@
  * --variant phase1-fragments (the variant that exercises the production assembled-prompt
  * path). Both files are spike comparison JSONs as written by `run-phase1-comparison.ts`.
  *
- * Tolerance (per fixture — all must hold for a PASS):
- *   |Δmean rating|        ≤ 0.25   (half a rating step)
- *   |Δstddev|             ≤ 0.25   (one n=3 rerun quantum — see note below)
+ * Primary signal (whole-run aggregate):
+ *   |Δ pooled mean rating| ≤ 0.15   (mean over ALL fixtures × reruns)
+ *
+ * Per-fixture guards (all must hold for a PASS):
+ *   |Δmean rating|        ≤ 0.50   (one full rating step — backstop, see note)
+ *   |Δstddev|             ≤ 0.25   (one n=3 rerun quantum — see note)
  *    parse-failure delta  =  0
  *   |Δmean web-searches| / pre ≤ 0.30  (30%; skipped when pre mean is 0)
  *
  * These are deliberately looser than statistical equivalence because production
  * data is non-deterministic (web-search results drift day to day). Exit code is
- * 0 on PASS, 1 on any per-fixture regression, 2 on a usage error (missing file).
+ * 0 on PASS, 1 on any regression, 2 on a usage error (missing file).
  *
- * stddev tolerance — why 0.25, not 0.05: ratings move in 0.5 steps and the gate
- * runs 3 reruns, so a fixture's stddev is quantized to {0, 0.236, 0.471, …}. A
- * single half-step disagreement between two runs is √(2/9)·0.5 ≈ 0.236 of stddev
- * change — ordinary day-to-day model noise. 0.25 tolerates that one-flip quantum
- * while still catching a genuine consistency blowup (≥2 flips or a 1.0 swing pushes
- * Δstddev to ≥0.47). A tighter threshold is mathematically unsatisfiable at n=3 and
- * produces spurious failures; revisit this constant if the rerun count changes.
+ * Why the pooled mean is primary: with 3 reruns and 0.5-step ratings, a single
+ * fixture's mean is quantized to multiples of 0.167, so a lone rerun moving a full
+ * step (or two moving a half-step) yields Δmean = 0.333 — ordinary model noise that
+ * a tight per-fixture gate would flag as a false regression. Pooling all 24 samples
+ * cancels that per-fixture jitter: a true refactor regression drags the whole
+ * distribution (pooled Δ grows), while noise stays near zero. The per-fixture mean
+ * is kept only as a loose backstop (≤0.5) to catch a single-fixture blowup.
+ *
+ * stddev tolerance — why 0.25, not 0.05: a fixture's stddev at n=3 is quantized to
+ * {0, 0.236, 0.471, …}; a single half-step disagreement is √(2/9)·0.5 ≈ 0.236. 0.25
+ * tolerates that one-flip quantum while still catching a genuine consistency blowup
+ * (≥2 flips / a 1.0 swing → Δstddev ≥ 0.47). Revisit these constants if the rerun
+ * count changes.
  */
 import * as fs from 'node:fs'
 
 const TOLERANCE = {
-  meanRating: 0.25,
+  meanRating: 0.5,
+  pooledMean: 0.15,
   stddev: 0.25,
   webSearchRatio: 0.3,
 } as const
@@ -103,6 +113,14 @@ function statsByFixture(report: SpikeReport, variant: string): Map<string, Fixtu
   return out
 }
 
+/** Pooled mean rating across every successful run of a variant (all fixtures × reruns). */
+function pooledMeanRating(report: SpikeReport, variant: string): number {
+  const ratings = report.runs
+    .filter((r) => r.variant === variant && r.status === 'success' && r.rating !== null)
+    .map((r) => r.rating as number)
+  return mean(ratings)
+}
+
 function loadReport(label: string, filePath: string): SpikeReport {
   if (!fs.existsSync(filePath)) {
     throw new Error(`${label} snapshot not found: ${filePath}`)
@@ -131,7 +149,7 @@ function evaluateFixture(pre: FixtureStats, post: FixtureStats): AxisResult[] {
 
   return [
     {
-      axis: 'mean rating',
+      axis: 'mean rating (backstop)',
       delta: dMean.toFixed(3),
       ok: Math.abs(dMean) <= TOLERANCE.meanRating,
       post: post.meanRating.toFixed(3),
@@ -194,8 +212,20 @@ function main(): number {
   process.stdout.write(`  pre:  ${prePath}\n`)
   process.stdout.write(`  post: ${postPath}\n\n`)
 
-  const fixtures = [...preStats.keys()].sort()
   let failed = false
+
+  // Primary signal: pooled mean across all fixtures × reruns. Noise cancels here,
+  // so a breach is the strongest evidence of a real behavioral regression.
+  const prePooled = pooledMeanRating(preReport, variant)
+  const postPooled = pooledMeanRating(postReport, variant)
+  const dPooled = postPooled - prePooled
+  const pooledOk = Math.abs(dPooled) <= TOLERANCE.pooledMean
+  if (!pooledOk) failed = true
+  process.stdout.write(
+    `${pooledOk ? '✓' : '✗'} pooled mean rating: pre=${prePooled.toFixed(3)} post=${postPooled.toFixed(3)} Δ=${dPooled.toFixed(3)} (tol ${TOLERANCE.pooledMean})\n\n`,
+  )
+
+  const fixtures = [...preStats.keys()].sort()
 
   for (const fixture of fixtures) {
     const pre = preStats.get(fixture)
