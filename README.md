@@ -215,7 +215,7 @@ flowchart TD
     I --> Z
 ```
 
-For the full `.eivu.yml` specification used by AI generation, see [EIVU_METADATA_AI_GUIDE.md](EIVU_METADATA_AI_GUIDE.md).
+For the full `.eivu.yml` specification used by AI generation, see [eivu-metadata-ai-guide.md](docs/eivu-metadata-ai-guide.md).
 
 ### `eivu generate-metadata:post-process <file>`
 
@@ -339,7 +339,7 @@ Higher-priority sources override lower-priority sources on conflict.
 
 ### AI Assistant Guide
 
-For the complete specification used when generating `.eivu.yml` files programmatically (collection vs. single-issue disambiguation, character canonicalisation, franchise hierarchy, award handling, etc.), see [EIVU_METADATA_AI_GUIDE.md](EIVU_METADATA_AI_GUIDE.md).
+For the complete specification used when generating `.eivu.yml` files programmatically (collection vs. single-issue disambiguation, character canonicalisation, franchise hierarchy, award handling, etc.), see [eivu-metadata-ai-guide.md](docs/eivu-metadata-ai-guide.md).
 
 ## Architecture
 
@@ -359,7 +359,7 @@ Deeper dives:
 - [docs/client.md](docs/client.md) — `Client` class internals
 - [docs/cloud-file.md](docs/cloud-file.md) — `CloudFile` entity
 - [docs/metadata-generator.md](docs/metadata-generator.md) — AI metadata pipeline
-- [EIVU_METADATA_AI_GUIDE.md](EIVU_METADATA_AI_GUIDE.md) — full `.eivu.yml` spec for AI generation
+- [eivu-metadata-ai-guide.md](docs/eivu-metadata-ai-guide.md) — full `.eivu.yml` spec for AI generation
 
 ## Development
 

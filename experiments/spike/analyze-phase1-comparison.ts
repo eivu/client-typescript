@@ -404,7 +404,7 @@ function buildRecommendationSection(
     '',
     opener,
     '2. **Proceed to Phase 2.** The Phase 2 sub-experiment (Sonnet 4.6 for audio/video) can now run against the assembled-prompt path. Add a `phase2-sonnet-audio-video` variant alongside the existing ones when ready.',
-    "3. **Optional follow-up:** decompose `EIVU_METADATA_AI_GUIDE.md` to reference the fragments directly (the human-facing single-source-of-truth doc currently duplicates v7.16.4 content). Low priority — not blocking Phase 2.",
+    "3. **Optional follow-up:** decompose `docs/eivu-metadata-ai-guide.md` to reference the fragments directly (the human-facing single-source-of-truth doc currently duplicates v7.16.4 content). Low priority — not blocking Phase 2.",
     '',
   ]
 }

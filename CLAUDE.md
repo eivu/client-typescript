@@ -161,19 +161,20 @@ The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call in
 ## Gotchas
 
 - `oclif readme` auto-generation has been intentionally disabled by removing the `<!-- toc -->` / `<!-- usage -->` / `<!-- commands -->` markers from [README.md](README.md). The README is hand-authored. Don't reintroduce those markers — `oclif readme` will rewrite them on `npm version` / `npm prepack`.
-- [src/commands/process.ts](src/commands/process.ts) is a stub on the `feat-process` branch. Not wired to functionality.
+- [src/commands/process.ts](src/commands/process.ts) is reserved for a forthcoming phase — present on this branch but not yet wired to functionality. Leave it untouched; don't document or rely on it until that phase lands.
 - `GeminiAgent` and `OpenAIAgent` in [src/ai/](src/ai/) are skeletons. Only `ClaudeAgent` is functional.
 - Top-level `rating` in `.eivu.yml` is **deprecated**. New AI generation emits `ai:rating` inside `metadata_list` instead.
 - `getEnv()` validates **all** required env vars up front and throws if any are missing — there's no "lazy" path. When writing tests that don't need real env vars, mock the env or use [.env.test](.env.test).
 - The `nsfw` flag on `eivu upload` auto-implies `secured` — see [src/commands/upload.ts](src/commands/upload.ts:23).
 - `compress` command's positional arg is named `pathArg`, not `path` (the rest are `path`). If you're scripting against it, that matters.
+- [scripts/eivu-yml-html-report.ts](scripts/eivu-yml-html-report.ts) is a standalone inspection tool (not an oclif command): `npx tsx scripts/eivu-yml-html-report.ts <folder> [--out <path>] [--run-id <uuid>]`. It renders all `.eivu.yml` files under `<folder>` into a single HTML report (one card per file, with validation status). The optional `--run-id` joins in per-file cost/token/web-search totals from [logs/metadata-runs.csv](logs/) for that `gm:ai` run. Reach for this before writing a new yml-inspection script — it already exists.
 
 ## Deep dives
 
 - [docs/client.md](docs/client.md) — `Client` class internals
 - [docs/cloud-file.md](docs/cloud-file.md) — `CloudFile` entity
 - [docs/metadata-generator.md](docs/metadata-generator.md) — AI metadata pipeline
-- [EIVU_METADATA_AI_GUIDE.md](EIVU_METADATA_AI_GUIDE.md) — full `.eivu.yml` spec for AI generation (the source of truth for what AI agents emit)
+- [docs/eivu-metadata-ai-guide.md](docs/eivu-metadata-ai-guide.md) — full `.eivu.yml` spec for AI generation (the source of truth for what AI agents emit)
 
 ## Persistent memory
 
