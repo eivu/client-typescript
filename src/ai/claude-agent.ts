@@ -141,29 +141,6 @@ export class ClaudeAgent extends BaseAgent {
     return zeroUsage(Date.now() - startedAt)
   }
 
-  /**
-   * Extracts the usage record from a succeeded message in the same shape as
-   * `parseRawSuccess` does, but returned standalone so the production
-   * `collectResults` path can attach usage to each `AgentResult`.
-   */
-  private static extractUsage(message: Anthropic.Message, startedAt: number): RawAgentUsage {
-    const usage = message.usage as {
-      cache_creation_input_tokens?: number
-      cache_read_input_tokens?: number
-      input_tokens: number
-      output_tokens: number
-      server_tool_use?: {web_search_requests?: number}
-    }
-    return {
-      cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
-      cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
-      inputTokens: usage.input_tokens,
-      latencyMs: Date.now() - startedAt,
-      outputTokens: usage.output_tokens,
-      webSearchRequests: usage.server_tool_use?.web_search_requests ?? 0,
-    }
-  }
-
   private static formatBatchError(result: {error?: unknown; type: string}): string {
     if (result.type === 'errored' && result.error) {
       const err = result.error as {message?: string; type?: string}
@@ -211,8 +188,21 @@ export class ClaudeAgent extends BaseAgent {
 
     const firstToolUse = blocks.find((b) => b.type === 'tool_use')
 
-    // Anthropic exposes web search counts under usage.server_tool_use.web_search_requests
-    // when the web_search tool is enabled. Default to 0 if absent.
+    return {
+      customId,
+      rawText,
+      status: 'success' as const,
+      ...(firstToolUse ? {toolUseInput: firstToolUse.input ?? {}, toolUseName: firstToolUse.name} : {}),
+      usage: ClaudeAgent.parseUsage(message, startedAt),
+    }
+  }
+
+  /**
+   * Parses the token + web-search usage record from a succeeded Anthropic message.
+   * Single source for usage extraction — consumed by both the production
+   * `collectResults` path and the raw `parseRawSuccess` path.
+   */
+  private static parseUsage(message: Anthropic.Message, startedAt: number): RawAgentUsage {
     const usage = message.usage as {
       cache_creation_input_tokens?: number
       cache_read_input_tokens?: number
@@ -220,20 +210,13 @@ export class ClaudeAgent extends BaseAgent {
       output_tokens: number
       server_tool_use?: {web_search_requests?: number}
     }
-
     return {
-      customId,
-      rawText,
-      status: 'success' as const,
-      ...(firstToolUse ? {toolUseInput: firstToolUse.input ?? {}, toolUseName: firstToolUse.name} : {}),
-      usage: {
-        cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
-        cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
-        inputTokens: usage.input_tokens,
-        latencyMs: Date.now() - startedAt,
-        outputTokens: usage.output_tokens,
-        webSearchRequests: usage.server_tool_use?.web_search_requests ?? 0,
-      },
+      cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
+      cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
+      inputTokens: usage.input_tokens,
+      latencyMs: Date.now() - startedAt,
+      outputTokens: usage.output_tokens,
+      webSearchRequests: usage.server_tool_use?.web_search_requests ?? 0,
     }
   }
 
@@ -254,25 +237,7 @@ export class ClaudeAgent extends BaseAgent {
   }
 
   async processRequests(requests: AgentRequest[]): Promise<AgentResult[]> {
-    if (requests.length === 0) return []
-
-    const results: AgentResult[] = []
-
-    for (let i = 0; i < requests.length; i += MAX_BATCH_SIZE) {
-      const chunk = requests.slice(i, i + MAX_BATCH_SIZE)
-      const batchNum = Math.floor(i / MAX_BATCH_SIZE) + 1
-      const totalBatches = Math.ceil(requests.length / MAX_BATCH_SIZE)
-
-      if (totalBatches > 1) {
-        logger.info({batch: batchNum, of: totalBatches}, 'Processing batch chunk')
-      }
-
-      // eslint-disable-next-line no-await-in-loop -- batches must be processed sequentially
-      const batchResults = await this.submitAndPollBatch(chunk)
-      results.push(...batchResults)
-    }
-
-    return results
+    return this.runBatch(requests, (batchId, chunk) => this.collectResults(batchId, chunk))
   }
 
   /**
@@ -287,18 +252,7 @@ export class ClaudeAgent extends BaseAgent {
    * uses this to read its forced structured-output tool call).
    */
   async processRequestsRaw(requests: AgentRequest[]): Promise<RawAgentResult[]> {
-    if (requests.length === 0) return []
-
-    const results: RawAgentResult[] = []
-
-    for (let i = 0; i < requests.length; i += MAX_BATCH_SIZE) {
-      const chunk = requests.slice(i, i + MAX_BATCH_SIZE)
-      // eslint-disable-next-line no-await-in-loop -- batches must be processed sequentially
-      const chunkResults = await this.submitAndPollBatchRaw(chunk)
-      results.push(...chunkResults)
-    }
-
-    return results
+    return this.runBatch(requests, (batchId, chunk) => this.collectRawResults(batchId, chunk))
   }
 
   private buildBatchParams(req: AgentRequest): Anthropic.MessageCreateParamsNonStreaming {
@@ -379,7 +333,7 @@ export class ClaudeAgent extends BaseAgent {
 
       if (entry.result.type === 'succeeded') {
         const rawYaml = extractYamlFromResponse(entry.result.message.content as Array<{text?: string; type: string}>)
-        const usage = ClaudeAgent.extractUsage(entry.result.message, startedAt)
+        const usage = ClaudeAgent.parseUsage(entry.result.message, startedAt)
         rawItems.push({
           customId: entry.custom_id,
           model: stageConfig.model,
@@ -470,6 +424,50 @@ export class ClaudeAgent extends BaseAgent {
   }
 
   /**
+   * Shared batch driver for both the production and raw paths. Chunks requests by
+   * MAX_BATCH_SIZE, creates + polls one Anthropic batch per chunk, then hands the
+   * completed batch to the caller-supplied `collect` function — the single point
+   * where the production (`collectResults`) and raw (`collectRawResults`) paths
+   * diverge. Everything before collection (chunking, submit, poll) is identical.
+   */
+  private async runBatch<T>(
+    requests: AgentRequest[],
+    collect: (batchId: string, chunk: AgentRequest[]) => Promise<T[]>,
+  ): Promise<T[]> {
+    if (requests.length === 0) return []
+
+    const results: T[] = []
+    const totalBatches = Math.ceil(requests.length / MAX_BATCH_SIZE)
+
+    for (let i = 0; i < requests.length; i += MAX_BATCH_SIZE) {
+      const chunk = requests.slice(i, i + MAX_BATCH_SIZE)
+
+      if (totalBatches > 1) {
+        logger.info({batch: Math.floor(i / MAX_BATCH_SIZE) + 1, of: totalBatches}, 'Processing batch chunk')
+      }
+
+      const batchRequests = chunk.map((req) => ({
+        // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
+        custom_id: req.customId,
+        params: this.buildBatchParams(req),
+      }))
+
+      logger.info({count: chunk.length}, 'Creating Anthropic message batch')
+      // eslint-disable-next-line no-await-in-loop -- batches must be processed sequentially
+      const batch = await this.client.messages.batches.create({requests: batchRequests})
+      logger.info({batchId: batch.id}, 'Batch created, polling for completion')
+
+      // eslint-disable-next-line no-await-in-loop -- batches must be processed sequentially
+      await this.pollUntilComplete(batch.id, chunk.length)
+      // eslint-disable-next-line no-await-in-loop -- batches must be processed sequentially
+      const chunkResults = await collect(batch.id, chunk)
+      results.push(...chunkResults)
+    }
+
+    return results
+  }
+
+  /**
    * Resolves the per-request stage configuration that drives `buildBatchParams`.
    *
    * In static mode (spike + tests, when `skillContent`/`skillPath` was set),
@@ -524,35 +522,4 @@ export class ClaudeAgent extends BaseAgent {
     }
   }
 
-  private async submitAndPollBatch(requests: AgentRequest[]): Promise<AgentResult[]> {
-    const batchRequests = requests.map((req) => ({
-      // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
-      custom_id: req.customId,
-      params: this.buildBatchParams(req),
-    }))
-
-    logger.info({count: requests.length}, 'Creating Anthropic message batch')
-    const batch = await this.client.messages.batches.create({requests: batchRequests})
-    logger.info({batchId: batch.id}, 'Batch created, polling for completion')
-
-    await this.pollUntilComplete(batch.id, requests.length)
-
-    return this.collectResults(batch.id, requests)
-  }
-
-  private async submitAndPollBatchRaw(requests: AgentRequest[]): Promise<RawAgentResult[]> {
-    const batchRequests = requests.map((req) => ({
-      // eslint-disable-next-line camelcase -- Anthropic API uses snake_case
-      custom_id: req.customId,
-      params: this.buildBatchParams(req),
-    }))
-
-    logger.info({count: requests.length}, 'Creating Anthropic message batch (raw mode)')
-    const batch = await this.client.messages.batches.create({requests: batchRequests})
-    logger.info({batchId: batch.id}, 'Raw batch created, polling for completion')
-
-    await this.pollUntilComplete(batch.id, requests.length)
-
-    return this.collectRawResults(batch.id, requests)
-  }
 }
