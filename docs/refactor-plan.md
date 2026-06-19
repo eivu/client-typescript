@@ -340,6 +340,19 @@ The refactor is considered behaviorally safe to merge when:
 
 If any check fails at Phase E, the default is **fix-forward**: investigate via the per-axis report, push a fix-up commit, re-run. `git revert` is reserved for catastrophic cases where the root cause isn't tractable from the spike output. (Individual B.4–B.6 phase gates also follow fix-forward — see "Per-phase spike gates" above.)
 
+### E.6 Result (landed)
+
+All acceptance gates passed simultaneously on the final state:
+- `phase1-equivalence.ts` — **PASS** (v7.16.4 monolith / `other` pipeline intact).
+- `verify-refactor.ts` vs the original Phase 0 baseline — **PASS**: pooled mean rating 3.854 → 3.813 (Δ −0.042, tol 0.15); all 8 fixtures within per-fixture tolerance; 0 parse failures.
+- Jest — **506/506** (508 pre-refactor minus the two deleted `hello/*` placeholder tests).
+- `npm run lint`, `npm run build` — clean.
+- `gm:pipeline-list` and `gm:pipeline-show {comics,audio,video,other} --prompt` — **byte-identical** to the pre-refactor branch point (`3f83caf`), confirming the entire B+C+D refactor preserved production pipeline shape exactly.
+
+Live spike spend: 4 gated runs (B.4, B.5, B.6, E) at ~$0.74 each + the $0.78 Phase 0 baseline ≈ **$3.7 actual** (the ~$0.36 plan figure was the calibrated estimate; actual pre-calibration batch cost ran higher), plus a sunk ~$0.12 from a lid-close-killed B.6 poller (re-run cleanly under `caffeinate -i`).
+
+**Deviations recorded inline:** B.3 (`findAiAnchor` applied to 2 of 4 rules), B.4 (stddev gate 0.05→0.25, n=3 quantum), B.5 (pooled-mean primary gate + per-fixture mean 0.25→0.5 backstop), C.3 (`analyze-phase1` left bespoke). Each is documented at its phase section above.
+
 ---
 
 ## Sequencing & commit boundaries
