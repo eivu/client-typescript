@@ -1,9 +1,5 @@
-import type {RawAgentResult} from '@src/ai/types'
-
-import {extractRatingFromYaml} from '@experiments/spike/extract-rating.js'
-import {zeroUsage} from '@experiments/spike/skill-loader.js'
-import {type Variant, type VariantJob, type VariantRunResult} from '@experiments/spike/types.js'
-import {buildUserMessage} from '@src/ai/base-agent.js'
+import {type Variant} from '@experiments/spike/types.js'
+import {simpleVariant} from '@experiments/spike/variant-runner.js'
 import {ClaudeAgent} from '@src/ai/claude-agent.js'
 import {
   buildAudioPipeline,
@@ -32,13 +28,8 @@ const HAIKU_4_5 = 'claude-haiku-4-5'
  * Comics stays on Opus by design — comics research is the heaviest workflow and
  * model-tier risk there is highest.
  */
-export const phase2HaikuNonComicsVariant: Variant = {
-  description:
-    'Phase 2 follow-up: Opus 4.6 for comics, Haiku 4.5 for audio/video and other. Tests whether non-comics tolerates the lightest production tier.',
-  name: 'phase2-haiku-non-comics',
-  async runBatch(jobs: VariantJob[]): Promise<VariantRunResult[]> {
-    if (jobs.length === 0) return []
-
+export const phase2HaikuNonComicsVariant: Variant = simpleVariant({
+  buildAgent() {
     const pipelines = {
       audio: buildAudioPipeline({maxTokens: SPIKE_MAX_TOKENS, model: HAIKU_4_5}),
       comics: buildComicsPipeline({maxTokens: SPIKE_MAX_TOKENS, model: OPUS_4_6}),
@@ -48,54 +39,12 @@ export const phase2HaikuNonComicsVariant: Variant = {
     const other = buildOtherPipeline({maxTokens: SPIKE_MAX_TOKENS, model: HAIKU_4_5})
     const allPipelines = other ? {...pipelines, other} : pipelines
 
-    const agent = new ClaudeAgent({
+    return new ClaudeAgent({
       pipelines: allPipelines,
       webSearchMaxUses: 10,
     })
-
-    const rawResults = await agent.processRequestsRaw(
-      jobs.map((job) => ({
-        customId: job.customId,
-        filePath: job.fixture.filename,
-        userMessage: buildUserMessage(job.fixture.filename),
-      })),
-    )
-
-    return jobs.map((job) => mapRawToVariantResult(job, rawResults))
   },
-}
-
-function mapRawToVariantResult(job: VariantJob, rawResults: RawAgentResult[]): VariantRunResult {
-  const raw = rawResults.find((r) => r.customId === job.customId)
-  if (!raw) {
-    return {
-      errorMessage: 'no raw result returned for this job',
-      rating: null,
-      rawText: null,
-      reasoning: null,
-      status: 'model_error',
-      usage: zeroUsage(),
-    }
-  }
-
-  if (raw.status === 'error') {
-    return {
-      errorMessage: raw.error ?? 'model error',
-      rating: null,
-      rawText: null,
-      reasoning: null,
-      status: 'model_error',
-      usage: raw.usage,
-    }
-  }
-
-  const extracted = extractRatingFromYaml(raw.rawText)
-  return {
-    errorMessage: extracted.errorMessage,
-    rating: extracted.rating,
-    rawText: raw.rawText,
-    reasoning: extracted.reasoning,
-    status: extracted.rating === null ? 'parse_failure' : 'success',
-    usage: raw.usage,
-  }
-}
+  description:
+    'Phase 2 follow-up: Opus 4.6 for comics, Haiku 4.5 for audio/video and other. Tests whether non-comics tolerates the lightest production tier.',
+  name: 'phase2-haiku-non-comics',
+})
