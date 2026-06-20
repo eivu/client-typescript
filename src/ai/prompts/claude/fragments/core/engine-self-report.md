@@ -1,0 +1,1 @@
+> **`ai:engine` self-reporting:** Always populate `ai:engine` with the model identifier of the agent executing this skill. Known values: `claude-sonnet-4-6` · `claude-opus-4-6` · `claude-haiku-4-5-20251001`. If uncertain of your exact model string, use your best self-knowledge. Never leave this field as a placeholder or copy a value from an example.

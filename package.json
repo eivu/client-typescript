@@ -34,7 +34,8 @@
     "tmp": "^0.2.5",
     "tsx": "^4.20.6",
     "yaml": "^2.8.2",
-    "yauzl-promise": "^4.0.0"
+    "yauzl-promise": "^4.0.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/compat": "^1",
@@ -67,7 +68,7 @@
   },
   "files": [
     "./bin",
-    "./dist",
+    "./dist/src",
     "./oclif.manifest.json"
   ],
   "homepage": "https://github.com/eivu/client-typescript",
@@ -75,12 +76,12 @@
     "oclif"
   ],
   "license": "MIT",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "type": "module",
   "oclif": {
     "bin": "eivu",
     "dirname": "eivu",
-    "commands": "./dist/commands",
+    "commands": "./dist/src/commands",
     "plugins": [
       "@oclif/plugin-help",
       "@oclif/plugin-plugins"

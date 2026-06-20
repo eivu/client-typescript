@@ -12,7 +12,7 @@ Determine file type from extension, then **skip irrelevant sections**:
 
 | Extension | Type | Read | Skip |
 |-----------|------|------|------|
-| `.cbr` `.cbz` `.pdf` | **Comics** | Violations 1–28a · YAML§Comics · §A Comics/TV/Movies · §B · §C · §D · §E · §F · Checklist§YAML/Name/Characters/Comics/Awards | Violations 29–33 · YAML§Audio · YAML§Video · §A Audio/Video · Checklist§Audio · Checklist§Video |
+| `.cbr` `.cbz` | **Comics** | Violations 1–28a · YAML§Comics · §A Comics/TV/Movies · §B · §C · §D · §E · §F · Checklist§YAML/Name/Characters/Comics/Awards | Violations 29–33 · YAML§Audio · YAML§Video · §A Audio/Video · Checklist§Audio · Checklist§Video |
 | `.m4a` `.mp3` `.flac` | **Audio** | Violations 7–13, 19–20, 22–24, 29–31, 33 · YAML§Audio · §A Audio · §E · Checklist§YAML/Awards/Audio | Violations 1–6c, 14–18, 21, 25–28a, 32 · YAML§Comics · YAML§Video · §A Comics/TV/Movies · §B · §C · §D · §F · Season tables · Checklist§Name/Characters/Comics/Video |
 | `.mp4` `.mkv` `.avi` | **Video** | Violations 7–13, 19–20, 22–24, 29, 32 · YAML§Video · §A Video/TV/Movies · §E · Checklist§YAML/Awards/Video | Violations 1–6c, 14–18, 21, 25–28a, 30–31, 33 · YAML§Comics · YAML§Audio · §A Comics/Audio · §B · §C · §D · §F · Season tables · Checklist§Name/Characters/Comics/Audio |
 
@@ -63,6 +63,7 @@ Determine file type from extension, then **skip irrelevant sections**:
 | 31 | 🎵 | Audio files always have `artists`; should have `release` when album is known | omit artists/release | `artists` required; `release` strongly recommended |
 | 32 | 🎬 | Video files always have `artists`; `release` optional | omit artists | `artists` required; `release` only if applicable |
 | 33 | 🎵 | `release.position` = track number on album (integer) | omit or guess | verify track position from authoritative source |
+| 34 | ⚙️ | `ai:cost`, `ai:cost_all`, `ai:tokens_in`, `ai:tokens_out` are POST-PROCESSOR-ONLY | model emits its own values | DO NOT emit these fields; the post-processor injects them with the real billing/usage data |
 
 **Scope key:** 📗 = Comics only · 🎵 = Audio only · 🎬 = Video only · 🎵🎬 = Audio + Video · 🔵 = All media types · ⚙️ = Enforced by post-processor (follow convention but do not spend time verifying)
 
@@ -94,6 +95,7 @@ metadata_list:                  # ONE key per item; same key may repeat
   - ai:rating_reasoning: "..."  # required with ai:rating
   - ai:skill_version: 7.16.4
   - ai:engine: <YOUR-MODEL-NAME>  # self-report: e.g. claude-sonnet-4-6, claude-opus-4-6
+  # ai:cost, ai:cost_all, ai:tokens_in, ai:tokens_out are injected here by the post-processor (rule #34) — DO NOT emit yourself
   - tag: Eivu's AI Masterwork Collection  # only if ai:rating >= 4.0
 ```
 

@@ -1,371 +1,249 @@
 # eivu-upload-client
 
-TS Upload Client for Eivu
+A TypeScript CLI for uploading media files to an [Eivu](https://github.com/eivu) backend, compressing comic archives, and generating rich metadata files using Claude AI. Built on [oclif](https://oclif.io).
 
 [![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
 [![Version](https://img.shields.io/npm/v/eivu-upload-client.svg)](https://npmjs.org/package/eivu-upload-client)
 [![Downloads/week](https://img.shields.io/npm/dw/eivu-upload-client.svg)](https://npmjs.org/package/eivu-upload-client)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-<!-- toc -->
-* [eivu-upload-client](#eivu-upload-client)
-* [Usage](#usage)
-* [Commands](#commands)
-* [Eivu Metadata YAML Files](#eivu-metadata-yaml-files)
-<!-- tocstop -->
+## Contents
 
-# Usage
+- [Overview](#overview)
+- [Quickstart](#quickstart)
+- [Configuration](#configuration)
+- [Commands](#commands)
+  - [`eivu upload`](#eivu-upload-path)
+  - [`eivu compress`](#eivu-compress-path)
+  - [`eivu generate-metadata:ai`](#eivu-generate-metadataai-path)
+  - [`eivu generate-metadata:post-process`](#eivu-generate-metadatapost-process-file)
+- [`.eivu.yml` Metadata Files](#eivuyml-metadata-files)
+- [Architecture](#architecture)
+- [Development](#development)
+- [License](#license)
 
-<!-- usage -->
-```sh-session
-$ npm install -g eivu-upload-client
-$ eivu COMMAND
-running command...
-$ eivu (--version)
-eivu-upload-client/0.0.0 linux-x64 node-v18.20.8
-$ eivu --help [COMMAND]
-USAGE
-  $ eivu COMMAND
-...
-```
-<!-- usagestop -->
+## Overview
 
-# Commands
+`eivu-upload-client` is the TypeScript client for the Eivu media library. It does three things:
 
-<!-- commands -->
-* [`eivu help [COMMAND]`](#eivu-help-command)
-* [`eivu plugins`](#eivu-plugins)
-* [`eivu plugins add PLUGIN`](#eivu-plugins-add-plugin)
-* [`eivu plugins:inspect PLUGIN...`](#eivu-pluginsinspect-plugin)
-* [`eivu plugins install PLUGIN`](#eivu-plugins-install-plugin)
-* [`eivu plugins link PATH`](#eivu-plugins-link-path)
-* [`eivu plugins remove [PLUGIN]`](#eivu-plugins-remove-plugin)
-* [`eivu plugins reset`](#eivu-plugins-reset)
-* [`eivu plugins uninstall [PLUGIN]`](#eivu-plugins-uninstall-plugin)
-* [`eivu plugins unlink [PLUGIN]`](#eivu-plugins-unlink-plugin)
-* [`eivu plugins update`](#eivu-plugins-update)
+1. **Upload** local files, folders, or remote URLs into Eivu — files land in S3-compatible storage (Wasabi by default) while the Eivu backend tracks state and metadata.
+2. **Compress** comic book archives (`.cbz`, `.cbr`) into smaller `.cbz` archives whose pages are WebP, via [`@eivu/ts-comic-compress`](https://www.npmjs.com/package/@eivu/ts-comic-compress).
+3. **Generate metadata** as `.eivu.yml` files using Claude AI — with web search for verification, schema validation, and a post-processing pipeline that normalises engine versions, franchise hierarchies, award tags, and other mechanical rules.
 
-## `eivu help [COMMAND]`
+The tool is intended for users curating their own Eivu library: the upload pipeline reserves a slot in the Eivu backend, transfers the file to S3, and updates the backend with merged metadata from `.eivu.yml` files, embedded tags (ID3, EXIF), and filename patterns.
 
-Display help for eivu.
+```mermaid
+flowchart LR
+    User([User]) -->|eivu CLI| CLI{Command}
+    CLI -->|upload| Upload[Client.upload*]
+    CLI -->|compress| Compress[ComicProcessor]
+    CLI -->|gm:ai| AIGen[MetadataGenerator]
+    CLI -->|gm:pp| PP[PostProcessRules]
 
-```
-USAGE
-  $ eivu help [COMMAND...] [-n]
+    Upload --> Extract[MetadataExtraction]
+    Upload --> S3[S3Uploader]
+    Upload --> API[(Eivu API)]
+    S3 --> Storage[(S3-compatible storage<br/>e.g. Wasabi)]
 
-ARGUMENTS
-  COMMAND...  Command to show help for.
+    Compress -->|@eivu/ts-comic-compress| WebP[(.cbz with WebP pages)]
 
-FLAGS
-  -n, --nested-commands  Include all nested commands in the output.
+    AIGen --> Claude[ClaudeAgent]
+    Claude --> Anthropic[(Anthropic Messages<br/>Batches API + Web Search)]
+    AIGen --> YAML[(.eivu.yml files)]
 
-DESCRIPTION
-  Display help for eivu.
+    PP --> YAML
 ```
 
-_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v6.2.33/src/commands/help.ts)_
+## Quickstart
 
-## `eivu plugins`
-
-List installed plugins.
-
-```
-USAGE
-  $ eivu plugins [--json] [--core]
-
-FLAGS
-  --core  Show core plugins.
-
-GLOBAL FLAGS
-  --json  Format output as json.
-
-DESCRIPTION
-  List installed plugins.
-
-EXAMPLES
-  $ eivu plugins
+```sh
+npm install -g eivu-upload-client
 ```
 
-_See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/index.ts)_
+Set the required environment variables (see [Configuration](#configuration)) — `dotenv` loads them automatically from a `.env` in the working directory:
 
-## `eivu plugins add PLUGIN`
-
-Installs a plugin into eivu.
-
-```
-USAGE
-  $ eivu plugins add PLUGIN... [--json] [-f] [-h] [-s | -v]
-
-ARGUMENTS
-  PLUGIN...  Plugin to install.
-
-FLAGS
-  -f, --force    Force npm to fetch remote resources even if a local copy exists on disk.
-  -h, --help     Show CLI help.
-  -s, --silent   Silences npm output.
-  -v, --verbose  Show verbose npm output.
-
-GLOBAL FLAGS
-  --json  Format output as json.
-
-DESCRIPTION
-  Installs a plugin into eivu.
-
-  Uses npm to install plugins.
-
-  Installation of a user-installed plugin will override a core plugin.
-
-  Use the EIVU_NPM_LOG_LEVEL environment variable to set the npm loglevel.
-  Use the EIVU_NPM_REGISTRY environment variable to set the npm registry.
-
-ALIASES
-  $ eivu plugins add
-
-EXAMPLES
-  Install a plugin from npm registry.
-
-    $ eivu plugins add myplugin
-
-  Install a plugin from a github url.
-
-    $ eivu plugins add https://github.com/someuser/someplugin
-
-  Install a plugin from a github slug.
-
-    $ eivu plugins add someuser/someplugin
+```sh
+# .env
+EIVU_UPLOAD_SERVER_HOST=https://eivu.example.com
+EIVU_BUCKET_UUID=00000000-0000-0000-0000-000000000000
+EIVU_USER_TOKEN=your_api_token
+EIVU_BUCKET_NAME=my-bucket
+EIVU_REGION=us-east-1
+EIVU_ENDPOINT=https://s3.wasabisys.com
+EIVU_ACCESS_KEY_ID=...
+EIVU_SECRET_ACCESS_KEY=...
+ANTHROPIC_API_KEY=sk-ant-...   # only required for `gm:ai`
 ```
 
-## `eivu plugins:inspect PLUGIN...`
+Then:
 
-Displays installation properties of a plugin.
-
-```
-USAGE
-  $ eivu plugins inspect PLUGIN...
-
-ARGUMENTS
-  PLUGIN...  [default: .] Plugin to inspect.
-
-FLAGS
-  -h, --help     Show CLI help.
-  -v, --verbose
-
-GLOBAL FLAGS
-  --json  Format output as json.
-
-DESCRIPTION
-  Displays installation properties of a plugin.
-
-EXAMPLES
-  $ eivu plugins inspect myplugin
+```sh
+eivu upload ./my-video.mp4
+eivu compress ./comics --recursive
+eivu gm:ai ./comics --recursive
+eivu --help
 ```
 
-_See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/inspect.ts)_
+## Configuration
 
-## `eivu plugins install PLUGIN`
+All configuration is via environment variables. Missing required variables cause the CLI to fail fast on first use.
 
-Installs a plugin into eivu.
+| Variable | Required | Purpose |
+|---|---|---|
+| `EIVU_UPLOAD_SERVER_HOST` | yes | Base URL of the Eivu upload server. Used as `${HOST}/api/upload/v1/buckets/${BUCKET_UUID}/`. |
+| `EIVU_BUCKET_UUID` | yes | Eivu bucket identifier. |
+| `EIVU_USER_TOKEN` | yes | API token sent as `Authorization: Token ${TOKEN}`. |
+| `EIVU_BUCKET_NAME` | yes | S3 bucket name where assets are stored. |
+| `EIVU_REGION` | yes | S3 region (e.g. `us-east-1`). |
+| `EIVU_ENDPOINT` | yes | S3 endpoint URL (e.g. `https://s3.wasabisys.com`). |
+| `EIVU_ACCESS_KEY_ID` | yes | S3 access key. |
+| `EIVU_SECRET_ACCESS_KEY` | yes | S3 secret key. |
+| `ANTHROPIC_API_KEY` | only for `gm:ai` | Anthropic API key used by `generate-metadata:ai`. |
 
-```
-USAGE
-  $ eivu plugins install PLUGIN... [--json] [-f] [-h] [-s | -v]
+Validation logic lives in [src/env.ts](src/env.ts).
 
-ARGUMENTS
-  PLUGIN...  Plugin to install.
+## Commands
 
-FLAGS
-  -f, --force    Force npm to fetch remote resources even if a local copy exists on disk.
-  -h, --help     Show CLI help.
-  -s, --silent   Silences npm output.
-  -v, --verbose  Show verbose npm output.
+### `eivu upload <path>`
 
-GLOBAL FLAGS
-  --json  Format output as json.
-
-DESCRIPTION
-  Installs a plugin into eivu.
-
-  Uses npm to install plugins.
-
-  Installation of a user-installed plugin will override a core plugin.
-
-  Use the EIVU_NPM_LOG_LEVEL environment variable to set the npm loglevel.
-  Use the EIVU_NPM_REGISTRY environment variable to set the npm registry.
-
-ALIASES
-  $ eivu plugins add
-
-EXAMPLES
-  Install a plugin from npm registry.
-
-    $ eivu plugins install myplugin
-
-  Install a plugin from a github url.
-
-    $ eivu plugins install https://github.com/someuser/someplugin
-
-  Install a plugin from a github slug.
-
-    $ eivu plugins install someuser/someplugin
-```
-
-_See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/install.ts)_
-
-## `eivu plugins link PATH`
-
-Links a plugin into the CLI for development.
+Upload a local file, a local directory, or a remote URL.
 
 ```
-USAGE
-  $ eivu plugins link PATH [-h] [--install] [-v]
-
-ARGUMENTS
-  PATH  [default: .] path to plugin
-
-FLAGS
-  -h, --help          Show CLI help.
-  -v, --verbose
-      --[no-]install  Install dependencies after linking the plugin.
-
-DESCRIPTION
-  Links a plugin into the CLI for development.
-
-  Installation of a linked plugin will override a user-installed or core plugin.
-
-  e.g. If you have a user-installed or core plugin that has a 'hello' command, installing a linked plugin with a 'hello'
-  command will override the user-installed or core plugin implementation. This is useful for development work.
-
-
-EXAMPLES
-  $ eivu plugins link myplugin
+eivu upload <path> [-f <filename>] [-n] [-s]
 ```
 
-_See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/link.ts)_
+| Flag | Description |
+|---|---|
+| `-f, --filename <value>` | Filename to use when uploading from a remote URL. |
+| `-n, --nsfw` | Mark the uploaded file as NSFW. |
+| `-s, --secured` | Mark the file as secured (also implies `--nsfw`). |
 
-## `eivu plugins remove [PLUGIN]`
+Behavior:
 
-Removes a plugin from the CLI.
+- If `<path>` is a **file**, it's uploaded directly.
+- If `<path>` is a **directory**, files within are uploaded with bounded concurrency. Auxiliary files (e.g. `.eivu.yml`, `.cue`, `.log`, `.DS_Store`) and folders like `.git` and `podcasts` are skipped — see `Client.SKIPPABLE_EXTENSIONS` / `SKIPPABLE_FOLDERS` in [src/client.ts](src/client.ts).
+- If `<path>` is a **URL** that resolves online, the resource is downloaded and uploaded.
 
-```
-USAGE
-  $ eivu plugins remove [PLUGIN...] [-h] [-v]
+For each file the client:
 
-ARGUMENTS
-  PLUGIN...  plugin to uninstall
+1. Validates the path and computes an MD5.
+2. Merges metadata from any neighbouring `.eivu.yml`, embedded tags (ID3, EXIF), and filename patterns.
+3. Reserves a slot in the Eivu backend (`POST` reserve).
+4. Uploads the bytes to S3 via the AWS SDK v3 multipart uploader.
+5. Updates the backend with metadata and marks the file `transferred` → `completed`.
 
-FLAGS
-  -h, --help     Show CLI help.
-  -v, --verbose
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant CLI as eivu upload
+    participant C as Client
+    participant M as MetadataExtraction
+    participant E as Eivu API
+    participant S as S3 (Wasabi)
 
-DESCRIPTION
-  Removes a plugin from the CLI.
-
-ALIASES
-  $ eivu plugins unlink
-  $ eivu plugins remove
-
-EXAMPLES
-  $ eivu plugins remove myplugin
-```
-
-## `eivu plugins reset`
-
-Remove all user-installed and linked plugins.
-
-```
-USAGE
-  $ eivu plugins reset [--hard] [--reinstall]
-
-FLAGS
-  --hard       Delete node_modules and package manager related files in addition to uninstalling plugins.
-  --reinstall  Reinstall all plugins after uninstalling.
-```
-
-_See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/reset.ts)_
-
-## `eivu plugins uninstall [PLUGIN]`
-
-Removes a plugin from the CLI.
-
-```
-USAGE
-  $ eivu plugins uninstall [PLUGIN...] [-h] [-v]
-
-ARGUMENTS
-  PLUGIN...  plugin to uninstall
-
-FLAGS
-  -h, --help     Show CLI help.
-  -v, --verbose
-
-DESCRIPTION
-  Removes a plugin from the CLI.
-
-ALIASES
-  $ eivu plugins unlink
-  $ eivu plugins remove
-
-EXAMPLES
-  $ eivu plugins uninstall myplugin
+    U->>CLI: eivu upload <path>
+    CLI->>C: uploadFile / uploadFolder / uploadRemoteFile
+    C->>C: validatePath, compute MD5
+    C->>M: merge YAML + ID3/EXIF + filename patterns
+    C->>E: POST reserve (md5, asset)
+    E-->>C: { state: reserved }
+    C->>S: PutObject (multipart if large)
+    S-->>C: ETag
+    C->>E: PATCH update (state: transferred + metadata)
+    E-->>C: { state: completed, public URL }
+    C-->>U: log completion
 ```
 
-_See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/uninstall.ts)_
+### `eivu compress <path>`
 
-## `eivu plugins unlink [PLUGIN]`
-
-Removes a plugin from the CLI.
+Compress comic archives into smaller `.cbz` files whose pages are WebP.
 
 ```
-USAGE
-  $ eivu plugins unlink [PLUGIN...] [-h] [-v]
-
-ARGUMENTS
-  PLUGIN...  plugin to uninstall
-
-FLAGS
-  -h, --help     Show CLI help.
-  -v, --verbose
-
-DESCRIPTION
-  Removes a plugin from the CLI.
-
-ALIASES
-  $ eivu plugins unlink
-  $ eivu plugins remove
-
-EXAMPLES
-  $ eivu plugins unlink myplugin
+eivu compress <path> [-o <dir>] [-q <0-100>] [-r] [-m] [-n] [-s] [-p]
+                     [-t <px>] [--no-raiseException]
 ```
 
-## `eivu plugins update`
+| Flag | Default | Description |
+|---|---|---|
+| `-o, --outputDir <value>` | `<input-dir>/converted/` | Output directory for compressed files. |
+| `-q, --quality <0-100>` | `75` | WebP quality. |
+| `-r, --recursive` | `false` | Traverse subdirectories. |
+| `-m, --moveOriginal` | `false` | Move originals into a `done/` subdirectory after success. |
+| `-n, --renameOriginal` | `false` | Rename originals to `*_original` instead of copying. |
+| `-s, --skipExisting` | `false` | Skip files that already exist in the output directory. |
+| `-p, --parallel` | `false` | Use all available compute resources. |
+| `-t, --targetHeight <px>` | unset | Resize to this height while preserving aspect ratio. |
+| `-e, --[no-]raiseException` | `true` | Raise an exception when an image is skipped due to size constraints. |
 
-Update installed plugins.
+A non-archive file (anything other than `.cbz` / `.cbr`) raises `IncorrectFileTypeError`. Compression is delegated to [`@eivu/ts-comic-compress`](https://www.npmjs.com/package/@eivu/ts-comic-compress).
+
+### `eivu generate-metadata:ai <path>`
+
+Aliases: `gm:ai`
+
+Generate `.eivu.yml` metadata files for one file or a folder of media using Claude. Requires `ANTHROPIC_API_KEY`.
 
 ```
-USAGE
-  $ eivu plugins update [-h] [-v]
-
-FLAGS
-  -h, --help     Show CLI help.
-  -v, --verbose
-
-DESCRIPTION
-  Update installed plugins.
+eivu gm:ai <path> [-f] [-r] [-n <name>]
 ```
 
-_See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v5.4.48/src/commands/plugins/update.ts)_
-<!-- commandsstop -->
+| Flag | Description |
+|---|---|
+| `-f, --force` | Overwrite existing `.eivu.yml` files. By default, files that already have a sibling `.eivu.yml` are skipped. |
+| `-r, --recursive` | When `<path>` is a folder, include files in all subdirectories. |
+| `-n, --name <value>` | Base name for the output `.eivu.yml` file. Single-file mode only — ignored if multiple files are processed. |
 
-# Eivu Metadata YAML Files
+Behavior:
 
-Eivu uses YAML metadata files (with the `.eivu.yml` extension) to store and manage rich metadata for uploaded files. These files provide a way to attach detailed information to your files that goes beyond what can be extracted from filenames or embedded file metadata.
+- Recursively collects files in `<path>`, skipping `.git`, `.idea`, `.vscode`, `.env*`, `.DS_Store`, etc.
+- Submits prompts in batches via the [Anthropic Messages Batches API](https://docs.claude.com/en/api/messages-batches), with the web search tool enabled so Claude can verify titles, authors, characters, and franchises against the open web.
+- Validates each generated YAML against the schema and **retries up to 3 times** when validation fails. Files that still fail after retries are appended to `logs/failure.csv`.
+- Successful results are written next to the original file as `<filename>.eivu.yml`, and run through a post-processing rule pipeline (engine fix, parent-franchise injection, award-tag normalisation, mechanical rules).
 
-## File Naming Conventions
+```mermaid
+flowchart TD
+    A[Collect files recursively] --> B{`.eivu.yml` exists<br/>and not --force?}
+    B -->|skip| Z([done])
+    B -->|process| C[Build per-file user prompt<br/>media-category aware]
+    C --> D[Submit Messages Batch<br/>to Anthropic]
+    D --> E[Poll batch until complete]
+    E --> F{Validate YAML schema}
+    F -->|valid| G[Write `.eivu.yml`]
+    F -->|invalid & attempts < 3| C
+    F -->|invalid & attempts = 3| H[Append to logs/failure.csv]
+    G --> I[Post-process rules apply<br/>engine fix, franchises,<br/>award tags, mechanical rules]
+    I --> Z
+```
+
+For the full `.eivu.yml` specification used by AI generation, see [eivu-metadata-ai-guide.md](docs/eivu-metadata-ai-guide.md).
+
+### `eivu generate-metadata:post-process <file>`
+
+Aliases: `gm:post-process`, `gm:pp`
+
+Run an existing `.eivu.yml` file through the post-processing pipeline and print the result to stdout. Useful for re-normalising older metadata after the rules evolve.
+
+```
+eivu gm:pp <file> [-m <model>]
+```
+
+| Flag | Description |
+|---|---|
+| `-m, --model <value>` | Override the `ai:engine` value. Defaults to whatever is already in the YAML, or `unknown`. |
+
+The pipeline applies (in order): `ai:engine` correction, parent-franchise hierarchy injection, award-tag normalisation, and six mechanical rules (numeric unquoting, genre casing, redundant tag removal, etc.).
+
+## `.eivu.yml` Metadata Files
+
+Eivu uses YAML metadata files (with the `.eivu.yml` extension) to attach rich metadata to uploaded files — beyond what can be extracted from filenames or embedded tags.
+
+### File Naming Conventions
 
 There are two types of `.eivu.yml` files:
 
-### 1. Associated Metadata Files
+#### 1. Associated Metadata Files
 
-These files are named after the file they describe by appending `.eivu.yml` to the original filename:
+Named after the file they describe by appending `.eivu.yml`:
 
 ```
 myfile.txt.eivu.yml          # Metadata for myfile.txt
@@ -373,35 +251,33 @@ comic.cbz.eivu.yml           # Metadata for comic.cbz
 song.mp3.eivu.yml            # Metadata for song.mp3
 ```
 
-When you upload a file, the system automatically looks for a corresponding `.eivu.yml` file and merges that metadata with any automatically extracted metadata.
+When you upload a file, the client looks for the matching `.eivu.yml` next to it and merges that metadata with anything extracted automatically.
 
-### 2. Standalone Metadata Files (for bulk updates)
+#### 2. Standalone Metadata Files (for bulk updates)
 
-For bulk updating cloud files, metadata files are named using the MD5 hash of the cloud file:
+For bulk updating already-uploaded files, the metadata file is named with the uppercase MD5 hash of the cloud file:
 
 ```
 6068BE59B486F912BB432DDA00D8949B.eivu.yml
 ```
 
-The MD5 hash identifies which cloud file to update on the server.
+The MD5 identifies which cloud file to update on the server.
 
-## Metadata File Structure
+### Metadata File Structure
 
-Eivu metadata YAML files support the following top-level fields:
+Top-level fields:
 
-### Core Fields
+- `name` (string) — title or display name
+- `description` (string) — long description (supports multi-line)
+- `year` (number) — year associated with the content
+- `duration` (number) — duration in seconds (audio/video)
+- `info_url` (string) — URL with more information
+- `artwork_md5` (string) — MD5 of associated artwork file
+- `rating` (number) — **deprecated**; use `ai:rating` inside `metadata_list` instead
 
-- `name` (string): The title or name of the file
-- `description` (string): A longer description of the content (supports multi-line text)
-- `year` (number): The year associated with the content
-- `rating` (number): A rating value (e.g., 0.5, 4.25, 4.75, 5.0)
-- `duration` (number): Duration in seconds (for audio/video files)
-- `info_url` (string): A URL with additional information about the content
-- `artwork_md5` (string): MD5 hash of associated artwork file
+#### Metadata List
 
-### Metadata List
-
-The `metadata_list` field contains an array of key-value pairs with additional metadata. Each item in the array is a single-key object:
+`metadata_list` is an array of single-key objects with additional metadata:
 
 ```yaml
 metadata_list:
@@ -413,35 +289,25 @@ metadata_list:
   - genre: Superhero
 ```
 
-Common metadata keys include:
+Common keys: `tag`, `performer`, `studio`, `character`, `genre`, `writer`, `artist`, `publisher`, `source_url`, `synopsis`.
 
-- `tag`: General tags
-- `performer`: Performers/actors
-- `studio`: Production studio
-- `character`: Characters featured
-- `genre`: Genre classification
-- `writer`: Writer/author
-- `artist`: Artist name
-- `publisher`: Publisher name
-- `source_url`: Source URL where the content was obtained
-- `synopsis`: Brief synopsis or summary
+Namespaced keys carry typed metadata:
 
-You can also use namespaced keys for specific metadata types:
+- `eivu:*` — Eivu-specific (e.g. `eivu:artist_name`, `eivu:release_name`)
+- `id3:*` — ID3 tag metadata (e.g. `id3:album`, `id3:artist`)
+- `acoustid:*` — Acoustid fingerprint data
+- `override:*` — explicit overrides (e.g. `override:name`)
+- `ai:*` — AI-generation provenance (e.g. `ai:engine`, `ai:rating`, `ai:rating_reasoning`, `ai:skill_version`)
 
-- `eivu:*`: Eivu-specific metadata (e.g., `eivu:artist_name`, `eivu:release_name`)
-- `id3:*`: ID3 tag metadata for audio files (e.g., `id3:album`, `id3:artist`)
-- `acoustid:*`: Acoustid fingerprint data (e.g., `acoustid:fingerprint`)
-- `override:*`: Override values (e.g., `override:name`)
+### Example
 
-## Example Metadata File
-
-Here's a complete example for a comic book:
+A comic book entry:
 
 ```yaml
 name: The Peacemaker #1
 year: 1967
 description: |
-  The fleets of various foreign countries have been fishing near maritime 
+  The fleets of various foreign countries have been fishing near maritime
   borders of other countries and have recently become the target of sabotage.
   U.S. Diplomat Christopher Smith investigates as the Peacemaker.
 info_url: https://dc.fandom.com/wiki/Peacemaker_Vol_1_1
@@ -460,40 +326,60 @@ metadata_list:
   - synopsis: The Commodore has been damaging fishing fleets, but the Peacemaker captures him and destroys his submarine
 ```
 
-## Metadata Extraction Priority
+### Metadata Extraction Priority
 
-When processing files, metadata is merged in the following priority order (highest to lowest):
+When processing a file, metadata is merged in priority order (highest first):
 
 1. Explicit metadata from `.eivu.yml` files
 2. Embedded file metadata (ID3 tags for audio, EXIF for images, etc.)
-3. Metadata extracted from filenames using tag patterns
+3. Metadata extracted from filenames using tag patterns (`((tag))`, `((p performer))`, `((s studio))`, `((y 2024))`, rating glyphs)
 4. Default values
 
-Metadata from higher priority sources will override values from lower priority sources when they conflict.
+Higher-priority sources override lower-priority sources on conflict.
 
-## Using Metadata Files
+### AI Assistant Guide
 
-### During Upload
+For the complete specification used when generating `.eivu.yml` files programmatically (collection vs. single-issue disambiguation, character canonicalisation, franchise hierarchy, award handling, etc.), see [eivu-metadata-ai-guide.md](docs/eivu-metadata-ai-guide.md).
 
-Simply place a `.eivu.yml` file next to your file before uploading:
+## Architecture
 
+At a glance:
+
+- **Commands** — [src/commands/](src/commands/) — one oclif `Command` per file; auto-discovered from `dist/commands/` after build.
+- **Client** — [src/client.ts](src/client.ts) — orchestrates uploads (`uploadFile`, `uploadFolder`, `uploadRemoteFile`, `bulkUpdateCloudFiles`).
+- **CloudFile** — [src/cloud-file.ts](src/cloud-file.ts) — entity wrapping the upload state machine (`reserved` → `transferred` → `completed`).
+- **S3 uploader** — [src/s3-uploader.ts](src/s3-uploader.ts) — multipart upload via `@aws-sdk/lib-storage`.
+- **Metadata extraction** — [src/metadata-extraction.ts](src/metadata-extraction.ts) — multi-source merge (YAML, ID3, EXIF, filename patterns).
+- **AI agents** — [src/ai/](src/ai/) — `BaseAgent` strategy with a working `ClaudeAgent`; `MetadataGenerator` orchestrates batching, validation retry, and post-processing.
+- **Services** — [src/services/api.config.ts](src/services/api.config.ts) — pre-authenticated axios instances for the Eivu REST API.
+- **Env validation** — [src/env.ts](src/env.ts) — fail-fast validation of required environment variables.
+
+Deeper dives:
+
+- [docs/client.md](docs/client.md) — `Client` class internals
+- [docs/cloud-file.md](docs/cloud-file.md) — `CloudFile` entity
+- [docs/metadata-generator.md](docs/metadata-generator.md) — AI metadata pipeline
+- [eivu-metadata-ai-guide.md](docs/eivu-metadata-ai-guide.md) — full `.eivu.yml` spec for AI generation
+
+## Development
+
+Requires Node `>=18.0.0`.
+
+```sh
+git clone https://github.com/eivu/client-typescript.git
+cd client-typescript
+npm install
+npm run build           # tsc -b && tsc-alias
+npm test                # jest (with coverage); posttest runs lint
+npm run lint            # eslint
+npm run lint:fix        # eslint --fix
+./bin/run.js --help     # exercise the CLI from source
 ```
-my-video.mp4
-my-video.mp4.eivu.yml
-```
 
-The metadata will automatically be included when you upload `my-video.mp4`.
+The `music-metadata` audio-fingerprint path uses [Chromaprint](https://acoustid.org/chromaprint)'s `fpcalc` binary. CI installs it via `apt-get install -y libchromaprint-tools`; on macOS use `brew install chromaprint`. CI runs the matrix `lts/-1`, `lts/*`, and `latest` on Ubuntu — see [.github/workflows/test.yml](.github/workflows/test.yml).
 
-### For Bulk Updates
+If you're working in this repo with Claude Code, see [CLAUDE.md](CLAUDE.md) for an in-repo agent guide (architecture map, conventions, gotchas).
 
-Use the bulk update command to update multiple cloud files from a folder of `.eivu.yml` files:
+## License
 
-```bash
-eivu bulk-update --path /path/to/metadata/folder
-```
-
-This is useful for updating metadata on files that have already been uploaded to the cloud.
-
-## AI Assistant Guide
-
-For detailed specifications on generating `.eivu.yml` files programmatically, see [EIVU_METADATA_AI_GUIDE.md](./EIVU_METADATA_AI_GUIDE.md).
+MIT · Issues: <https://github.com/eivu/client-typescript/issues>

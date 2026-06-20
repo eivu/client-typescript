@@ -41,38 +41,15 @@ export function enforceMasterworkTag(yaml: string): string {
   const hasMasterwork = lines.some((l) => l.toLowerCase().includes(masterworkTagLower))
 
   if (ratingValue >= 4 && !hasMasterwork) {
-    // Insertion priority: ai:engine → ai:rating_reasoning → ai:rating → last line
-    let insertIndex = lines.findIndex((l) => /^\s*- ai:engine:/.test(l))
-    // indentSourceIndex tracks the metadata_list field line used for indent derivation.
-    // This must stay separate from insertIndex because when ai:rating_reasoning uses a
-    // block scalar, insertIndex is advanced to the last block body line (deeply indented),
-    // while indentSourceIndex stays on the field line itself (correct sibling indentation).
-    let indentSourceIndex = insertIndex
+    // Insertion priority: ai:engine → ai:rating_reasoning → ai:rating → last line.
+    const anchor = findAiAnchor(lines, ['engine', 'ratingReasoning', 'rating'])
+    const indent = anchor?.indent ?? '  '
 
-    if (insertIndex === -1) {
-      // ai:engine absent — fall back to ai:rating_reasoning (may be a block scalar)
-      const reasoningIndex = lines.findIndex((l) => /^\s*- ai:rating_reasoning:/.test(l))
-      if (reasoningIndex !== -1) {
-        insertIndex = findBlockScalarEnd(lines, reasoningIndex)
-        indentSourceIndex = reasoningIndex // use the field line indent, not the block body end
-      }
-    }
-
-    if (insertIndex === -1) {
-      // Also missing ai:rating_reasoning — fall back to the ai:rating line itself
-      insertIndex = lines.findIndex((l) => /^\s*- ai:rating:/.test(l))
-      indentSourceIndex = insertIndex
-    }
-
-    // Derive indent from the metadata_list field line; default to two spaces
-    const indentMatch = indentSourceIndex === -1 ? null : lines[indentSourceIndex].match(/^(\s*)/)
-    const indent = indentMatch ? indentMatch[1] : '  '
-
-    if (insertIndex === -1) {
+    if (anchor === null) {
       // Last resort: append to end of file
       lines.push(`${indent}- tag: ${MASTERWORK_TAG}`)
     } else {
-      lines.splice(insertIndex + 1, 0, `${indent}- tag: ${MASTERWORK_TAG}`)
+      lines.splice(anchor.insertAfterIndex + 1, 0, `${indent}- tag: ${MASTERWORK_TAG}`)
     }
   } else if (ratingValue < 4 && hasMasterwork) {
     // Remove erroneous Masterwork tag (case-insensitive to catch non-canonical casing)
@@ -137,6 +114,50 @@ function findBlockScalarEnd(lines: string[], fieldIndex: number): number {
   }
 
   return lastBodyIndex
+}
+
+/** The `ai:*` metadata_list fields usable as insertion anchors, with their line matchers. */
+type AiAnchorKey = 'engine' | 'rating' | 'ratingReasoning' | 'skillVersion'
+
+const AI_ANCHOR_PATTERNS: Record<AiAnchorKey, RegExp> = {
+  engine: /^\s*- ai:engine:/,
+  rating: /^\s*- ai:rating:/,
+  ratingReasoning: /^\s*- ai:rating_reasoning:/,
+  skillVersion: /^\s*- ai:skill_version:/,
+}
+
+/**
+ * Cascading search for an `ai:*` insertion anchor inside metadata_list, shared by
+ * the rules that insert a new sibling field AFTER an existing `ai:*` line
+ * (`enforceMasterworkTag`, `injectAiCostFields`).
+ *
+ * Walks `preference` in order; the first present field becomes the anchor. Returns
+ * the index to splice AFTER plus the sibling indent derived from the anchor's field
+ * line. For an `ai:rating_reasoning` anchor written as a block scalar (`|`/`>`),
+ * `insertAfterIndex` is advanced past the block body so the new line lands after the
+ * scalar rather than inside it, while `indent` stays on the field line itself.
+ *
+ * Returns null when none of the preferred fields are present — the caller owns the
+ * end-of-file fallback (the two callers differ slightly in how they append).
+ *
+ * NOTE: `enforceSkillVersion` and `enforceAiEngineAfterSkillVersion` deliberately do
+ * NOT use this helper. The former inserts BEFORE `ai:engine` and derives indent via
+ * `siblingIndent` (different semantics); the latter relocates an existing line rather
+ * than inserting. Forcing either onto this contract would change their output.
+ */
+function findAiAnchor(
+  lines: string[],
+  preference: AiAnchorKey[],
+): null | {indent: string; insertAfterIndex: number} {
+  for (const key of preference) {
+    const idx = lines.findIndex((l) => AI_ANCHOR_PATTERNS[key].test(l))
+    if (idx === -1) continue
+    const indent = lines[idx].match(/^(\s*)/)?.[1] ?? '  '
+    const insertAfterIndex = key === 'ratingReasoning' ? findBlockScalarEnd(lines, idx) : idx
+    return {indent, insertAfterIndex}
+  }
+
+  return null
 }
 
 /**
@@ -297,6 +318,97 @@ export function enforceGenreTitleCase(yaml: string): string {
 }
 
 /**
+ * #35 — `ai:engine` must come AFTER `ai:skill_version`.
+ *
+ * Per the v7.16.4 skill's schema example, the canonical ai:* field order is:
+ *   ai:rating → ai:rating_reasoning → ai:skill_version → ai:engine → (cost fields) → tag:Masterwork
+ *
+ * The model occasionally emits ai:engine BEFORE ai:skill_version. This rule
+ * relocates it so the resulting yml is consistently ordered. No-op if either
+ * field is missing or ai:engine is already after ai:skill_version.
+ */
+export function enforceAiEngineAfterSkillVersion(yaml: string): string {
+  const lines = yaml.split('\n')
+  let engineIdx = -1
+  let skillIdx = -1
+  for (const [i, line] of lines.entries()) {
+    if (/^\s*- ai:engine:/.test(line)) engineIdx = i
+    if (/^\s*- ai:skill_version:/.test(line)) skillIdx = i
+  }
+
+  if (engineIdx === -1 || skillIdx === -1 || engineIdx > skillIdx) return yaml
+
+  // engine appears before skill_version — relocate engine to right after skill_version
+  const engineLine = lines[engineIdx]
+  lines.splice(engineIdx, 1)
+  // After removing engine (which was at engineIdx < skillIdx), skill_version shifts down by 1
+  const newSkillIdx = skillIdx - 1
+  lines.splice(newSkillIdx + 1, 0, engineLine)
+  return lines.join('\n')
+}
+
+/**
+ * Cost fields written into the YAML by `injectAiCostFields`. Computed by
+ * `MetadataGenerator` after the retry loop finishes — `cost` and `tokensIn`/`tokensOut`
+ * reflect the FINAL successful attempt only, while `costAll` is the sum across every
+ * attempt the file went through (including failed retries).
+ */
+export type AiCostFields = {
+  cost: number
+  costAll: number
+  tokensIn: number
+  tokensOut: number
+}
+
+/**
+ * Injects the four ai:* cost/usage fields into metadata_list, mirroring the
+ * `enforceSkillVersion` insertion ladder. Priority order is **engine-first**
+ * because per the v7.16.4 skill's schema example the canonical ordering is
+ *   ai:skill_version → ai:engine → (cost fields) → tag:Masterwork
+ * so cost should land AFTER engine. Falls back to skill_version → reasoning →
+ * rating when engine is missing.
+ *
+ *   1. After `- ai:engine:` if present
+ *   2. Otherwise after `- ai:skill_version:` if present
+ *   3. Otherwise after the `- ai:rating_reasoning:` block (skipping block-scalar body)
+ *   4. Otherwise after `- ai:rating:` if present
+ *   5. Otherwise appended to the file
+ *
+ * Idempotent: if the four fields are already present (from a prior write), they're
+ * removed first so the inject becomes an in-place update. This is important because
+ * `gm:ai --force` re-runs over existing files.
+ *
+ * Cost values are formatted with 5 decimals (`0.01911`); token counts are integers.
+ * When there were no retries, `cost === costAll` and both are emitted for downstream
+ * consistency (no "sometimes present" branching for consumers).
+ */
+export function injectAiCostFields(yaml: string, fields: AiCostFields): string {
+  // Strip any prior occurrences first (idempotency for --force re-runs).
+  const cleaned = yaml
+    .split('\n')
+    .filter((l) => !/^\s*- ai:(cost|cost_all|tokens_in|tokens_out):/.test(l))
+    .join('\n')
+
+  const lines = cleaned.split('\n')
+
+  // Find insertion anchor with cascading fallbacks (engine-first priority).
+  const anchor = findAiAnchor(lines, ['engine', 'skillVersion', 'ratingReasoning', 'rating'])
+  // No ai:* anchors — append at end of file.
+  const insertAfterIdx = anchor?.insertAfterIndex ?? lines.length - 1
+  const indent = anchor?.indent ?? '  '
+
+  const newLines = [
+    `${indent}- ai:cost: ${fields.cost.toFixed(5)}`,
+    `${indent}- ai:cost_all: ${fields.costAll.toFixed(5)}`,
+    `${indent}- ai:tokens_in: ${fields.tokensIn}`,
+    `${indent}- ai:tokens_out: ${fields.tokensOut}`,
+  ]
+
+  lines.splice(insertAfterIdx + 1, 0, ...newLines)
+  return lines.join('\n')
+}
+
+/**
  * Applies all mechanical post-process rules in sequence.
  * Call this from the main postProcess function.
  */
@@ -307,6 +419,7 @@ export function applyMechanicalRules(yaml: string): string {
   result = enforceSkillVersion(result) // #19
   result = zeroPadNameNumbers(result) // #22
   result = enforceGenreTitleCase(result) // #24
+  result = enforceAiEngineAfterSkillVersion(result) // #35 (must run BEFORE Masterwork)
   result = enforceMasterworkTag(result) // #7 (last — depends on clean ai:rating)
   return result
 }

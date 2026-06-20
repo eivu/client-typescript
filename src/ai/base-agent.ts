@@ -1,9 +1,9 @@
-import type {AgentOptions, AgentRequest, AgentResult, BatchProgress} from '@src/ai/types'
+import type {AgentOptions, AgentRequest, AgentResult, BatchProgress, RawAgentUsage} from '@src/ai/types'
 
 import {normalizeAwardTags} from '@src/ai/award-tags'
 import {addMissingParentFranchises} from '@src/ai/franchise-hierarchy'
-import {applyMechanicalRules} from '@src/ai/postprocess-rules'
-import {validateEivuYaml} from '@src/ai/validate-yaml'
+import {type AiCostFields, applyMechanicalRules, injectAiCostFields} from '@src/ai/postprocess-rules'
+import {summarizeIssues, validateEivuYaml} from '@src/ai/validate-yaml'
 import {contentTypeIsAudio, contentTypeIsComic, contentTypeIsVideo, detectMime} from '@src/utils'
 import path from 'node:path'
 
@@ -95,6 +95,28 @@ export function postProcess(yaml: string, model: string): string {
 }
 
 /**
+ * Final-stage post-process applied only on the WRITE path (not at validation time)
+ * because the cost data depends on cumulative usage across retry attempts, which
+ * MetadataGenerator's retry loop only knows after all attempts complete.
+ *
+ * Runs `postProcess` first (re-idempotent — same rules), then layers on the
+ * ai:cost / ai:cost_all / ai:tokens_in / ai:tokens_out fields.
+ *
+ * @param yaml - YAML that has already been through validateAndPostProcess
+ * @param model - Model identifier (used by postProcess re-application)
+ * @param costFields - The cost fields to inject; null skips injection entirely
+ * @returns Final YAML ready to write to disk
+ */
+export function postProcessWithCost(
+  yaml: string,
+  model: string,
+  costFields: AiCostFields | null,
+): string {
+  if (!costFields) return yaml
+  return injectAiCostFields(yaml, costFields)
+}
+
+/**
  * Returns the broad media category for a file based on its extension.
  * @param filePath - Full or relative path to the file
  * @returns 'comic' | 'audio' | 'video' | 'other'
@@ -110,6 +132,153 @@ export function getMediaCategory(filePath: string): 'audio' | 'comic' | 'other' 
 }
 
 /**
+ * One numbered research step in a `buildUserMessage` workflow. `title` becomes
+ * the `### Step N: <title>` heading; `body` is the step's instruction text.
+ */
+type ResearchStep = {
+  body: string
+  title: string
+}
+
+/**
+ * Per-media research steps. These are the steps BEFORE the always-appended final
+ * "Generate the YAML" step (added by `renderWorkflow`). Keeping comics-specific
+ * instructions out of audio/video messages avoids AI confusion and wasted
+ * web-search budget. The user message is NOT cached server-side, so per-category
+ * prose differences are fine — this table is just the single structural source.
+ */
+const RESEARCH_STEPS: Record<ReturnType<typeof getMediaCategory>, ResearchStep[]> = {
+  audio: [
+    {
+      body: 'Parse the filename to extract artist, album/track title, year, and any edition markers.',
+      title: 'Identify the release',
+    },
+    {
+      body: `Search the web for this specific recording. Determine:
+- Is this a single, EP, album, live recording, or compilation?
+- What label released it and in what year?
+- Search: "[artist] [album] [year]" or "[artist] [title] discography"`,
+      title: 'Verify release details',
+    },
+    {
+      body: `List ALL contributors: performers, producers, engineers, featured artists, and session musicians.
+Check AllMusic, Discogs, or the label's official site.`,
+      title: 'Find the full credits',
+    },
+    {
+      body: `Search for reviews and aggregate scores to calibrate the ai:rating.
+Check: Metacritic, AllMusic, Pitchfork, RateYourMusic, Rolling Stone.
+Cite SPECIFIC sources by name in ai:rating_reasoning.`,
+      title: 'Research critical reception for ai:rating',
+    },
+  ],
+  comic: [
+    {
+      body: `Parse the filename to extract title, volume, year, and any creator names.
+- Values like (Digital-TPB), (hybrid), (Zone-Empire), (Marika-Empire) are distribution tags — ignore them.
+- Files ending in .eivu_compressed.cbr/.cbz were processed by https://github.com/eivu/ts-comic-compress — this suffix is not meaningful for identification.
+- The year in parentheses may be the collected edition's publication year, NOT the original series year.`,
+      title: 'Identify the book',
+    },
+    {
+      body: `Search the web for this specific publication. Determine:
+- Is this a single issue, trade paperback, omnibus, or collected edition?
+- What specific issues/content does it collect?
+- What year was it published?
+- Search: "[title] [creator if present] [year] trade paperback" or "[title] collected edition contents"`,
+      title: 'Verify what this book actually is',
+    },
+    {
+      body: `For collected editions spanning multiple issues, list ALL contributors across all collected issues.
+Search: "[title] [year] credits" or check dc.com, marvel.com, comics.org, Grand Comics Database.
+Include pencillers, inkers, colorists, letterers, and cover artists — not just writer and "artist."`,
+      title: 'Find the full creative team',
+    },
+    {
+      body: `Build a comprehensive character list. For DC titles, search:
+"[Title] Vol [#] [Year] fandom wiki appearances characters" or "[Title] [Year] dc fandom characters"
+For Marvel: check marvel.com/comics/series or Marvel Fandom wiki.
+Include villains, supporting cast, teams/organizations, and guest appearances.`,
+      title: 'Research character appearances',
+    },
+    {
+      body: `Search for reviews and reception data to calibrate the ai:rating.
+Check: ComicBookRoundUp aggregate scores, Goodreads ratings, professional reviews (CBR, IGN, AV Club),
+Eisner/Harvey/Hugo nominations and wins from official sources.
+Cite SPECIFIC sources by name in ai:rating_reasoning.`,
+      title: 'Research critical reception for ai:rating',
+    },
+  ],
+  other: [
+    {
+      body: 'Parse the filename to extract title, creator, year, and any edition markers.',
+      title: 'Identify the content',
+    },
+    {
+      body: 'Search the web for this specific work to confirm its identity, release date, and creator(s).',
+      title: 'Verify what this file is',
+    },
+    {
+      body: 'List all relevant contributors. Check authoritative sources appropriate to the content type.',
+      title: 'Find the full credits',
+    },
+    {
+      body: 'Search for reviews and aggregate scores. Cite SPECIFIC sources by name in ai:rating_reasoning.',
+      title: 'Research critical reception for ai:rating',
+    },
+  ],
+  video: [
+    {
+      body: 'Parse the filename to extract title, year, season/episode numbers, and any edition markers.',
+      title: 'Identify the content',
+    },
+    {
+      body: `Search the web for this specific title. Determine:
+- Is this a feature film, TV episode, documentary, short, or special?
+- What year was it released or aired?
+- Search: "[title] [year] film" or "[title] season [#] episode [#]"`,
+      title: 'Verify what this video is',
+    },
+    {
+      body: `List director(s), writers, lead cast, producers, and composer.
+Check IMDb, TMDb, or the studio's official site.`,
+      title: 'Find the full creative team',
+    },
+    {
+      body: `Search for reviews and aggregate scores to calibrate the ai:rating.
+Check: IMDb rating, Rotten Tomatoes/Metacritic scores, prominent reviews (AV Club, Variety, etc.).
+Cite SPECIFIC sources by name in ai:rating_reasoning.`,
+      title: 'Research critical reception for ai:rating',
+    },
+  ],
+}
+
+/**
+ * Renders the shared research-workflow message: a fixed header + the per-media
+ * numbered steps + an always-final "Generate the YAML" step. The single source
+ * of structural truth for every category's user message.
+ */
+function renderWorkflow(filename: string, steps: ResearchStep[]): string {
+  const stepBlocks = steps.map((step, i) => `### Step ${i + 1}: ${step.title}\n${step.body}`).join('\n\n')
+  const finalStep = steps.length + 1
+
+  return `Create an .eivu.yml metadata file for: ${filename}
+
+## Research Workflow — execute these steps IN ORDER before generating any YAML
+
+**IMPORTANT: "Filenames lie." The filename is a hint, not ground truth. You MUST verify
+every detail via web search. Do NOT generate YAML until you have completed research.**
+
+${stepBlocks}
+
+### Step ${finalStep}: Generate the YAML
+Only now — with verified data from Steps 1-${steps.length} — generate the .eivu.yml following all
+runtime skill rules. Run through the FINAL CHECKLIST before outputting.
+
+Output ONLY the raw YAML content. No markdown fences, no commentary.`
+}
+
+/**
  * Builds the user message sent to the agent for a given file path.
  * Returns a media-category-specific research workflow so that comics instructions
  * are not sent for audio/video files (and vice-versa), avoiding AI confusion and
@@ -120,144 +289,7 @@ export function getMediaCategory(filePath: string): 'audio' | 'comic' | 'other' 
  */
 export function buildUserMessage(filePath: string): string {
   const filename = path.basename(filePath)
-  const category = getMediaCategory(filePath)
-
-  if (category === 'comic') {
-    return `Create an .eivu.yml metadata file for: ${filename}
-
-## Research Workflow — execute these steps IN ORDER before generating any YAML
-
-**IMPORTANT: "Filenames lie." The filename is a hint, not ground truth. You MUST verify
-every detail via web search. Do NOT generate YAML until you have completed research.**
-
-### Step 1: Identify the book
-Parse the filename to extract title, volume, year, and any creator names.
-- Values like (Digital-TPB), (hybrid), (Zone-Empire), (Marika-Empire) are distribution tags — ignore them.
-- Files ending in .eivu_compressed.cbr/.cbz were processed by https://github.com/eivu/ts-comic-compress — this suffix is not meaningful for identification.
-- The year in parentheses may be the collected edition's publication year, NOT the original series year.
-
-### Step 2: Verify what this book actually is
-Search the web for this specific publication. Determine:
-- Is this a single issue, trade paperback, omnibus, or collected edition?
-- What specific issues/content does it collect?
-- What year was it published?
-- Search: "[title] [creator if present] [year] trade paperback" or "[title] collected edition contents"
-
-### Step 3: Find the full creative team
-For collected editions spanning multiple issues, list ALL contributors across all collected issues.
-Search: "[title] [year] credits" or check dc.com, marvel.com, comics.org, Grand Comics Database.
-Include pencillers, inkers, colorists, letterers, and cover artists — not just writer and "artist."
-
-### Step 4: Research character appearances
-Build a comprehensive character list. For DC titles, search:
-"[Title] Vol [#] [Year] fandom wiki appearances characters" or "[Title] [Year] dc fandom characters"
-For Marvel: check marvel.com/comics/series or Marvel Fandom wiki.
-Include villains, supporting cast, teams/organizations, and guest appearances.
-
-### Step 5: Research critical reception for ai:rating
-Search for reviews and reception data to calibrate the ai:rating.
-Check: ComicBookRoundUp aggregate scores, Goodreads ratings, professional reviews (CBR, IGN, AV Club),
-Eisner/Harvey/Hugo nominations and wins from official sources.
-Cite SPECIFIC sources by name in ai:rating_reasoning.
-
-### Step 6: Generate the YAML
-Only now — with verified data from Steps 1-5 — generate the .eivu.yml following all
-runtime skill rules. Run through the FINAL CHECKLIST before outputting.
-
-Output ONLY the raw YAML content. No markdown fences, no commentary.`
-  }
-
-  if (category === 'audio') {
-    return `Create an .eivu.yml metadata file for: ${filename}
-
-## Research Workflow — execute these steps IN ORDER before generating any YAML
-
-**IMPORTANT: "Filenames lie." The filename is a hint, not ground truth. You MUST verify
-every detail via web search. Do NOT generate YAML until you have completed research.**
-
-### Step 1: Identify the release
-Parse the filename to extract artist, album/track title, year, and any edition markers.
-
-### Step 2: Verify release details
-Search the web for this specific recording. Determine:
-- Is this a single, EP, album, live recording, or compilation?
-- What label released it and in what year?
-- Search: "[artist] [album] [year]" or "[artist] [title] discography"
-
-### Step 3: Find the full credits
-List ALL contributors: performers, producers, engineers, featured artists, and session musicians.
-Check AllMusic, Discogs, or the label's official site.
-
-### Step 4: Research critical reception for ai:rating
-Search for reviews and aggregate scores to calibrate the ai:rating.
-Check: Metacritic, AllMusic, Pitchfork, RateYourMusic, Rolling Stone.
-Cite SPECIFIC sources by name in ai:rating_reasoning.
-
-### Step 5: Generate the YAML
-Only now — with verified data from Steps 1-4 — generate the .eivu.yml following all
-runtime skill rules. Run through the FINAL CHECKLIST before outputting.
-
-Output ONLY the raw YAML content. No markdown fences, no commentary.`
-  }
-
-  if (category === 'video') {
-    return `Create an .eivu.yml metadata file for: ${filename}
-
-## Research Workflow — execute these steps IN ORDER before generating any YAML
-
-**IMPORTANT: "Filenames lie." The filename is a hint, not ground truth. You MUST verify
-every detail via web search. Do NOT generate YAML until you have completed research.**
-
-### Step 1: Identify the content
-Parse the filename to extract title, year, season/episode numbers, and any edition markers.
-
-### Step 2: Verify what this video is
-Search the web for this specific title. Determine:
-- Is this a feature film, TV episode, documentary, short, or special?
-- What year was it released or aired?
-- Search: "[title] [year] film" or "[title] season [#] episode [#]"
-
-### Step 3: Find the full creative team
-List director(s), writers, lead cast, producers, and composer.
-Check IMDb, TMDb, or the studio's official site.
-
-### Step 4: Research critical reception for ai:rating
-Search for reviews and aggregate scores to calibrate the ai:rating.
-Check: IMDb rating, Rotten Tomatoes/Metacritic scores, prominent reviews (AV Club, Variety, etc.).
-Cite SPECIFIC sources by name in ai:rating_reasoning.
-
-### Step 5: Generate the YAML
-Only now — with verified data from Steps 1-4 — generate the .eivu.yml following all
-runtime skill rules. Run through the FINAL CHECKLIST before outputting.
-
-Output ONLY the raw YAML content. No markdown fences, no commentary.`
-  }
-
-  // Fallback for unrecognised extensions
-  return `Create an .eivu.yml metadata file for: ${filename}
-
-## Research Workflow — execute these steps IN ORDER before generating any YAML
-
-**IMPORTANT: "Filenames lie." The filename is a hint, not ground truth. You MUST verify
-every detail via web search. Do NOT generate YAML until you have completed research.**
-
-### Step 1: Identify the content
-Parse the filename to extract title, creator, year, and any edition markers.
-
-### Step 2: Verify what this file is
-Search the web for this specific work to confirm its identity, release date, and creator(s).
-
-### Step 3: Find the full credits
-List all relevant contributors. Check authoritative sources appropriate to the content type.
-
-### Step 4: Research critical reception for ai:rating
-Search for reviews and aggregate scores. Cite SPECIFIC sources by name in ai:rating_reasoning.
-
-### Step 5: Generate the YAML
-Only now — with verified data from Steps 1-4 — generate the .eivu.yml following all
-runtime skill rules. Run through the FINAL CHECKLIST before outputting.
-
-Output ONLY the raw YAML content. No markdown fences, no commentary.`
+  return renderWorkflow(filename, RESEARCH_STEPS[getMediaCategory(filePath)])
 }
 
 /**
@@ -306,18 +338,34 @@ export abstract class BaseAgent {
    * Returns `success` results (with post-processed YAML) or `validation_error` results
    * (with `rawYaml` preserved so callers can save it for debugging/retry).
    *
-   * @param items - Array of `{customId, rawYaml}` pairs extracted from provider responses
+   * Note: the ai:cost / ai:cost_all / ai:tokens_in / ai:tokens_out fields are NOT
+   * injected here — MetadataGenerator accumulates usage across retries and applies
+   * `postProcessWithCost` immediately before the write.
+   *
+   * @param items - Array of `{customId, rawYaml, usage}` triples extracted from provider responses
    * @returns Array of `AgentResult` — each either `success` or `validation_error`
    */
-  protected validateAndPostProcess(items: Array<{customId: string; rawYaml: string}>): AgentResult[] {
-    return items.map(({customId, rawYaml}) => {
+  protected validateAndPostProcess(
+    items: Array<{customId: string; model?: string; pipeline?: string; rawYaml: string; usage: RawAgentUsage}>,
+  ): AgentResult[] {
+    return items.map(({customId, model, pipeline, rawYaml, usage}) => {
+      const effectiveModel = model ?? this.model
       const validationResult = validateEivuYaml(rawYaml)
-      if ('error' in validationResult) {
-        return {customId, error: validationResult.error, rawYaml, status: 'validation_error' as const}
+      if ('errors' in validationResult) {
+        return {
+          customId,
+          error: summarizeIssues(validationResult.errors),
+          model: effectiveModel,
+          pipeline,
+          rawYaml,
+          status: 'validation_error' as const,
+          usage,
+          validationCodes: validationResult.errors.map((e) => e.code),
+        }
       }
 
-      const yaml = postProcess(validationResult.yaml, this.model)
-      return {customId, status: 'success' as const, yaml}
+      const yaml = postProcess(validationResult.sanitizedYaml, effectiveModel)
+      return {customId, model: effectiveModel, pipeline, status: 'success' as const, usage, yaml}
     })
   }
 }
