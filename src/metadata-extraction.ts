@@ -1,6 +1,7 @@
 import {Client} from '@src/client'
 import {CloudFile} from '@src/cloud-file'
 import {
+  COMPRESSED_INFIX,
   COVERART_AUDIO_PREFIX,
   COVERART_COMIC_PREFIX,
   COVERART_PREFIX,
@@ -14,6 +15,7 @@ import {
   V2_FRAMES,
   YEAR_REGEX,
 } from '@src/constants'
+import logger from '@src/logger'
 import {type Artist} from '@src/types/artist'
 import {type Release} from '@src/types/release'
 import {contentTypeIsAudio, contentTypeIsComic, detectMime, isEivuYmlFile, validateFilePath} from '@src/utils'
@@ -204,7 +206,7 @@ const extractFirstRarEntry = async (pathToFile: string): Promise<string> => {
 
     // Get the first entry after sorting
     const firstEntry = entries[0]
-    const archiveBasename = path.basename(pathToFile, path.extname(pathToFile)).replaceAll('.eivu_compressed', '')
+    const archiveBasename = path.basename(pathToFile, path.extname(pathToFile)).replaceAll(COMPRESSED_INFIX, '')
     const outputPath = path.join(
       TEMP_FOLDER_ROOT,
       `${COVERART_COMIC_PREFIX}-${archiveBasename}-${path.basename(firstEntry.name)}`,
@@ -257,8 +259,7 @@ const extractFirstZipEntry = async (pathToFile: string): Promise<string> => {
 
     // Get the first entry after sorting
     const firstEntry = entries[0]
-    const archiveBasename = path.basename(pathToFile, path.extname(pathToFile)).replaceAll('.eivu_compressed', '')
-    archiveBasename.replaceAll('.eivu_compressed', '')
+    const archiveBasename = path.basename(pathToFile, path.extname(pathToFile)).replaceAll(COMPRESSED_INFIX, '')
     const outputPath = path.join(
       TEMP_FOLDER_ROOT,
       `${COVERART_COMIC_PREFIX}-${archiveBasename}-${path.basename(firstEntry.filename)}`,
@@ -634,7 +635,7 @@ export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<Me
     const coverArt = await Client.uploadFile({metadataList, pathToFile: pathToCoverArt})
     return {'eivu:artwork_md5': coverArt.remoteAttr.md5}
   } catch (error) {
-    console.error('Failed to generate cover art metadata for', pathToFile, error)
+    logger.error({error, pathToFile}, 'Failed to generate cover art metadata')
     return {} as MetadataPair
   } finally {
     // Clean up the temporary file after upload completes or fails
@@ -643,7 +644,7 @@ export const uploadComicMetadataArtwork = async (pathToFile: string): Promise<Me
         await fsp.unlink(pathToCoverArt)
       } catch (unlinkError) {
         // Log but don't throw - file may have already been deleted or not exist
-        console.error('Failed to delete temp cover art file:', pathToCoverArt, unlinkError)
+        logger.error({error: unlinkError, pathToCoverArt}, 'Failed to delete temp cover art file')
       }
     }
   }

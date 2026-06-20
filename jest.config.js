@@ -30,7 +30,9 @@ export default {
   transform: {
     '^.+\\.(ts|js)$': ['ts-jest', {
       tsconfig: {
-        moduleResolution: 'node',
+        // 'bundler' (matching tsconfig.json) lets ts-jest resolve package "exports"
+        // subpaths like '@eivu/ts-comic-compress/processor'; classic 'node' cannot.
+        moduleResolution: 'bundler',
         types: ['jest', 'node', 'jest-extended']
       },
       useESM: true
