@@ -82,6 +82,7 @@ export default class Process extends Command {
 
     this.log(
       `Processed ${result.discovered} file(s): ${result.compressed.length} compressed, ` +
+        (result.reused.length > 0 ? `${result.reused.length} reused, ` : '') +
         `${result.targets.length} target(s)` +
         (result.droppedOnError.length > 0 ? `, ${result.droppedOnError.length} dropped on compress error` : '') +
         '.',

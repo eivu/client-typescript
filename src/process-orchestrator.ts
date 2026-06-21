@@ -55,7 +55,9 @@ export type ProcessResult = {
   droppedOnError: string[]
   /** Per-file metadata results (only when the metadata stage ran). */
   metadataResults?: GenerationResult[]
-  /** The curated list of files handed to the metadata + upload stages. */
+  /** Comics whose already-existing compressed sibling was reused instead of recompressing. */
+  reused: string[]
+  /** The curated (de-duplicated) list of files handed to the metadata + upload stages. */
   targets: string[]
   /** Per-file upload status messages (only when the upload stage ran). */
   uploadMessages?: string[]
@@ -129,7 +131,7 @@ export class ProcessOrchestrator {
       'process: discovered files',
     )
 
-    const {compressed, droppedOnError, targets} = await this.compressStage(files)
+    const {compressed, droppedOnError, reused, targets} = await this.compressStage(files)
 
     let metadataResults: GenerationResult[] | undefined
     if (this.opts.metadata && targets.length > 0) {
@@ -157,11 +159,17 @@ export class ProcessOrchestrator {
     }
 
     logger.info(
-      {compressed: compressed.length, discovered: files.length, dropped: droppedOnError.length, targets: targets.length},
+      {
+        compressed: compressed.length,
+        discovered: files.length,
+        dropped: droppedOnError.length,
+        reused: reused.length,
+        targets: targets.length,
+      },
       'process: complete',
     )
 
-    return {compressed, discovered: files.length, droppedOnError, metadataResults, targets, uploadMessages}
+    return {compressed, discovered: files.length, droppedOnError, metadataResults, reused, targets, uploadMessages}
   }
 
   /**
@@ -204,10 +212,12 @@ export class ProcessOrchestrator {
   private async compressStage(files: string[]): Promise<{
     compressed: string[]
     droppedOnError: string[]
+    reused: string[]
     targets: string[]
   }> {
     const targets: string[] = []
     const compressed: string[] = []
+    const reused: string[] = []
     const droppedOnError: string[] = []
 
     for (const file of files) {
@@ -220,9 +230,15 @@ export class ProcessOrchestrator {
 
       targets.push(outcome.target)
       if (outcome.compressed) compressed.push(file)
+      if (outcome.reused) reused.push(file)
     }
 
-    return {compressed, droppedOnError, targets}
+    // Dedup targets by path (preserving first occurrence). Two inputs can resolve to the SAME target —
+    // e.g. an uncompressed comic reusing its existing compressed sibling, plus that sibling itself —
+    // and the artifact must only be metadata-generated and uploaded once.
+    const dedupedTargets = [...new Set(targets)]
+
+    return {compressed, droppedOnError, reused, targets: dedupedTargets}
   }
 
   /** Recursively collects processable files, skipping yml, junk dirs/extensions, and skip-folders. */
@@ -257,13 +273,29 @@ export class ProcessOrchestrator {
    * @returns `{target}` to upload that path; `{target, compressed: true}` when it was just compressed;
    *          `{target: undefined}` when the file was dropped (compress failed + `onCompressError: 'skip'`).
    */
-  private async resolveTarget(file: string): Promise<{compressed?: boolean; target: string | undefined}> {
+  private async resolveTarget(
+    file: string,
+  ): Promise<{compressed?: boolean; reused?: boolean; target: string | undefined}> {
     // Not a compressible comic → the original is the target.
     if (!this.opts.compress || !isComicArchivePath(file) || isAlreadyCompressed(file)) {
       return {target: file}
     }
 
     const outputPath = compressedOutputPath(file)
+
+    // The compressed sibling already exists (e.g. the folder holds both Foo.cbr and
+    // Foo.eivu_compressed.cbr, or this is a re-run) → reuse it instead of recompressing. This avoids
+    // clobbering an existing compressed file and wasting CPU, and keeps re-runs idempotent. The
+    // redundant original is still archived (unless --keep-originals).
+    if (existsSync(outputPath)) {
+      logger.info({file, outputPath}, 'process: compressed output already exists, reusing it (skipping compression)')
+      if (!this.opts.keepOriginals) {
+        await this.archiveOriginal(file)
+      }
+
+      return {reused: true, target: outputPath}
+    }
+
     let threw = false
     try {
       await this.runCompressor(file)

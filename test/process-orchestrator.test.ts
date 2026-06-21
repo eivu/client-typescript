@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, jest} from '@jest/globals'
-import {writeFileSync} from 'node:fs'
+import {readFileSync, writeFileSync} from 'node:fs'
 import fsp from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -189,6 +189,53 @@ describe('process-orchestrator', () => {
 
     it('throws on a non-existent input path', async () => {
       await expect(makeOrchestrator().run(path.join(tmpDir, 'nope'))).rejects.toThrow('does not exist')
+    })
+  })
+
+  describe('pre-existing compressed sibling', () => {
+    it('reuses the existing compressed file: no recompress, single deduped target, original archived', async () => {
+      touch('Foo.cbr')
+      writeFileSync(path.join(tmpDir, `Foo${COMPRESSED_INFIX}.cbr`), 'ALREADY-COMPRESSED') // user's existing twin
+
+      const orch = makeOrchestrator()
+      const spy = jest.spyOn(orch as unknown as {runCompressor: () => Promise<void>}, 'runCompressor')
+      const result = await orch.run(tmpDir)
+
+      // never recompressed
+      expect(spy).not.toHaveBeenCalled()
+      // both inputs resolve to the same target → deduped to one
+      expect(result.targets).toEqual([path.join(tmpDir, `Foo${COMPRESSED_INFIX}.cbr`)])
+      expect(result.reused).toEqual([path.join(tmpDir, 'Foo.cbr')])
+      expect(result.compressed).toEqual([])
+      // existing compressed file left byte-for-byte untouched (not clobbered)
+      expect(readFileSync(path.join(tmpDir, `Foo${COMPRESSED_INFIX}.cbr`), 'utf8')).toBe('ALREADY-COMPRESSED')
+      // redundant original archived
+      await expect(fsp.access(path.join(tmpDir, 'eivu_originals', 'Foo.cbr'))).resolves.toBeUndefined()
+      await expect(fsp.access(path.join(tmpDir, 'Foo.cbr'))).rejects.toThrow()
+    })
+
+    it('--keep-originals reuses but leaves the original in place', async () => {
+      touch('Foo.cbr')
+      writeFileSync(path.join(tmpDir, `Foo${COMPRESSED_INFIX}.cbr`), 'ALREADY-COMPRESSED')
+
+      const result = await makeOrchestrator({keepOriginals: true}).run(tmpDir)
+
+      expect(result.targets).toEqual([path.join(tmpDir, `Foo${COMPRESSED_INFIX}.cbr`)])
+      expect(result.reused).toEqual([path.join(tmpDir, 'Foo.cbr')])
+      await expect(fsp.access(path.join(tmpDir, 'Foo.cbr'))).resolves.toBeUndefined()
+    })
+
+    it('only generates metadata + uploads the single deduped target', async () => {
+      touch('Foo.cbr')
+      writeFileSync(path.join(tmpDir, `Foo${COMPRESSED_INFIX}.cbr`), 'ALREADY-COMPRESSED')
+      const genSpy = jest.spyOn(MetadataGenerator, 'generate').mockResolvedValue([])
+      const upSpy = jest.spyOn(Client, 'uploadFiles').mockResolvedValue([])
+
+      const compressedPath = path.join(tmpDir, `Foo${COMPRESSED_INFIX}.cbr`)
+      await new FakeOrchestrator({apiKey: 'k', metadata: true, upload: true}).run(tmpDir)
+
+      expect(genSpy.mock.calls[0][0]).toEqual([compressedPath])
+      expect((upSpy.mock.calls[0][0] as {filePaths: string[]}).filePaths).toEqual([compressedPath])
     })
   })
 })
