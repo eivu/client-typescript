@@ -49,11 +49,12 @@ The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call in
 
 ## What this repo is
 
-`eivu-upload-client` — an oclif-based Node 18+ CLI that does three things:
+`eivu-upload-client` — an oclif-based Node 18+ CLI that does three things, plus a `process` command that chains all three end-to-end:
 
 1. **Upload** media files (or a folder, or a remote URL) to an Eivu backend that stores assets in S3-compatible storage (Wasabi by default).
 2. **Compress** comic archives (CBZ/CBR) into smaller CBZs whose pages are WebP, via the external `@eivu/ts-comic-compress` library.
 3. **Generate metadata** for media files using Claude — produces `.eivu.yml` files via the Anthropic Messages Batches API with web search enabled, validates the YAML against a schema, retries on failure, and applies a post-processing rule pipeline.
+4. **Process** — the `eivu process` command ([src/commands/process.ts](src/commands/process.ts)) runs a file or folder through all three stages in order (compress → generate-metadata → upload) via the [ProcessOrchestrator](src/process-orchestrator.ts). Each stage is independently skippable (`--no-compress` / `--no-metadata` / `--no-upload`).
 
 ```
                        ┌──────────────────────────────┐
@@ -73,6 +74,11 @@ The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call in
 
    eivu gm:pp    ────► PostProcessRules ──► normalized YAML to stdout
                        (engine fix, franchise hierarchy, award tags, mechanical rules)
+
+   eivu process  ────► ProcessOrchestrator (compress → metadata → upload)
+                       per file: pick ONE upload target (compressed output OR
+                       original), write sibling *.eivu.yml, then Client.uploadFiles
+                       (originals archived to eivu_originals/; runs under no-sleep)
 ```
 
 ## Commands you'll run
@@ -107,9 +113,11 @@ The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call in
   - [src/commands/generate-metadata/report.ts](src/commands/generate-metadata/report.ts) — summarize a `gm:ai` run from telemetry (alias `gm:report`)
   - [src/commands/generate-metadata/pipeline-list.ts](src/commands/generate-metadata/pipeline-list.ts) — list production pipelines (alias `gm:pipeline-list`)
   - [src/commands/generate-metadata/pipeline-show.ts](src/commands/generate-metadata/pipeline-show.ts) — inspect a pipeline's stage config + fragments (alias `gm:pipeline-show`)
-  - [src/commands/process.ts](src/commands/process.ts) — placeholder, not wired up; do not document or rely on
+  - [src/commands/process.ts](src/commands/process.ts) — full pipeline command (compress → metadata → upload); thin oclif wrapper over `ProcessOrchestrator`. Exports the pure helpers `buildProcessOptions` (flag→options mapping, `secured → nsfw`) and `formatProcessSummary` for unit testing.
   - [src/commands/test/](src/commands/test/) — internal debug commands (upload-file, upload-folder, upload-remote-file, ai)
-- [src/client.ts](src/client.ts) — `Client.uploadFile`, `uploadFolder`, `uploadRemoteFile`, `bulkUpdateCloudFiles`. Owns the upload state machine (reserve → transfer → complete) and skip rules (`SKIPPABLE_EXTENSIONS`, `SKIPPABLE_FOLDERS`).
+- [src/process-orchestrator.ts](src/process-orchestrator.ts) — `ProcessOrchestrator` for `eivu process`. Discovers files, resolves each to a single upload **target** (compressed output when a `.cbr`/`.cbz` compresses successfully, else the original; already-`.eivu_compressed` files and non-comics pass through), runs one batched metadata call, then `Client.uploadFiles`. Archives compressed originals to a sibling `eivu_originals/` (unless `--keep-originals`); reuses an existing `*.eivu_compressed` sibling instead of recompressing. `runCompressor` is a `protected` seam tests override to avoid real image conversion.
+- [src/no-sleep.ts](src/no-sleep.ts) — `withNoSleep(enabled, reason, fn)` / `preventSleep()` keep the machine awake during long `process` runs (spawns `caffeinate` on macOS; no-op elsewhere).
+- [src/client.ts](src/client.ts) — `Client.uploadFile`, `uploadFiles` (curated explicit-list upload — used by `process` so an original and its compressed copy never both upload), `uploadFolder` (globs then delegates to `uploadFiles`), `uploadRemoteFile`, `bulkUpdateCloudFiles`. Owns the upload state machine (reserve → transfer → complete) and skip rules (`SKIPPABLE_EXTENSIONS`, `SKIPPABLE_FOLDERS`, now in [src/constants.ts](src/constants.ts)).
 - [src/cloud-file.ts](src/cloud-file.ts) — `CloudFile` entity (md5, state, content_type, asset, metadata).
 - [src/s3-uploader.ts](src/s3-uploader.ts) — multipart S3 upload via `@aws-sdk/lib-storage`.
 - [src/metadata-extraction.ts](src/metadata-extraction.ts) — multi-source metadata merge: associated `.eivu.yml`, embedded ID3/EXIF, filename pattern parsing (`((tag))`, `((p performer))`, `((s studio))`, `((y year))`, ratings).
@@ -136,7 +144,7 @@ The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call in
 - **Concurrency** is bounded with `p-limit`. Don't fan out unbounded parallel uploads or AI calls.
 - **Logging** uses the shared pino logger from [src/logger.ts](src/logger.ts). Don't `console.log` in `src/`. Inside oclif `Command.run`, `this.log` is fine for direct CLI output.
 - **AI agents** follow a strategy pattern: extend `BaseAgent`, register in the factory in [src/ai/metadata-generator.ts](src/ai/metadata-generator.ts).
-- **Env access** goes through `getEnv()` from [src/env.ts](src/env.ts), never direct `process.env.*` in `src/` (except in `env.ts` itself and the `ANTHROPIC_API_KEY` read in the `gm:ai` command, which is optional).
+- **Env access** goes through `getEnv()` from [src/env.ts](src/env.ts), never direct `process.env.*` in `src/` (except in `env.ts` itself and the optional `ANTHROPIC_API_KEY` read in the `gm:ai` and `process` commands).
 
 ## Adding a new command
 
@@ -156,16 +164,16 @@ The `gm:ai` pipeline is being refactored from one monolithic Claude Opus call in
 
 - **Eivu upload server** — REST API at `${EIVU_UPLOAD_SERVER_HOST}/api/upload/v1/buckets/${EIVU_BUCKET_UUID}/`, auth header `Token ${EIVU_USER_TOKEN}`. See [src/services/api.config.ts](src/services/api.config.ts).
 - **S3-compatible storage** — Wasabi by default, configured via `EIVU_ENDPOINT` / `EIVU_REGION` / `EIVU_ACCESS_KEY_ID` / `EIVU_SECRET_ACCESS_KEY` / `EIVU_BUCKET_NAME`.
-- **Anthropic Claude** — Messages Batches API + web search tool. Per-media model tiering: comics + other on `claude-opus-4-6`, audio + video on `claude-sonnet-4-6` (see [src/ai/pipelines/](src/ai/pipelines/)). Requires `ANTHROPIC_API_KEY` for the `gm:ai` command only.
+- **Anthropic Claude** — Messages Batches API + web search tool. Per-media model tiering: comics + other on `claude-opus-4-6`, audio + video on `claude-sonnet-4-6` (see [src/ai/pipelines/](src/ai/pipelines/)). Requires `ANTHROPIC_API_KEY` for the `gm:ai` command and the metadata stage of `process`.
 
 ## Gotchas
 
 - `oclif readme` auto-generation has been intentionally disabled by removing the `<!-- toc -->` / `<!-- usage -->` / `<!-- commands -->` markers from [README.md](README.md). The README is hand-authored. Don't reintroduce those markers — `oclif readme` will rewrite them on `npm version` / `npm prepack`.
-- [src/commands/process.ts](src/commands/process.ts) is reserved for a forthcoming phase — present on this branch but not yet wired to functionality. Leave it untouched; don't document or rely on it until that phase lands.
+- `eivu process` archives compressed originals into a sibling `eivu_originals/` folder, which is in `SKIPPABLE_FOLDERS` ([src/constants.ts](src/constants.ts)) so a later folder upload/process won't re-ingest them. Don't remove `eivu_originals` from that list.
 - `GeminiAgent` and `OpenAIAgent` in [src/ai/](src/ai/) are skeletons. Only `ClaudeAgent` is functional.
 - Top-level `rating` in `.eivu.yml` is **deprecated**. New AI generation emits `ai:rating` inside `metadata_list` instead.
 - `getEnv()` validates **all** required env vars up front and throws if any are missing — there's no "lazy" path. When writing tests that don't need real env vars, mock the env or use [.env.test](.env.test).
-- The `nsfw` flag on `eivu upload` auto-implies `secured` — see [src/commands/upload.ts](src/commands/upload.ts:23).
+- The `secured` flag auto-implies `nsfw` on both `eivu upload` ([src/commands/upload.ts](src/commands/upload.ts:23)) and `eivu process` (`buildProcessOptions` in [src/commands/process.ts](src/commands/process.ts)) — a secured file is always also marked NSFW. (The reverse is not true: `nsfw` alone does not imply `secured`.)
 - `compress` command's positional arg is named `pathArg`, not `path` (the rest are `path`). If you're scripting against it, that matters.
 - [scripts/eivu-yml-html-report.ts](scripts/eivu-yml-html-report.ts) is a standalone inspection tool (not an oclif command): `npx tsx scripts/eivu-yml-html-report.ts <folder> [--out <path>] [--run-id <uuid>]`. It renders all `.eivu.yml` files under `<folder>` into a single HTML report (one card per file, with validation status). The optional `--run-id` joins in per-file cost/token/web-search totals from [logs/metadata-runs.csv](logs/) for that `gm:ai` run. Reach for this before writing a new yml-inspection script — it already exists.
 

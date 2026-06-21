@@ -1,6 +1,69 @@
 import {Args, Command, Flags} from '@oclif/core'
 import {withNoSleep} from '@src/no-sleep'
-import {type OnCompressError, ProcessOrchestrator} from '@src/process-orchestrator'
+import {
+  type OnCompressError,
+  type ProcessOptions,
+  ProcessOrchestrator,
+  type ProcessResult,
+} from '@src/process-orchestrator'
+
+/** The subset of parsed `process` flags consumed by {@link buildProcessOptions}. */
+export type ProcessFlags = {
+  compress: boolean
+  concurrency: number
+  'keep-awake': boolean
+  'keep-originals': boolean
+  metadata: boolean
+  nsfw?: boolean
+  'on-compress-error': string
+  overwrite: boolean
+  quality: number
+  'raise-exception': boolean
+  recursive: boolean
+  secured?: boolean
+  'target-height'?: number
+  upload: boolean
+}
+
+/**
+ * Maps parsed CLI flags onto {@link ProcessOptions}, renaming the hyphenated flag
+ * names to their camelCase option names and applying the `secured → nsfw` implication
+ * (mirrors `eivu upload`). Pure + exported so it can be unit-tested without oclif.
+ */
+export function buildProcessOptions(flags: ProcessFlags, apiKey?: string): ProcessOptions {
+  const secured = flags.secured ?? false
+  const nsfw = secured || (flags.nsfw ?? false)
+  return {
+    apiKey,
+    compress: flags.compress,
+    concurrency: flags.concurrency,
+    keepOriginals: flags['keep-originals'],
+    metadata: flags.metadata,
+    nsfw,
+    onCompressError: flags['on-compress-error'] as OnCompressError,
+    overwrite: flags.overwrite,
+    quality: flags.quality,
+    raiseException: flags['raise-exception'],
+    recursive: flags.recursive,
+    secured,
+    targetHeight: flags['target-height'],
+    upload: flags.upload,
+  }
+}
+
+/**
+ * Renders the one-line run summary, including the `reused` and `dropped on compress error`
+ * clauses only when those counts are non-zero. Pure + exported for unit testing.
+ */
+export function formatProcessSummary(result: ProcessResult): string {
+  return (
+    `Processed ${result.discovered} file(s): ${result.compressed.length} compressed, ` +
+    (result.reused.length > 0 ? `${result.reused.length} reused, ` : '') +
+    `${result.targets.length} target(s)` +
+    (result.droppedOnError.length > 0 ? `, ${result.droppedOnError.length} dropped on compress error` : '') +
+    '.'
+  )
+}
 
 export default class Process extends Command {
   static override args = {
@@ -57,35 +120,10 @@ export default class Process extends Command {
       return
     }
 
-    // Mirror `upload`: secured implies nsfw.
-    const securedValue = flags.secured ?? false
-    const nsfwValue = securedValue || (flags.nsfw ?? false)
-
-    const orchestrator = new ProcessOrchestrator({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      compress: flags.compress,
-      concurrency: flags.concurrency,
-      keepOriginals: flags['keep-originals'],
-      metadata: flags.metadata,
-      nsfw: nsfwValue,
-      onCompressError: flags['on-compress-error'] as OnCompressError,
-      overwrite: flags.overwrite,
-      quality: flags.quality,
-      raiseException: flags['raise-exception'],
-      recursive: flags.recursive,
-      secured: securedValue,
-      targetHeight: flags['target-height'],
-      upload: flags.upload,
-    })
+    const orchestrator = new ProcessOrchestrator(buildProcessOptions(flags, process.env.ANTHROPIC_API_KEY))
 
     const result = await withNoSleep(flags['keep-awake'], 'eivu process', () => orchestrator.run(inputPath))
 
-    this.log(
-      `Processed ${result.discovered} file(s): ${result.compressed.length} compressed, ` +
-        (result.reused.length > 0 ? `${result.reused.length} reused, ` : '') +
-        `${result.targets.length} target(s)` +
-        (result.droppedOnError.length > 0 ? `, ${result.droppedOnError.length} dropped on compress error` : '') +
-        '.',
-    )
+    this.log(formatProcessSummary(result))
   }
 }
