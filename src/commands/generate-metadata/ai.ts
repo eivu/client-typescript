@@ -1,5 +1,6 @@
 import {Args, Command, Flags} from '@oclif/core'
 import {MetadataGenerator} from '@src/ai/metadata-generator'
+import {withNoSleep} from '@src/no-sleep'
 import {isEivuYmlFile} from '@src/utils'
 import * as fs from 'node:fs'
 import path from 'node:path'
@@ -27,6 +28,11 @@ export default class GenerateMetadataAi extends Command {
   static override flags = {
     // flag with no value (-f, --force)
     force: Flags.boolean({char: 'f'}),
+    'keep-awake': Flags.boolean({
+      allowNo: true,
+      default: true,
+      description: 'prevent the system from sleeping during metadata generation',
+    }),
     // flag with a value (-n, --name=VALUE)
     name: Flags.string({char: 'n', description: 'base name for the output .eivu.yml file (single-file mode only)'}),
     recursive: Flags.boolean({char: 'r', description: 'when path is a folder, include files in all subdirectories'}),
@@ -88,11 +94,13 @@ export default class GenerateMetadataAi extends Command {
       this.log('Warning: --name is ignored when processing multiple files.')
     }
 
-    await MetadataGenerator.generate(pathsArray, {
-      agent: 'claude',
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      outputBaseName: pathsArray.length === 1 ? outputBaseName : undefined,
-      overwrite,
-    })
+    await withNoSleep(flags['keep-awake'], 'eivu gm:ai', () =>
+      MetadataGenerator.generate(pathsArray, {
+        agent: 'claude',
+        apiKey: process.env.ANTHROPIC_API_KEY,
+        outputBaseName: pathsArray.length === 1 ? outputBaseName : undefined,
+        overwrite,
+      }),
+    )
   }
 }

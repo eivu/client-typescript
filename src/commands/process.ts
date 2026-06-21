@@ -1,4 +1,5 @@
 import {Args, Command, Flags} from '@oclif/core'
+import {withNoSleep} from '@src/no-sleep'
 import {type OnCompressError, ProcessOrchestrator} from '@src/process-orchestrator'
 
 export default class Process extends Command {
@@ -15,6 +16,11 @@ export default class Process extends Command {
   static override flags = {
     compress: Flags.boolean({allowNo: true, default: true, description: 'compress eligible .cbr/.cbz files'}),
     concurrency: Flags.integer({default: 3, description: 'max concurrent uploads'}),
+    'keep-awake': Flags.boolean({
+      allowNo: true,
+      default: true,
+      description: 'prevent the system from sleeping during the run',
+    }),
     'keep-originals': Flags.boolean({
       default: false,
       description: 'leave originals in place instead of moving them to eivu_originals/',
@@ -72,7 +78,7 @@ export default class Process extends Command {
       upload: flags.upload,
     })
 
-    const result = await orchestrator.run(inputPath)
+    const result = await withNoSleep(flags['keep-awake'], 'eivu process', () => orchestrator.run(inputPath))
 
     this.log(
       `Processed ${result.discovered} file(s): ${result.compressed.length} compressed, ` +
