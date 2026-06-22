@@ -5,10 +5,11 @@ import {Client} from '@src/client'
 import {isComicArchivePath} from '@src/comic-archive-path'
 import {COMPRESSED_INFIX, SKIPPABLE_EXTENSIONS, SKIPPABLE_FOLDERS} from '@src/constants'
 import logger from '@src/logger'
-import {isEivuYmlFile} from '@src/utils'
+import {generateMd5, isEivuYmlFile} from '@src/utils'
 import fsExtra from 'fs-extra'
 import {existsSync, readdirSync, statSync} from 'node:fs'
 import path from 'node:path'
+import pLimit from 'p-limit'
 
 /** What to do with a comic that fails the compression stage. */
 export type OnCompressError = 'skip' | 'upload-original'
@@ -21,6 +22,8 @@ export type ProcessOptions = {
   compress?: boolean
   /** Max concurrent uploads in the upload stage (default 3). */
   concurrency?: number
+  /** De-duplicate by content md5 so identical files are compressed/metadata'd/uploaded once (default true). */
+  dedup?: boolean
   /** Skip moving the original into `eivu_originals/` after a successful compress (default false). */
   keepOriginals?: boolean
   /** Run the metadata stage (default true). */
@@ -53,6 +56,8 @@ export type ProcessResult = {
   discovered: number
   /** Files dropped because they failed to compress and `onCompressError` is 'skip'. */
   droppedOnError: string[]
+  /** Byte-identical duplicate copies archived (to their dir's `eivu_originals/`) by the md5 dedup. */
+  duplicatesArchived: string[]
   /** Per-file metadata results (only when the metadata stage ran). */
   metadataResults?: GenerationResult[]
   /** Comics whose already-existing compressed sibling was reused instead of recompressing. */
@@ -100,6 +105,7 @@ export class ProcessOrchestrator {
       apiKey: options.apiKey,
       compress: options.compress ?? true,
       concurrency: options.concurrency ?? 3,
+      dedup: options.dedup ?? true,
       keepOriginals: options.keepOriginals ?? false,
       metadata: options.metadata ?? true,
       nsfw: options.nsfw ?? false,
@@ -131,12 +137,36 @@ export class ProcessOrchestrator {
       'process: discovered files',
     )
 
-    const {compressed, droppedOnError, reused, targets} = await this.compressStage(files)
+    const duplicatesArchived: string[] = []
+    // md5 cache shared between Level A (discovered files) and Level B (targets), so passthrough targets
+    // that were already hashed in Level A are not re-hashed.
+    const md5ByPath = new Map<string, string>()
+
+    // Level A — dedup byte-identical source files before compression (archive the redundant copies).
+    let workset = files
+    if (this.opts.dedup && files.length > 1) {
+      const {duplicates, unique} = await this.dedupByMd5(files, md5ByPath)
+      await Promise.all(duplicates.map((dup) => this.archiveOriginal(dup)))
+      duplicatesArchived.push(...duplicates)
+      workset = unique
+    }
+
+    const {compressed, droppedOnError, reused, targets} = await this.compressStage(workset)
+
+    // Level B — dedup targets by md5 (unifies cross-dir original↔compressed twins, whose compressed
+    // content shares an md5). Guarantees one metadata call + one upload per unique uploaded artifact.
+    let uniqueTargets = targets
+    if (this.opts.dedup && targets.length > 1) {
+      const {duplicates, unique} = await this.dedupByMd5(targets, md5ByPath)
+      await Promise.all(duplicates.map((dup) => this.archiveOriginal(dup)))
+      duplicatesArchived.push(...duplicates)
+      uniqueTargets = unique
+    }
 
     let metadataResults: GenerationResult[] | undefined
-    if (this.opts.metadata && targets.length > 0) {
-      logger.info({count: targets.length}, 'process: generating metadata')
-      metadataResults = await MetadataGenerator.generate(targets, {
+    if (this.opts.metadata && uniqueTargets.length > 0) {
+      logger.info({count: uniqueTargets.length}, 'process: generating metadata')
+      metadataResults = await MetadataGenerator.generate(uniqueTargets, {
         agent: 'claude',
         apiKey: this.opts.apiKey,
         overwrite: this.opts.overwrite,
@@ -146,11 +176,11 @@ export class ProcessOrchestrator {
     }
 
     let uploadMessages: string[] | undefined
-    if (this.opts.upload && targets.length > 0) {
-      logger.info({count: targets.length}, 'process: uploading')
+    if (this.opts.upload && uniqueTargets.length > 0) {
+      logger.info({count: uniqueTargets.length}, 'process: uploading')
       uploadMessages = await Client.uploadFiles({
         concurrency: this.opts.concurrency,
-        filePaths: targets,
+        filePaths: uniqueTargets,
         nsfw: this.opts.nsfw,
         secured: this.opts.secured,
       })
@@ -163,13 +193,23 @@ export class ProcessOrchestrator {
         compressed: compressed.length,
         discovered: files.length,
         dropped: droppedOnError.length,
+        duplicates: duplicatesArchived.length,
         reused: reused.length,
-        targets: targets.length,
+        targets: uniqueTargets.length,
       },
       'process: complete',
     )
 
-    return {compressed, discovered: files.length, droppedOnError, metadataResults, reused, targets, uploadMessages}
+    return {
+      compressed,
+      discovered: files.length,
+      droppedOnError,
+      duplicatesArchived,
+      metadataResults,
+      reused,
+      targets: uniqueTargets,
+      uploadMessages,
+    }
   }
 
   /**
@@ -239,6 +279,57 @@ export class ProcessOrchestrator {
     const dedupedTargets = [...new Set(targets)]
 
     return {compressed, droppedOnError, reused, targets: dedupedTargets}
+  }
+
+  /**
+   * De-duplicates a list of paths by **content md5**, preserving the first occurrence (over a sorted
+   * order, so "first wins" is deterministic across runs). Hashing is bounded by `p-limit` and reuses
+   * `md5Cache` (populated in place) so a path is never hashed twice. A path whose md5 can't be computed
+   * (e.g. unreadable) is treated as unique — never silently dropped.
+   * @returns `unique` (canonical paths, in sorted order) and `duplicates` (redundant byte-identical copies).
+   */
+  private async dedupByMd5(
+    paths: string[],
+    md5Cache: Map<string, string>,
+  ): Promise<{duplicates: string[]; unique: string[]}> {
+    const sorted = [...paths].sort()
+    const limit = pLimit(this.opts.concurrency)
+    await Promise.all(
+      sorted.map((p) =>
+        limit(async () => {
+          if (md5Cache.has(p)) return
+          try {
+            md5Cache.set(p, await generateMd5(p))
+          } catch (error) {
+            logger.warn(
+              {error: error instanceof Error ? error.message : String(error), file: p},
+              'process: md5 hashing failed, treating file as unique',
+            )
+          }
+        }),
+      ),
+    )
+
+    const seen = new Map<string, string>() // md5 → first path
+    const unique: string[] = []
+    const duplicates: string[] = []
+    for (const p of sorted) {
+      const md5 = md5Cache.get(p)
+      if (md5 === undefined) {
+        unique.push(p) // hash failed → keep it rather than risk dropping a distinct file
+        continue
+      }
+
+      if (seen.has(md5)) {
+        logger.info({canonical: seen.get(md5), duplicate: p, md5}, 'process: duplicate content, archiving copy')
+        duplicates.push(p)
+      } else {
+        seen.set(md5, p)
+        unique.push(p)
+      }
+    }
+
+    return {duplicates, unique}
   }
 
   /** Recursively collects processable files, skipping yml, junk dirs/extensions, and skip-folders. */

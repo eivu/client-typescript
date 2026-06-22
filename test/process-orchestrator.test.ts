@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, jest} from '@jest/globals'
-import {readFileSync, writeFileSync} from 'node:fs'
+import {mkdirSync, readFileSync, writeFileSync} from 'node:fs'
 import fsp from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -28,7 +28,10 @@ class FakeOrchestrator extends ProcessOrchestrator {
     const behavior = this.behaviors.get(path.basename(file)) ?? this.defaultBehavior
     if (behavior === 'throw') throw new Error('ImageSkippedError (simulated)')
     if (behavior === 'fail-silent') return // produces no output file
-    writeFileSync(compressedOutputPath(file), 'compressed-bytes') // success
+    // Deterministic content keyed on the source name: two different comics produce different compressed
+    // bytes (so they don't accidentally md5-collide), while the SAME comic always yields the same bytes
+    // (so a cross-dir twin can be pre-placed with identical content to exercise Level B dedup).
+    writeFileSync(compressedOutputPath(file), `compressed:${path.basename(file)}`) // success
   }
 }
 
@@ -49,8 +52,17 @@ describe('process-orchestrator', () => {
     await fsp.rm(tmpDir, {force: true, recursive: true})
   })
 
-  const touch = (name: string, content = 'x'): string => {
+  // Default content = name, so distinct names get distinct md5s (md5 dedup is on by default).
+  const touch = (name: string, content = name): string => {
     const p = path.join(tmpDir, name)
+    writeFileSync(p, content)
+    return p
+  }
+
+  // Create a file at a relative subpath under tmpDir (making intermediate dirs).
+  const touchAt = (rel: string, content: string): string => {
+    const p = path.join(tmpDir, rel)
+    mkdirSync(path.dirname(p), {recursive: true})
     writeFileSync(p, content)
     return p
   }
@@ -236,6 +248,76 @@ describe('process-orchestrator', () => {
 
       expect(genSpy.mock.calls[0][0]).toEqual([compressedPath])
       expect((upSpy.mock.calls[0][0] as {filePaths: string[]}).filePaths).toEqual([compressedPath])
+    })
+  })
+
+  describe('cross-directory md5 dedup', () => {
+    it('identical originals in two dirs → compress once, archive the duplicate copy', async () => {
+      touchAt('a/Foo.cbr', 'SAME-BYTES')
+      touchAt('c/Foo.cbr', 'SAME-BYTES')
+
+      const orch = makeOrchestrator()
+      const spy = jest.spyOn(orch as unknown as {runCompressor: () => Promise<void>}, 'runCompressor')
+      const result = await orch.run(tmpDir)
+
+      expect(spy).toHaveBeenCalledTimes(1) // only the canonical (sorted-first /a) is compressed
+      expect(result.targets).toEqual([path.join(tmpDir, 'a', `Foo${COMPRESSED_INFIX}.cbr`)])
+      expect(result.duplicatesArchived).toEqual([path.join(tmpDir, 'c', 'Foo.cbr')])
+      // duplicate archived in its own dir
+      await expect(fsp.access(path.join(tmpDir, 'c', 'eivu_originals', 'Foo.cbr'))).resolves.toBeUndefined()
+      // canonical's original archived too (normal compress flow)
+      await expect(fsp.access(path.join(tmpDir, 'a', 'eivu_originals', 'Foo.cbr'))).resolves.toBeUndefined()
+    })
+
+    it('identical compressed files in two dirs → one target, duplicate archived, no compression', async () => {
+      touchAt(`a/Foo${COMPRESSED_INFIX}.cbr`, 'SAME-COMPRESSED')
+      touchAt(`c/Foo${COMPRESSED_INFIX}.cbr`, 'SAME-COMPRESSED')
+
+      const orch = makeOrchestrator()
+      const spy = jest.spyOn(orch as unknown as {runCompressor: () => Promise<void>}, 'runCompressor')
+      const result = await orch.run(tmpDir)
+
+      expect(spy).not.toHaveBeenCalled()
+      expect(result.targets).toEqual([path.join(tmpDir, 'a', `Foo${COMPRESSED_INFIX}.cbr`)])
+      expect(result.duplicatesArchived).toEqual([path.join(tmpDir, 'c', `Foo${COMPRESSED_INFIX}.cbr`)])
+      await expect(
+        fsp.access(path.join(tmpDir, 'c', 'eivu_originals', `Foo${COMPRESSED_INFIX}.cbr`)),
+      ).resolves.toBeUndefined()
+    })
+
+    it('original + its compressed twin in different dirs → Level B unifies them to one target', async () => {
+      touchAt('a/Foo.cbr', 'ORIGINAL-BYTES')
+      // pre-place the twin with the exact bytes the fake compressor will produce for a/Foo.cbr
+      touchAt(`b/Foo${COMPRESSED_INFIX}.cbr`, 'compressed:Foo.cbr')
+
+      const genSpy = jest.spyOn(MetadataGenerator, 'generate').mockResolvedValue([])
+      const upSpy = jest.spyOn(Client, 'uploadFiles').mockResolvedValue([])
+      const result = await new FakeOrchestrator({apiKey: 'k', metadata: true, upload: true}).run(tmpDir)
+
+      const canonical = path.join(tmpDir, 'a', `Foo${COMPRESSED_INFIX}.cbr`)
+      expect(result.targets).toEqual([canonical]) // both compressed-contents share an md5 → one target
+      expect(result.duplicatesArchived).toEqual([path.join(tmpDir, 'b', `Foo${COMPRESSED_INFIX}.cbr`)])
+      expect(genSpy.mock.calls[0][0]).toEqual([canonical])
+      expect((upSpy.mock.calls[0][0] as {filePaths: string[]}).filePaths).toEqual([canonical])
+      // the dropped twin archived in its dir
+      await expect(
+        fsp.access(path.join(tmpDir, 'b', 'eivu_originals', `Foo${COMPRESSED_INFIX}.cbr`)),
+      ).resolves.toBeUndefined()
+    })
+
+    it('--no-dedup keeps cross-dir duplicates as separate targets', async () => {
+      touchAt('a/Foo.cbr', 'SAME-BYTES')
+      touchAt('c/Foo.cbr', 'SAME-BYTES')
+
+      const result = await makeOrchestrator({dedup: false}).run(tmpDir)
+
+      expect(result.targets.sort()).toEqual(
+        [
+          path.join(tmpDir, 'a', `Foo${COMPRESSED_INFIX}.cbr`),
+          path.join(tmpDir, 'c', `Foo${COMPRESSED_INFIX}.cbr`),
+        ].sort(),
+      )
+      expect(result.duplicatesArchived).toEqual([])
     })
   })
 })

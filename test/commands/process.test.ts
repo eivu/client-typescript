@@ -8,6 +8,7 @@ import {buildProcessOptions, formatProcessSummary, type ProcessFlags} from '@src
 const baseFlags: ProcessFlags = {
   compress: true,
   concurrency: 3,
+  dedup: true,
   'keep-awake': true,
   'keep-originals': false,
   metadata: true,
@@ -77,10 +78,22 @@ describe('eivu process (command helpers)', () => {
       expect(opts.metadata).toBe(false)
       expect(opts.upload).toBe(false)
     })
+
+    it('passes through the dedup flag', () => {
+      expect(buildProcessOptions(baseFlags).dedup).toBe(true)
+      expect(buildProcessOptions({...baseFlags, dedup: false}).dedup).toBe(false)
+    })
   })
 
   describe('formatProcessSummary', () => {
-    const empty: ProcessResult = {compressed: [], discovered: 0, droppedOnError: [], reused: [], targets: []}
+    const empty: ProcessResult = {
+      compressed: [],
+      discovered: 0,
+      droppedOnError: [],
+      duplicatesArchived: [],
+      reused: [],
+      targets: [],
+    }
 
     it('summarizes discovered / compressed / target counts', () => {
       const s = formatProcessSummary({...empty, compressed: ['a', 'b'], discovered: 3, targets: ['a', 'b', 'c']})
@@ -97,6 +110,12 @@ describe('eivu process (command helpers)', () => {
       const dropped = formatProcessSummary({...empty, discovered: 2, droppedOnError: ['bad.cbz'], targets: ['ok.cbz']})
       expect(dropped).toContain('1 dropped on compress error')
       expect(formatProcessSummary({...empty, discovered: 1, targets: ['y']})).not.toContain('dropped')
+    })
+
+    it('includes the duplicates-archived clause only when non-empty', () => {
+      const dup = formatProcessSummary({...empty, discovered: 2, duplicatesArchived: ['dup.cbz'], targets: ['ok.cbz']})
+      expect(dup).toContain('1 duplicate(s) archived')
+      expect(formatProcessSummary({...empty, discovered: 1, targets: ['y']})).not.toContain('duplicate')
     })
   })
 })

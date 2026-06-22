@@ -11,6 +11,7 @@ import {
 export type ProcessFlags = {
   compress: boolean
   concurrency: number
+  dedup: boolean
   'keep-awake': boolean
   'keep-originals': boolean
   metadata: boolean
@@ -37,6 +38,7 @@ export function buildProcessOptions(flags: ProcessFlags, apiKey?: string): Proce
     apiKey,
     compress: flags.compress,
     concurrency: flags.concurrency,
+    dedup: flags.dedup,
     keepOriginals: flags['keep-originals'],
     metadata: flags.metadata,
     nsfw,
@@ -60,6 +62,7 @@ export function formatProcessSummary(result: ProcessResult): string {
     `Processed ${result.discovered} file(s): ${result.compressed.length} compressed, ` +
     (result.reused.length > 0 ? `${result.reused.length} reused, ` : '') +
     `${result.targets.length} target(s)` +
+    (result.duplicatesArchived.length > 0 ? `, ${result.duplicatesArchived.length} duplicate(s) archived` : '') +
     (result.droppedOnError.length > 0 ? `, ${result.droppedOnError.length} dropped on compress error` : '') +
     '.'
   )
@@ -79,6 +82,11 @@ export default class Process extends Command {
   static override flags = {
     compress: Flags.boolean({allowNo: true, default: true, description: 'compress eligible .cbr/.cbz files'}),
     concurrency: Flags.integer({default: 3, description: 'max concurrent uploads'}),
+    dedup: Flags.boolean({
+      allowNo: true,
+      default: true,
+      description: 'de-duplicate identical files by content md5 (compress/metadata/upload each once)',
+    }),
     'keep-awake': Flags.boolean({
       allowNo: true,
       default: true,
