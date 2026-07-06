@@ -22,6 +22,7 @@ export type ProcessFlags = {
   'raise-exception': boolean
   recursive: boolean
   secured?: boolean
+  sync: boolean
   'target-height'?: number
   upload: boolean
 }
@@ -48,6 +49,7 @@ export function buildProcessOptions(flags: ProcessFlags, apiKey?: string): Proce
     raiseException: flags['raise-exception'],
     recursive: flags.recursive,
     secured,
+    sync: flags.sync,
     targetHeight: flags['target-height'],
     upload: flags.upload,
   }
@@ -112,6 +114,12 @@ export default class Process extends Command {
     }),
     recursive: Flags.boolean({allowNo: true, char: 'r', default: true, description: 'recurse into subfolders'}),
     secured: Flags.boolean({char: 's', description: 'mark uploaded files as secured (implies nsfw)'}),
+    sync: Flags.boolean({
+      allowNo: true,
+      default: true,
+      description:
+        'query Claude synchronously (blocking, faster) for metadata; --no-sync uses the cheaper delayed Batches API',
+    }),
     'target-height': Flags.integer({
       char: 't',
       description: 'target image height for compression (maintains aspect ratio; no resize if unset)',

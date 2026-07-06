@@ -36,6 +36,11 @@ export default class GenerateMetadataAi extends Command {
     // flag with a value (-n, --name=VALUE)
     name: Flags.string({char: 'n', description: 'base name for the output .eivu.yml file (single-file mode only)'}),
     recursive: Flags.boolean({char: 'r', description: 'when path is a folder, include files in all subdirectories'}),
+    sync: Flags.boolean({
+      allowNo: true,
+      default: true,
+      description: 'query Claude synchronously (blocking, faster); --no-sync uses the cheaper delayed Batches API',
+    }),
   }
 
   public async run(): Promise<void> {
@@ -100,6 +105,7 @@ export default class GenerateMetadataAi extends Command {
         apiKey: process.env.ANTHROPIC_API_KEY,
         outputBaseName: pathsArray.length === 1 ? outputBaseName : undefined,
         overwrite,
+        sync: flags.sync,
       }),
     )
   }

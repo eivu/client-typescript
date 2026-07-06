@@ -65,6 +65,11 @@ export class MetadataGenerator {
   private agent: BaseAgent
   /** When set, overrides the base name of the output .eivu.yml file. */
   private readonly outputBaseName: string | undefined
+  /**
+   * Mirrors the agent's sync mode so cost computation drops the 50% Batches API
+   * discount for synchronous (full-rate) calls. Defaults to false (batch).
+   */
+  private readonly sync: boolean
 
   /**
    * Creates a MetadataGenerator with the given options.
@@ -74,6 +79,7 @@ export class MetadataGenerator {
     const agentType = options.agent ?? 'claude'
     this.overwrite = options.overwrite ?? false
     this.outputBaseName = options.outputBaseName
+    this.sync = options.sync ?? false
     this.agent = createAgent(agentType, options)
   }
 
@@ -188,7 +194,7 @@ export class MetadataGenerator {
         if (!result.usage) continue
         const acc = costByCustomId.get(result.customId) ?? {finalCostUsd: 0, finalUsage: null, totalCostUsd: 0}
         const modelForCost = result.model ?? this.agent.model
-        const thisCostUsd = computeCost(modelForCost, result.usage).totalUsd
+        const thisCostUsd = computeCost(modelForCost, result.usage, {batch: !this.sync}).totalUsd
         acc.totalCostUsd += thisCostUsd
         if (result.status === 'success') {
           acc.finalCostUsd = thisCostUsd
@@ -335,7 +341,7 @@ export class MetadataGenerator {
       const mapping = idToFilePath.get(result.customId)
       const usage: RawAgentUsage = result.usage ?? zeroUsage()
       const model = result.model ?? this.agent.model
-      const costUsd = result.usage ? computeCost(model, result.usage).totalUsd : 0
+      const costUsd = result.usage ? computeCost(model, result.usage, {batch: !this.sync}).totalUsd : 0
 
       rows.push({
         attempt,

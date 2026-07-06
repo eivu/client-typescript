@@ -17,6 +17,7 @@ const baseFlags: ProcessFlags = {
   quality: 75,
   'raise-exception': true,
   recursive: true,
+  sync: true,
   upload: true,
 }
 
@@ -82,6 +83,11 @@ describe('eivu process (command helpers)', () => {
     it('passes through the dedup flag', () => {
       expect(buildProcessOptions(baseFlags).dedup).toBe(true)
       expect(buildProcessOptions({...baseFlags, dedup: false}).dedup).toBe(false)
+    })
+
+    it('passes through the sync flag (default on, --no-sync off)', () => {
+      expect(buildProcessOptions(baseFlags).sync).toBe(true)
+      expect(buildProcessOptions({...baseFlags, sync: false}).sync).toBe(false)
     })
   })
 

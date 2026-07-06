@@ -191,7 +191,7 @@ Aliases: `gm:ai`
 Generate `.eivu.yml` metadata files for one file or a folder of media using Claude. Requires `ANTHROPIC_API_KEY`.
 
 ```
-eivu gm:ai <path> [-f] [-r] [-n <name>]
+eivu gm:ai <path> [-f] [-r] [-n <name>] [--no-sync]
 ```
 
 | Flag | Description |
@@ -199,11 +199,12 @@ eivu gm:ai <path> [-f] [-r] [-n <name>]
 | `-f, --force` | Overwrite existing `.eivu.yml` files. By default, files that already have a sibling `.eivu.yml` are skipped. |
 | `-r, --recursive` | When `<path>` is a folder, include files in all subdirectories. |
 | `-n, --name <value>` | Base name for the output `.eivu.yml` file. Single-file mode only — ignored if multiple files are processed. |
+| `--[no-]sync` | Query Claude synchronously (default). Sync returns in seconds; `--no-sync` uses the ~50% cheaper but delayed Batches API. |
 
 Behavior:
 
 - Recursively collects files in `<path>`, skipping `.git`, `.idea`, `.vscode`, `.env*`, `.DS_Store`, etc.
-- Submits prompts in batches via the [Anthropic Messages Batches API](https://docs.claude.com/en/api/messages-batches), with the web search tool enabled so Claude can verify titles, authors, characters, and franchises against the open web.
+- By default (`--sync`), sends one blocking, streamed request per file via the Messages API so a run finishes in seconds. With `--no-sync`, submits prompts in bulk via the [Anthropic Messages Batches API](https://docs.claude.com/en/api/messages-batches) — cheaper (batch discount) but queued and delayed. Either way the web search tool is enabled so Claude can verify titles, authors, characters, and franchises against the open web.
 - Validates each generated YAML against the schema and **retries up to 3 times** when validation fails. Files that still fail after retries are appended to `logs/failure.csv`.
 - Successful results are written next to the original file as `<filename>.eivu.yml`, and run through a post-processing rule pipeline (engine fix, parent-franchise injection, award-tag normalisation, mechanical rules).
 
@@ -246,7 +247,7 @@ Run a file or folder through the **full pipeline** in one command: compress → 
 
 ```
 eivu process <path> [-r] [-q <0-100>] [-t <px>] [-n] [-s] [-f]
-                    [--no-compress] [--no-metadata] [--no-upload]
+                    [--no-compress] [--no-metadata] [--no-upload] [--no-sync]
                     [--keep-originals] [--on-compress-error <policy>]
                     [--no-keep-awake] [--concurrency <n>] [--no-raise-exception]
 ```
@@ -255,6 +256,7 @@ eivu process <path> [-r] [-q <0-100>] [-t <px>] [-n] [-s] [-f]
 |---|---|---|
 | `--[no-]compress` | `true` | Compress eligible `.cbr`/`.cbz` files. |
 | `--[no-]metadata` | `true` | Generate a sibling `.eivu.yml` for each upload target (needs `ANTHROPIC_API_KEY`). |
+| `--[no-]sync` | `true` | Query Claude synchronously for metadata (faster). `--no-sync` uses the ~50% cheaper but delayed Batches API. |
 | `--[no-]upload` | `true` | Upload the resulting files. |
 | `-r, --[no-]recursive` | `true` | Recurse into subfolders when `<path>` is a folder. |
 | `-q, --quality <0-100>` | `75` | WebP quality for compression. |

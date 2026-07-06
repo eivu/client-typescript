@@ -74,12 +74,16 @@ function rateFor(model: string): {input: number; output: number} {
 }
 
 /**
- * Computes USD cost for one batch API call given the model and usage.
+ * Computes USD cost for one API call given the model and usage.
  * Returns billing-adjusted values via `EMPIRICAL_BILLING_FACTOR`. For raw
  * posted-rate cost (debugging), see `computeRawCost`.
+ *
+ * `opts.batch` defaults to true (the async Batches API path, which gets the 50%
+ * discount). Pass `{batch: false}` for synchronous Messages API calls, which
+ * bill at full rate.
  */
-export function computeCost(model: string, usage: RawAgentUsage): Cost {
-  const raw = computeRawCost(model, usage)
+export function computeCost(model: string, usage: RawAgentUsage, opts?: {batch?: boolean}): Cost {
+  const raw = computeRawCost(model, usage, opts)
   return {
     cachedInputUsd: raw.cachedInputUsd * EMPIRICAL_BILLING_FACTOR,
     inputUsd: raw.inputUsd * EMPIRICAL_BILLING_FACTOR,
@@ -93,16 +97,21 @@ export function computeCost(model: string, usage: RawAgentUsage): Cost {
  * Computes posted-rate cost (no empirical factor). Used by the spike for
  * billing-model debugging — diagnose the gap between computed and actual
  * billing. Production cost reporting should use `computeCost`.
+ *
+ * `opts.batch` defaults to true (applies the 50% Batches API discount to token
+ * costs). Pass `{batch: false}` for synchronous calls, which bill at full rate.
+ * Web search is never batch-discounted regardless.
  */
-export function computeRawCost(model: string, usage: RawAgentUsage): Cost {
+export function computeRawCost(model: string, usage: RawAgentUsage, opts?: {batch?: boolean}): Cost {
   const rate = rateFor(model)
-  const inputUsd = (usage.inputTokens / 1_000_000) * rate.input * BATCHES_API_DISCOUNT
+  const batchDiscount = (opts?.batch ?? true) ? BATCHES_API_DISCOUNT : 1
+  const inputUsd = (usage.inputTokens / 1_000_000) * rate.input * batchDiscount
   const cacheReadUsd =
-    (usage.cacheReadInputTokens / 1_000_000) * rate.input * CACHE_READ_DISCOUNT * BATCHES_API_DISCOUNT
+    (usage.cacheReadInputTokens / 1_000_000) * rate.input * CACHE_READ_DISCOUNT * batchDiscount
   const cacheWriteUsd =
-    (usage.cacheCreationInputTokens / 1_000_000) * rate.input * CACHE_WRITE_PREMIUM * BATCHES_API_DISCOUNT
+    (usage.cacheCreationInputTokens / 1_000_000) * rate.input * CACHE_WRITE_PREMIUM * batchDiscount
   const cachedInputUsd = cacheReadUsd + cacheWriteUsd
-  const outputUsd = (usage.outputTokens / 1_000_000) * rate.output * BATCHES_API_DISCOUNT
+  const outputUsd = (usage.outputTokens / 1_000_000) * rate.output * batchDiscount
   const webSearchUsd = usage.webSearchRequests * WEB_SEARCH_USD_PER_REQUEST
 
   return {

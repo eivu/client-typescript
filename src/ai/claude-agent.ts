@@ -11,13 +11,24 @@ import logger from '@src/logger'
 import * as fs from 'node:fs'
 import {promises as fsp} from 'node:fs'
 import path from 'node:path'
+import pLimit from 'p-limit'
 
 const MAX_BATCH_SIZE = 10_000
+/**
+ * Max concurrent in-flight synchronous Messages API calls in `runSync`. Bounds
+ * fan-out so a large folder doesn't hit per-minute Messages rate limits (batch
+ * mode side-steps those). Batch mode has no equivalent limit — one API call
+ * submits the whole chunk.
+ */
+const SYNC_CONCURRENCY = 5
 const CLAUDE_DEFAULTS = {
   maxTokens: 16_384,
   model: 'claude-opus-4-6',
   pollIntervalMs: 30_000,
 } as const
+
+/** One extracted success item awaiting shared validation + post-processing. */
+type RawItem = {customId: string; model: string; pipeline: string; rawYaml: string; usage: RawAgentUsage}
 
 /**
  * Anthropic web search tool definition.
@@ -92,6 +103,11 @@ export class ClaudeAgent extends BaseAgent {
    * tests take this path.
    */
   private staticSystemBlocks?: CachedTextBlock[]
+  /**
+   * When true, `processRequests` uses blocking, streamed per-file Messages API
+   * calls (`runSync`) instead of the async Batches API. Defaults to false.
+   */
+  private sync: boolean
   private temperature?: number
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- spike variants pass arbitrary Anthropic Tool shapes
   private toolChoice?: any
@@ -101,6 +117,7 @@ export class ClaudeAgent extends BaseAgent {
   constructor(options: AgentOptions = {}) {
     super(options, CLAUDE_DEFAULTS)
     this.client = new Anthropic({apiKey: options.apiKey})
+    this.sync = options.sync ?? false
 
     // Static-mode tool config: callers can pass `tools` verbatim (spike's
     // structured-output variant) or set `webSearchMaxUses` to tune the budget.
@@ -139,6 +156,15 @@ export class ClaudeAgent extends BaseAgent {
 
   private static emptyUsage(startedAt: number): RawAgentUsage {
     return zeroUsage(Date.now() - startedAt)
+  }
+
+  /** Formats a thrown synchronous Messages API error into the same shape as `formatBatchError`. */
+  private static formatApiError(error: unknown): string {
+    if (error instanceof Anthropic.APIError) {
+      return `API error: ${error.name} - ${error.message}`
+    }
+
+    return error instanceof Error ? error.message : String(error)
   }
 
   private static formatBatchError(result: {error?: unknown; type: string}): string {
@@ -237,7 +263,9 @@ export class ClaudeAgent extends BaseAgent {
   }
 
   async processRequests(requests: AgentRequest[]): Promise<AgentResult[]> {
-    return this.runBatch(requests, (batchId, chunk) => this.collectResults(batchId, chunk))
+    return this.sync
+      ? this.runSync(requests)
+      : this.runBatch(requests, (batchId, chunk) => this.collectResults(batchId, chunk))
   }
 
   /**
@@ -314,7 +342,7 @@ export class ClaudeAgent extends BaseAgent {
    */
   private async collectResults(batchId: string, requests: AgentRequest[]): Promise<AgentResult[]> {
     const idToRequest = new Map(requests.map((r) => [r.customId, r]))
-    const rawItems: Array<{customId: string; model: string; pipeline: string; rawYaml: string; usage: RawAgentUsage}> = []
+    const rawItems: RawItem[] = []
     const errorResults: AgentResult[] = []
     const startedAt = Date.now()
 
@@ -355,13 +383,30 @@ export class ClaudeAgent extends BaseAgent {
       }
     }
 
+    return this.finalizeRawResults(rawItems, errorResults, idToRequest, batchId)
+  }
+
+  /**
+   * Shared tail for both the batch (`collectResults`) and sync (`runSync`) paths:
+   * runs the extracted success items through the BaseAgent validation +
+   * post-processing pipeline, saves any `validation_error` raw YAML to
+   * `tmp/{timestamp}-{failureDirSuffix}/` for debugging, and returns errors +
+   * processed results combined. `failureDirSuffix` is the batch id in batch mode
+   * and a `sync-{timestamp}` label in sync mode.
+   */
+  private async finalizeRawResults(
+    rawItems: RawItem[],
+    errorResults: AgentResult[],
+    idToRequest: Map<string, AgentRequest>,
+    failureDirSuffix: string,
+  ): Promise<AgentResult[]> {
     // Shared validation + post-processing (owned by BaseAgent so all agents use it)
     const processedResults = this.validateAndPostProcess(rawItems)
 
     // Save failed YAML to tmp for debugging — directory is only created on the first
-    // failure to avoid empty directories. Shared timestamp keeps batch failures together.
+    // failure to avoid empty directories. Shared timestamp keeps related failures together.
     const timestamp = new Date().toISOString().replaceAll(/[:.]/g, '-')
-    const failureDir = path.join('tmp', `${timestamp}-${batchId}`)
+    const failureDir = path.join('tmp', `${timestamp}-${failureDirSuffix}`)
     let failureDirCreated = false
 
     for (const result of processedResults) {
@@ -377,9 +422,9 @@ export class ClaudeAgent extends BaseAgent {
           }
 
           const filename = `${path.basename(request.filePath)}${METADATA_YML_SUFFIX}`
-          // eslint-disable-next-line no-await-in-loop -- sequential saves within same batch
+          // eslint-disable-next-line no-await-in-loop -- sequential saves keep disk traffic bounded
           await fsp.writeFile(path.join(failureDir, filename), result.rawYaml ?? '', 'utf8')
-          logger.info({batchId, filePath: path.join(failureDir, filename)}, 'Saved failed YAML to tmp')
+          logger.info({filePath: path.join(failureDir, filename)}, 'Saved failed YAML to tmp')
         }
       }
     }
@@ -465,6 +510,64 @@ export class ClaudeAgent extends BaseAgent {
     }
 
     return results
+  }
+
+  /**
+   * Synchronous alternative to `runBatch`: fires one blocking, streamed Messages
+   * API call per request (bounded by SYNC_CONCURRENCY) instead of submitting an
+   * async batch and polling. Streaming + `.finalMessage()` yields the same
+   * `Anthropic.Message` the batch collector consumes, so extraction, validation,
+   * and post-processing are identical (via `finalizeRawResults`). Faster
+   * wall-clock; bills at full (non-batch) rate. A single request's failure is
+   * captured as an `error` result and never aborts the others.
+   */
+  private async runSync(requests: AgentRequest[]): Promise<AgentResult[]> {
+    if (requests.length === 0) return []
+
+    const idToRequest = new Map(requests.map((r) => [r.customId, r]))
+    const rawItems: RawItem[] = []
+    const errorResults: AgentResult[] = []
+    const limit = pLimit(SYNC_CONCURRENCY)
+
+    logger.info({concurrency: SYNC_CONCURRENCY, count: requests.length}, 'Running synchronous Claude requests')
+
+    await Promise.all(
+      requests.map((req) =>
+        limit(async () => {
+          const stageConfig = this.selectStageConfig(req.filePath)
+          const startedAt = Date.now()
+          try {
+            // Stream + finalMessage() rather than a plain create: production
+            // pipelines run at high max_tokens with web search, and streaming
+            // avoids SDK HTTP timeouts on long requests. The resolved message is
+            // the same shape the batch path consumes.
+            const message = await this.client.messages.stream(this.buildBatchParams(req)).finalMessage()
+            const rawYaml = extractYamlFromResponse(message.content as Array<{text?: string; type: string}>)
+            rawItems.push({
+              customId: req.customId,
+              model: stageConfig.model,
+              pipeline: stageConfig.pipeline,
+              rawYaml,
+              usage: ClaudeAgent.parseUsage(message, startedAt),
+            })
+          } catch (error) {
+            const errorMsg = ClaudeAgent.formatApiError(error)
+            errorResults.push({
+              customId: req.customId,
+              error: errorMsg,
+              model: stageConfig.model,
+              pipeline: stageConfig.pipeline,
+              status: 'error',
+              usage: ClaudeAgent.emptyUsage(startedAt),
+            })
+            logger.error({customId: req.customId, error: errorMsg}, 'Synchronous request failed')
+          }
+        }),
+      ),
+    )
+
+    const suffix = `sync-${new Date().toISOString().replaceAll(/[:.]/g, '-')}`
+    return this.finalizeRawResults(rawItems, errorResults, idToRequest, suffix)
   }
 
   /**

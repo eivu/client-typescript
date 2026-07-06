@@ -179,8 +179,20 @@ describe('process-orchestrator', () => {
 
       expect(genSpy).toHaveBeenCalledTimes(1)
       expect(genSpy.mock.calls[0][0].sort()).toEqual([...result.targets].sort())
+      expect(genSpy.mock.calls[0][1]).toMatchObject({sync: true})
       expect(upSpy).toHaveBeenCalledTimes(1)
       expect((upSpy.mock.calls[0][0] as {filePaths: string[]}).filePaths.sort()).toEqual([...result.targets].sort())
+    })
+
+    it('threads --no-sync down to the metadata stage', async () => {
+      touch('Song.mp3')
+      const genSpy = jest.spyOn(MetadataGenerator, 'generate').mockResolvedValue([])
+      jest.spyOn(Client, 'uploadFiles').mockResolvedValue([])
+
+      const orch = new FakeOrchestrator({apiKey: 'k', metadata: true, sync: false, upload: true})
+      await orch.run(tmpDir)
+
+      expect(genSpy.mock.calls[0][1]).toMatchObject({sync: false})
     })
 
     it('skips metadata and upload when those stages are disabled', async () => {

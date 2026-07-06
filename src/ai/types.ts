@@ -90,6 +90,14 @@ export type AgentOptions = {
   skillContent?: string
   skillPath?: string
   /**
+   * When true, ClaudeAgent uses blocking, streamed per-file Messages API calls
+   * instead of the async Batches API. Faster wall-clock (seconds vs. a queued
+   * batch), but bills at full rate — no 50% batch discount. Defaults to false
+   * (batch) inside ClaudeAgent so direct/library callers and the spike keep their
+   * current behavior; the `process` and `gm:ai` commands default their flag to true.
+   */
+  sync?: boolean
+  /**
    * Sampling temperature (Anthropic default if omitted). Used by the spike's multi-sample
    * variant to draw varied scores from the same prompt; production code leaves this unset.
    */

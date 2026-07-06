@@ -42,6 +42,12 @@ export type ProcessOptions = {
   recursive?: boolean
   /** Mark uploaded files secured — implies NSFW (default false). */
   secured?: boolean
+  /**
+   * Query Claude synchronously (blocking, faster) instead of the async Batches
+   * API during the metadata stage (default true). `false` uses the ~50% cheaper
+   * but delayed batch path.
+   */
+  sync?: boolean
   /** Optional target image height passed to the compressor (no resize when unset). */
   targetHeight?: number
   /** Run the upload stage (default true). */
@@ -115,6 +121,7 @@ export class ProcessOrchestrator {
       raiseException: options.raiseException ?? true,
       recursive: options.recursive ?? true,
       secured: options.secured ?? false,
+      sync: options.sync ?? true,
       targetHeight: options.targetHeight,
       upload: options.upload ?? true,
     }
@@ -170,6 +177,7 @@ export class ProcessOrchestrator {
         agent: 'claude',
         apiKey: this.opts.apiKey,
         overwrite: this.opts.overwrite,
+        sync: this.opts.sync,
       })
     } else if (!this.opts.metadata) {
       logger.info('process: metadata stage skipped (--no-metadata)')
