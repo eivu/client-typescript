@@ -1,5 +1,5 @@
 import {Args, Command, Flags} from '@oclif/core'
-import {MetadataGenerator} from '@src/ai/metadata-generator'
+import {formatGenerationSummary, MetadataGenerator} from '@src/ai/metadata-generator'
 import {withNoSleep} from '@src/no-sleep'
 import {isEivuYmlFile} from '@src/utils'
 import * as fs from 'node:fs'
@@ -99,14 +99,15 @@ export default class GenerateMetadataAi extends Command {
       this.log('Warning: --name is ignored when processing multiple files.')
     }
 
-    await withNoSleep(flags['keep-awake'], 'eivu gm:ai', () =>
-      MetadataGenerator.generate(pathsArray, {
-        agent: 'claude',
-        apiKey: process.env.ANTHROPIC_API_KEY,
-        outputBaseName: pathsArray.length === 1 ? outputBaseName : undefined,
-        overwrite,
-        sync: flags.sync,
-      }),
-    )
+    const generator = new MetadataGenerator({
+      agent: 'claude',
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      outputBaseName: pathsArray.length === 1 ? outputBaseName : undefined,
+      overwrite,
+      sync: flags.sync,
+    })
+    await withNoSleep(flags['keep-awake'], 'eivu gm:ai', () => generator.generate(pathsArray))
+
+    if (generator.runSummary) this.log(formatGenerationSummary(generator.runSummary))
   }
 }

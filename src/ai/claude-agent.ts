@@ -528,6 +528,11 @@ export class ClaudeAgent extends BaseAgent {
     const rawItems: RawItem[] = []
     const errorResults: AgentResult[] = []
     const limit = pLimit(SYNC_CONCURRENCY)
+    const total = requests.length
+    // Completion-ordered counter for the live progress line. Incremented as each
+    // request settles (success or error), so `[n/total]` reflects progress, not
+    // input order — the SYNC_CONCURRENCY-wide pool finishes files out of order.
+    let completed = 0
 
     logger.info({concurrency: SYNC_CONCURRENCY, count: requests.length}, 'Running synchronous Claude requests')
 
@@ -550,6 +555,11 @@ export class ClaudeAgent extends BaseAgent {
               rawYaml,
               usage: ClaudeAgent.parseUsage(message, startedAt),
             })
+            const elapsedS = ((Date.now() - startedAt) / 1000).toFixed(1)
+            logger.info(
+              {customId: req.customId},
+              `[${++completed}/${total}] OK   ${path.basename(req.filePath)} (${elapsedS}s)`,
+            )
           } catch (error) {
             const errorMsg = ClaudeAgent.formatApiError(error)
             errorResults.push({
@@ -560,7 +570,11 @@ export class ClaudeAgent extends BaseAgent {
               status: 'error',
               usage: ClaudeAgent.emptyUsage(startedAt),
             })
-            logger.error({customId: req.customId, error: errorMsg}, 'Synchronous request failed')
+            const elapsedS = ((Date.now() - startedAt) / 1000).toFixed(1)
+            logger.error(
+              {customId: req.customId, error: errorMsg},
+              `[${++completed}/${total}] FAIL ${path.basename(req.filePath)} (${elapsedS}s) - ${errorMsg}`,
+            )
           }
         }),
       ),

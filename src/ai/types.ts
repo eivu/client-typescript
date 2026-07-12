@@ -57,6 +57,26 @@ export type GenerationResult = {
   yaml?: string
 }
 
+/**
+ * Aggregate outcome of one `MetadataGenerator.generate()` run. Counts come from
+ * the per-file `GenerationResult` statuses; token/web-search/cost totals are
+ * summed over every API call across ALL retry attempts (so cost reflects
+ * retries, not just the final successful attempt). Surfaced to the CLI via
+ * `formatGenerationSummary` and logged in full at end of run.
+ */
+export type GenerationSummary = {
+  elapsedMs: number
+  errored: number
+  runId: string
+  skipped: number
+  succeeded: number
+  tokensIn: number
+  tokensOut: number
+  total: number
+  totalCostUsd: number
+  webSearches: number
+}
+
 /** Progress payload for batch processing (counts and batch id). */
 export type BatchProgress = {
   canceledRequests: number

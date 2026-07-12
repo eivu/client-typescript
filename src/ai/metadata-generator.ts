@@ -1,4 +1,4 @@
-import type {AgentRequest, AgentResult, AgentType, GenerationResult, MetadataGeneratorOptions, RawAgentUsage} from '@src/ai/types'
+import type {AgentRequest, AgentResult, AgentType, GenerationResult, GenerationSummary, MetadataGeneratorOptions, RawAgentUsage} from '@src/ai/types'
 
 import {type BaseAgent, buildUserMessage, postProcessWithCost} from '@src/ai/base-agent'
 import {ClaudeAgent} from '@src/ai/claude-agent'
@@ -55,6 +55,34 @@ function createAgent(type: AgentType, options: MetadataGeneratorOptions): BaseAg
   }
 }
 
+/** Formats a token count compactly for the run summary (e.g. 214000 → "214k"). */
+function formatTokens(n: number): string {
+  return n >= 1000 ? `${Math.round(n / 1000)}k` : String(n)
+}
+
+/** Formats a millisecond duration as "2m14s" (≥ 1 min) or "8.2s" (< 1 min). */
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.round(ms / 1000)
+  if (totalSeconds >= 60) return `${Math.floor(totalSeconds / 60)}m${totalSeconds % 60}s`
+  return `${(ms / 1000).toFixed(1)}s`
+}
+
+/**
+ * Renders the human-readable end-of-run summary the `gm:ai` command prints via
+ * `this.log`. Pure + exported for unit testing (mirrors `formatProcessSummary`).
+ * The full `runId` is included verbatim so the `gm:report` hint is copy-pasteable.
+ */
+export function formatGenerationSummary(summary: GenerationSummary): string {
+  const tokens = formatTokens(summary.tokensIn + summary.tokensOut)
+  return (
+    `Generated metadata for ${summary.succeeded}/${summary.total} file(s): ` +
+    `${summary.succeeded} succeeded, ${summary.errored} failed, ${summary.skipped} skipped\n` +
+    `${tokens} tokens · ${summary.webSearches} web searches · ` +
+    `$${summary.totalCostUsd.toFixed(2)} · ${formatElapsed(summary.elapsedMs)}\n` +
+    `Run id ${summary.runId} — inspect with: eivu gm:report ${summary.runId}`
+  )
+}
+
 /**
  * Generates .eivu.yml metadata files for media files using an AI agent (Claude, Gemini, or OpenAI).
  * Can process multiple files, skip existing metadata when overwrite is false, and write results in parallel.
@@ -62,6 +90,13 @@ function createAgent(type: AgentType, options: MetadataGeneratorOptions): BaseAg
 export class MetadataGenerator {
   /** When false, files that already have a .eivu.yml are skipped. */
   readonly overwrite: boolean
+  /**
+   * Aggregate summary of the most recent `generate()` call (counts + token /
+   * web-search / cost totals + elapsed). Populated at the end of every run so
+   * the `gm:ai` command can print a human-readable summary via `this.log`.
+   * Undefined until `generate()` has run at least once.
+   */
+  runSummary?: GenerationSummary
   private agent: BaseAgent
   /** When set, overrides the base name of the output .eivu.yml file. */
   private readonly outputBaseName: string | undefined
@@ -161,8 +196,15 @@ export class MetadataGenerator {
     }
 
     const runId = randomUUID()
+    const startedAt = Date.now()
     logger.info(
-      {runId, skipped: skippedResults.length, toProcess: requests.length, total: filePaths.length},
+      {
+        mode: this.sync ? 'sync' : 'batch',
+        runId,
+        skipped: skippedResults.length,
+        toProcess: requests.length,
+        total: filePaths.length,
+      },
       'Processing files for AI metadata generation',
     )
 
@@ -172,6 +214,13 @@ export class MetadataGenerator {
     const costByCustomId = new Map<string, FileCostAccum>()
     const allWriteResults: GenerationResult[] = []
     let currentRequests = [...requests]
+
+    // Run-wide usage totals, summed over every API call across ALL attempts (so
+    // they reflect retry spend). Counts (succeeded/errored/skipped) are derived
+    // separately from the per-file GenerationResult statuses after the loop.
+    let totalTokensIn = 0
+    let totalTokensOut = 0
+    let totalWebSearches = 0
 
     // Retry loop: files that fail YAML validation are re-submitted to the AI agent
     // in a new batch. Each file gets up to MAX_VALIDATION_ATTEMPTS total tries.
@@ -184,25 +233,13 @@ export class MetadataGenerator {
       // eslint-disable-next-line no-await-in-loop -- retry batches must be sequential
       const agentResults = await this.agent.processRequests(currentRequests)
 
-      // Accumulate per-file cost from every attempt — `totalCostUsd` grows on
-      // every call (success OR validation_error); `finalCostUsd`/`finalUsage`
-      // only update on success so the final successful attempt's data wins.
-      // Per-call cost uses `result.model` so pipeline-mode pricing (Sonnet for
-      // audio/video, Opus for comics) is accurate; falls back to the
-      // agent-level model for the rare result that doesn't carry one.
-      for (const result of agentResults) {
-        if (!result.usage) continue
-        const acc = costByCustomId.get(result.customId) ?? {finalCostUsd: 0, finalUsage: null, totalCostUsd: 0}
-        const modelForCost = result.model ?? this.agent.model
-        const thisCostUsd = computeCost(modelForCost, result.usage, {batch: !this.sync}).totalUsd
-        acc.totalCostUsd += thisCostUsd
-        if (result.status === 'success') {
-          acc.finalCostUsd = thisCostUsd
-          acc.finalUsage = result.usage
-        }
-
-        costByCustomId.set(result.customId, acc)
-      }
+      // Accumulate per-file cost into costByCustomId + roll this attempt's token
+      // and web-search usage into the run-wide totals. Totals grow on every
+      // attempt (success OR validation_error) so they reflect retry spend.
+      const usageDelta = this.accumulateCostAndUsage(agentResults, costByCustomId)
+      totalTokensIn += usageDelta.tokensIn
+      totalTokensOut += usageDelta.tokensOut
+      totalWebSearches += usageDelta.webSearches
 
       // Emit one telemetry row per agent result. Logged from here (not the
       // agent) so the row carries retry-loop context (`attempt`) and the
@@ -291,9 +328,60 @@ export class MetadataGenerator {
     const succeeded = results.filter((r) => r.status === 'success').length
     const errored = results.filter((r) => r.status === 'error').length
     const skipped = results.filter((r) => r.status === 'skipped').length
-    logger.info({errored, runId, skipped, succeeded, total: results.length}, 'AI metadata generation complete')
+    const totalCostUsd = [...costByCustomId.values()].reduce((sum, acc) => sum + acc.totalCostUsd, 0)
+
+    this.runSummary = {
+      elapsedMs: Date.now() - startedAt,
+      errored,
+      runId,
+      skipped,
+      succeeded,
+      tokensIn: totalTokensIn,
+      tokensOut: totalTokensOut,
+      total: results.length,
+      totalCostUsd,
+      webSearches: totalWebSearches,
+    }
+    logger.info({...this.runSummary}, 'AI metadata generation complete')
 
     return results
+  }
+
+  /**
+   * Accumulates per-file cost into `costByCustomId` for one attempt's results and
+   * returns this attempt's token + web-search deltas for the run-wide summary.
+   * `totalCostUsd` grows on every call (success OR validation_error); the
+   * `finalCostUsd`/`finalUsage` fields only update on success so the final
+   * successful attempt's data wins. Per-call cost uses `result.model` so
+   * pipeline-mode pricing (Sonnet for audio/video, Opus for comics) is accurate;
+   * it falls back to the agent-level model for a result that doesn't carry one.
+   */
+  private accumulateCostAndUsage(
+    agentResults: AgentResult[],
+    costByCustomId: Map<string, FileCostAccum>,
+  ): {tokensIn: number; tokensOut: number; webSearches: number} {
+    let tokensIn = 0
+    let tokensOut = 0
+    let webSearches = 0
+
+    for (const result of agentResults) {
+      if (!result.usage) continue
+      tokensIn += result.usage.inputTokens
+      tokensOut += result.usage.outputTokens
+      webSearches += result.usage.webSearchRequests
+      const acc = costByCustomId.get(result.customId) ?? {finalCostUsd: 0, finalUsage: null, totalCostUsd: 0}
+      const modelForCost = result.model ?? this.agent.model
+      const thisCostUsd = computeCost(modelForCost, result.usage, {batch: !this.sync}).totalUsd
+      acc.totalCostUsd += thisCostUsd
+      if (result.status === 'success') {
+        acc.finalCostUsd = thisCostUsd
+        acc.finalUsage = result.usage
+      }
+
+      costByCustomId.set(result.customId, acc)
+    }
+
+    return {tokensIn, tokensOut, webSearches}
   }
 
   private buildRequests(filePaths: string[]): {
