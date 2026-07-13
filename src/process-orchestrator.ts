@@ -343,6 +343,17 @@ export class ProcessOrchestrator {
   /** Recursively collects processable files, skipping yml, junk dirs/extensions, and skip-folders. */
   private discover(resolved: string): string[] {
     if (statSync(resolved).isFile()) {
+      // A directly-supplied file gets the same file-level skips as a folder-walk entry, so a
+      // metadata YAML or junk sidecar can't slip past compression/metadata/upload just because it
+      // was named explicitly (folder walks and gm:ai already reject these).
+      if (this.isSkippableFile(path.basename(resolved))) {
+        logger.warn(
+          {file: resolved},
+          'process: input file is not processable (.eivu.yml or skippable extension); nothing to do',
+        )
+        return []
+      }
+
       return [resolved]
     }
 
@@ -355,9 +366,7 @@ export class ProcessOrchestrator {
           if (JUNK_DIR_NAMES.has(entry.name) || SKIPPABLE_FOLDERS.includes(entry.name)) continue
           walk(fullPath)
         } else if (entry.isFile()) {
-          if (isEivuYmlFile(entry.name)) continue
-          const lower = entry.name.toLowerCase()
-          if (SKIPPABLE_EXTENSIONS.some((ext) => lower.endsWith(`.${ext}`))) continue
+          if (this.isSkippableFile(entry.name)) continue
           out.push(fullPath)
         }
       }
@@ -365,6 +374,17 @@ export class ProcessOrchestrator {
 
     walk(resolved)
     return out
+  }
+
+  /**
+   * True when a file should be excluded from processing — an `.eivu.yml` sidecar or a junk
+   * extension ({@link SKIPPABLE_EXTENSIONS}). Matched on the basename so the same rule applies
+   * identically to an explicit single-file input and to each entry of a folder walk.
+   */
+  private isSkippableFile(name: string): boolean {
+    if (isEivuYmlFile(name)) return true
+    const lower = name.toLowerCase()
+    return SKIPPABLE_EXTENSIONS.some((ext) => lower.endsWith(`.${ext}`))
   }
 
   /**

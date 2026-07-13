@@ -211,6 +211,26 @@ describe('process-orchestrator', () => {
       expect(result.targets).toEqual([compressedOutputPath(cbz)])
     })
 
+    it('skips a single .eivu.yml file passed directly (no target, no metadata/upload)', async () => {
+      const yml = touch('Solo.cbz.eivu.yml')
+      const genSpy = jest.spyOn(MetadataGenerator, 'generate').mockResolvedValue([])
+      const upSpy = jest.spyOn(Client, 'uploadFiles').mockResolvedValue([])
+
+      const result = await new FakeOrchestrator({apiKey: 'k', metadata: true, upload: true}).run(yml)
+
+      expect(result.discovered).toBe(0)
+      expect(result.targets).toEqual([])
+      expect(genSpy).not.toHaveBeenCalled()
+      expect(upSpy).not.toHaveBeenCalled()
+    })
+
+    it('skips a single junk-extension file passed directly (e.g. .nfo)', async () => {
+      const nfo = touch('notes.nfo')
+      const result = await makeOrchestrator().run(nfo)
+      expect(result.discovered).toBe(0)
+      expect(result.targets).toEqual([])
+    })
+
     it('throws on a non-existent input path', async () => {
       await expect(makeOrchestrator().run(path.join(tmpDir, 'nope'))).rejects.toThrow('does not exist')
     })
