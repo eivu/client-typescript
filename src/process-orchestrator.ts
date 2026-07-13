@@ -68,7 +68,11 @@ export type ProcessResult = {
   metadataResults?: GenerationResult[]
   /** Comics whose already-existing compressed sibling was reused instead of recompressing. */
   reused: string[]
-  /** The curated (de-duplicated) list of files handed to the metadata + upload stages. */
+  /**
+   * The curated (de-duplicated) list of files handed to the metadata stage. The upload stage
+   * receives this list minus any target whose metadata generation ended in error (see
+   * {@link ProcessResult.metadataResults}).
+   */
   targets: string[]
   /** Per-file upload status messages (only when the upload stage ran). */
   uploadMessages?: string[]
@@ -183,12 +187,18 @@ export class ProcessOrchestrator {
       logger.info('process: metadata stage skipped (--no-metadata)')
     }
 
+    // Hold back any target whose metadata generation ended in error before uploading. An errored
+    // target has no freshly-written .eivu.yml (and, under --overwrite, may still have a stale one
+    // on disk); uploading it would ship the asset as if metadata had succeeded. Targets that
+    // succeeded, or were skipped because an existing .eivu.yml was left untouched, still upload.
+    const uploadTargets = this.selectUploadTargets(uniqueTargets, metadataResults)
+
     let uploadMessages: string[] | undefined
-    if (this.opts.upload && uniqueTargets.length > 0) {
-      logger.info({count: uniqueTargets.length}, 'process: uploading')
+    if (this.opts.upload && uploadTargets.length > 0) {
+      logger.info({count: uploadTargets.length}, 'process: uploading')
       uploadMessages = await Client.uploadFiles({
         concurrency: this.opts.concurrency,
-        filePaths: uniqueTargets,
+        filePaths: uploadTargets,
         nsfw: this.opts.nsfw,
         secured: this.opts.secured,
       })
@@ -204,6 +214,7 @@ export class ProcessOrchestrator {
         duplicates: duplicatesArchived.length,
         reused: reused.length,
         targets: uniqueTargets.length,
+        uploaded: uploadTargets.length,
       },
       'process: complete',
     )
@@ -440,5 +451,28 @@ export class ProcessOrchestrator {
 
     logger.warn({file}, 'process: compression failed, uploading original (--on-compress-error=upload-original)')
     return {target: file}
+  }
+
+  /**
+   * Narrows the curated target list to those safe to upload: every target except those whose
+   * metadata generation ended in `error`. An errored target has no freshly-written `.eivu.yml`
+   * (and, under `--overwrite`, may still carry a stale one), so uploading it would ship the asset
+   * as if metadata had succeeded. Targets are matched by path against the per-file
+   * {@link GenerationResult}s (whose `filePath` is the target path passed to the metadata stage).
+   * When the metadata stage didn't run (`metadataResults` undefined) every target is kept, and a
+   * target with no matching result is kept too (fail-open — only a proven error excludes it).
+   * @returns the retained targets in their original order.
+   */
+  private selectUploadTargets(targets: string[], metadataResults: GenerationResult[] | undefined): string[] {
+    if (!metadataResults) return targets
+
+    const failed = new Set(metadataResults.filter((r) => r.status === 'error').map((r) => r.filePath))
+    if (failed.size === 0) return targets
+
+    logger.warn(
+      {count: failed.size, files: [...failed]},
+      'process: skipping upload for files whose metadata generation failed',
+    )
+    return targets.filter((t) => !failed.has(t))
   }
 }

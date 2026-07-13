@@ -4,6 +4,8 @@ import fsp from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
+import type {GenerationResult} from '../src/ai/types'
+
 import {MetadataGenerator} from '../src/ai/metadata-generator'
 import {Client} from '../src/client'
 import {COMPRESSED_INFIX, SKIPPABLE_FOLDERS} from '../src/constants'
@@ -38,6 +40,17 @@ class FakeOrchestrator extends ProcessOrchestrator {
 // Default metadata/upload off so unit tests don't need the spies unless they opt in.
 function makeOrchestrator(options: ProcessOptions = {}): FakeOrchestrator {
   return new FakeOrchestrator({metadata: false, upload: false, ...options})
+}
+
+// Builds a GenerationResult for a target path with the given status (matching the shape
+// MetadataGenerator.generate returns: filePath is the target passed to the metadata stage).
+function genResult(filePath: string, status: GenerationResult['status']): GenerationResult {
+  return {filePath, outputPath: `${filePath}.eivu.yml`, status, ...(status === 'error' ? {error: 'boom'} : {})}
+}
+
+// The filePaths handed to the first Client.uploadFiles call of a run.
+function uploadedPaths(upSpy: jest.SpiedFunction<typeof Client.uploadFiles>): string[] {
+  return (upSpy.mock.calls[0][0] as {filePaths: string[]}).filePaths
 }
 
 describe('process-orchestrator', () => {
@@ -350,6 +363,57 @@ describe('process-orchestrator', () => {
         ].sort(),
       )
       expect(result.duplicatesArchived).toEqual([])
+    })
+  })
+
+  describe('upload gating on metadata results', () => {
+    it('does not upload a target whose metadata generation errored', async () => {
+      const good = touch('Good.mp3')
+      const bad = touch('Bad.mp3')
+      jest
+        .spyOn(MetadataGenerator, 'generate')
+        .mockResolvedValue([genResult(good, 'success'), genResult(bad, 'error')])
+      const upSpy = jest.spyOn(Client, 'uploadFiles').mockResolvedValue([])
+
+      await new FakeOrchestrator({apiKey: 'k', metadata: true, upload: true}).run(tmpDir)
+
+      expect(upSpy).toHaveBeenCalledTimes(1)
+      expect(uploadedPaths(upSpy)).toEqual([good]) // the errored target is held back
+    })
+
+    it('still uploads success and skipped targets (an existing .eivu.yml was left untouched)', async () => {
+      const fresh = touch('Fresh.mp3')
+      const kept = touch('Kept.mp3')
+      jest
+        .spyOn(MetadataGenerator, 'generate')
+        .mockResolvedValue([genResult(fresh, 'success'), genResult(kept, 'skipped')])
+      const upSpy = jest.spyOn(Client, 'uploadFiles').mockResolvedValue([])
+
+      await new FakeOrchestrator({apiKey: 'k', metadata: true, upload: true}).run(tmpDir)
+
+      expect(uploadedPaths(upSpy).sort()).toEqual([fresh, kept].sort())
+    })
+
+    it('skips the upload stage entirely when every target failed metadata', async () => {
+      const a = touch('A.mp3')
+      const b = touch('B.mp3')
+      jest.spyOn(MetadataGenerator, 'generate').mockResolvedValue([genResult(a, 'error'), genResult(b, 'error')])
+      const upSpy = jest.spyOn(Client, 'uploadFiles').mockResolvedValue([])
+
+      await new FakeOrchestrator({apiKey: 'k', metadata: true, upload: true}).run(tmpDir)
+
+      expect(upSpy).not.toHaveBeenCalled()
+    })
+
+    it('fails open: a target with no matching metadata result is still uploaded', async () => {
+      const orphan = touch('Orphan.mp3')
+      // generate returns no result for this target (e.g. an unexpected agent gap) — never silently dropped
+      jest.spyOn(MetadataGenerator, 'generate').mockResolvedValue([])
+      const upSpy = jest.spyOn(Client, 'uploadFiles').mockResolvedValue([])
+
+      await new FakeOrchestrator({apiKey: 'k', metadata: true, upload: true}).run(tmpDir)
+
+      expect(uploadedPaths(upSpy)).toEqual([orphan])
     })
   })
 })

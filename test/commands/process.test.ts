@@ -123,5 +123,26 @@ describe('eivu process (command helpers)', () => {
       expect(dup).toContain('1 duplicate(s) archived')
       expect(formatProcessSummary({...empty, discovered: 1, targets: ['y']})).not.toContain('duplicate')
     })
+
+    it('includes the metadata-failed clause only when a metadata result errored', () => {
+      const withFailure = formatProcessSummary({
+        ...empty,
+        discovered: 2,
+        metadataResults: [
+          {filePath: 'ok.mp3', outputPath: 'ok.mp3.eivu.yml', status: 'success'},
+          {error: 'boom', filePath: 'bad.mp3', outputPath: 'bad.mp3.eivu.yml', status: 'error'},
+        ],
+        targets: ['ok.mp3', 'bad.mp3'],
+      })
+      expect(withFailure).toContain('1 metadata failed (not uploaded)')
+
+      const noFailure = formatProcessSummary({
+        ...empty,
+        discovered: 1,
+        metadataResults: [{filePath: 'ok.mp3', outputPath: 'ok.mp3.eivu.yml', status: 'success'}],
+        targets: ['ok.mp3'],
+      })
+      expect(noFailure).not.toContain('metadata failed')
+    })
   })
 })

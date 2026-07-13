@@ -56,16 +56,20 @@ export function buildProcessOptions(flags: ProcessFlags, apiKey?: string): Proce
 }
 
 /**
- * Renders the one-line run summary, including the `reused` and `dropped on compress error`
- * clauses only when those counts are non-zero. Pure + exported for unit testing.
+ * Renders the one-line run summary, including the `reused`, `duplicate(s) archived`,
+ * `dropped on compress error`, and `metadata failed` clauses only when those counts are
+ * non-zero. The `metadata failed` count is the number of targets held back from upload
+ * because their `.eivu.yml` generation errored. Pure + exported for unit testing.
  */
 export function formatProcessSummary(result: ProcessResult): string {
+  const metadataFailed = result.metadataResults?.filter((r) => r.status === 'error').length ?? 0
   return (
     `Processed ${result.discovered} file(s): ${result.compressed.length} compressed, ` +
     (result.reused.length > 0 ? `${result.reused.length} reused, ` : '') +
     `${result.targets.length} target(s)` +
     (result.duplicatesArchived.length > 0 ? `, ${result.duplicatesArchived.length} duplicate(s) archived` : '') +
     (result.droppedOnError.length > 0 ? `, ${result.droppedOnError.length} dropped on compress error` : '') +
+    (metadataFailed > 0 ? `, ${metadataFailed} metadata failed (not uploaded)` : '') +
     '.'
   )
 }
