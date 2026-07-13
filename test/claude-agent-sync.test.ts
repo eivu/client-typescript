@@ -1,5 +1,6 @@
 import {describe, expect, it, jest} from '@jest/globals'
 
+import type {Pipeline} from '../src/ai/pipeline'
 import type {AgentRequest} from '../src/ai/types'
 
 import {ClaudeAgent} from '../src/ai/claude-agent'
@@ -26,6 +27,14 @@ function stubStream(agent: ClaudeAgent, finalMessage: () => Promise<unknown>): j
 
 function request(customId: string, filePath: string): AgentRequest {
   return {customId, filePath, userMessage: 'generate metadata'}
+}
+
+/** A minimal single-stage pipeline (no disk access) for pipeline-mode agent construction. */
+function fakePipeline(name: Pipeline['name']): Pipeline {
+  return {
+    name,
+    stages: [{buildUserMessage: () => 'msg', maxTokens: 100, model: 'claude-opus-4-6', systemPrompt: 'prompt', webSearchMaxUses: 0}],
+  }
 }
 
 describe('ClaudeAgent sync mode', () => {
@@ -60,5 +69,23 @@ describe('ClaudeAgent sync mode', () => {
     expect(byId.get('00001-a')?.status).toBe('error')
     expect(byId.get('00001-a')?.error).toContain('rate limited')
     expect(byId.get('00002-b')?.status).toBe('success')
+  })
+
+  it('captures a per-file pipeline-config error without aborting the batch', async () => {
+    // Pipeline mode with ONLY comics configured: the .mp3 routes to the missing
+    // audio pipeline, so selectStageConfig throws. That must become a per-file
+    // error result, not reject the whole Promise.all and lose the .cbz success.
+    const agent = new ClaudeAgent({pipelines: {comics: fakePipeline('comics')}, sync: true})
+    const stream = stubStream(agent, async () => fakeMessage(VALID_YAML))
+
+    const results = await agent.processRequests([request('00001-a', '/tmp/a.cbz'), request('00002-b', '/tmp/b.mp3')])
+
+    // Stream only fires for the comics file; the audio file fails before any API call.
+    expect(stream).toHaveBeenCalledTimes(1)
+    expect(results).toHaveLength(2)
+    const byId = new Map(results.map((r) => [r.customId, r]))
+    expect(byId.get('00001-a')?.status).toBe('success')
+    expect(byId.get('00002-b')?.status).toBe('error')
+    expect(byId.get('00002-b')?.error).toContain('No pipeline configured')
   })
 })

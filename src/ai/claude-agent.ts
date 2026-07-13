@@ -539,9 +539,16 @@ export class ClaudeAgent extends BaseAgent {
     await Promise.all(
       requests.map((req) =>
         limit(async () => {
-          const stageConfig = this.selectStageConfig(req.filePath)
           const startedAt = Date.now()
+          // Resolve the stage config INSIDE the try so a configuration error
+          // (e.g. a file whose media category has no configured pipeline) is
+          // captured as a per-file error result instead of rejecting this
+          // worker and failing the whole Promise.all. `stageConfig` stays
+          // undefined in that case, so the error result omits model/pipeline
+          // attribution — both are optional on AgentResult.
+          let stageConfig: StageConfig | undefined
           try {
+            stageConfig = this.selectStageConfig(req.filePath)
             // Stream + finalMessage() rather than a plain create: production
             // pipelines run at high max_tokens with web search, and streaming
             // avoids SDK HTTP timeouts on long requests. The resolved message is
@@ -565,8 +572,7 @@ export class ClaudeAgent extends BaseAgent {
             errorResults.push({
               customId: req.customId,
               error: errorMsg,
-              model: stageConfig.model,
-              pipeline: stageConfig.pipeline,
+              ...(stageConfig ? {model: stageConfig.model, pipeline: stageConfig.pipeline} : {}),
               status: 'error',
               usage: ClaudeAgent.emptyUsage(startedAt),
             })
