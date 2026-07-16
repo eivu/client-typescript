@@ -3,7 +3,7 @@ import type {GenerationResult} from '@src/ai/types'
 import {MetadataGenerator} from '@src/ai/metadata-generator'
 import {Client} from '@src/client'
 import {isComicArchivePath} from '@src/comic-archive-path'
-import {COMPRESSED_INFIX, SKIPPABLE_EXTENSIONS, SKIPPABLE_FOLDERS} from '@src/constants'
+import {COMPRESSED_INFIX, SKIPPABLE_EXTENSIONS, SKIPPABLE_FILENAMES, SKIPPABLE_FOLDERS} from '@src/constants'
 import logger from '@src/logger'
 import {generateMd5, isEivuYmlFile} from '@src/utils'
 import fsExtra from 'fs-extra'
@@ -388,13 +388,16 @@ export class ProcessOrchestrator {
   }
 
   /**
-   * True when a file should be excluded from processing — an `.eivu.yml` sidecar or a junk
-   * extension ({@link SKIPPABLE_EXTENSIONS}). Matched on the basename so the same rule applies
+   * True when a file should be excluded from processing — an `.eivu.yml` sidecar, a dotenv/junk
+   * basename ({@link SKIPPABLE_FILENAMES}), or a junk extension ({@link SKIPPABLE_EXTENSIONS}).
+   * Skipping the `.env` family here mirrors `gm:ai` and stops secrets from being treated as an
+   * upload target. Matched on the basename so the same rule applies
    * identically to an explicit single-file input and to each entry of a folder walk.
    */
   private isSkippableFile(name: string): boolean {
     if (isEivuYmlFile(name)) return true
     const lower = name.toLowerCase()
+    if (SKIPPABLE_FILENAMES.some((fn) => fn.toLowerCase() === lower)) return true
     return SKIPPABLE_EXTENSIONS.some((ext) => lower.endsWith(`.${ext}`))
   }
 

@@ -195,6 +195,20 @@ export const SKIPPABLE_EXTENSIONS: string[] = [
 ]
 
 /**
+ * Exact file basenames skipped during folder uploads / processing — dotenv files and
+ * editor/VCS dotfiles that carry no media but could otherwise be treated as upload targets.
+ * Compared case-insensitively against the whole basename (not by extension). Keep in sync
+ * with the skip set in `gm:ai` ([src/commands/generate-metadata/ai.ts]).
+ */
+export const SKIPPABLE_FILENAMES: string[] = [
+  '.env',
+  '.env.development.local',
+  '.env.local',
+  '.env.production.local',
+  '.env.test.local',
+]
+
+/**
  * Folder names skipped during recursive folder uploads / processing.
  * `eivu_originals` holds pre-compression originals archived by `eivu process`,
  * so a later plain `eivu upload <folder>` ignores them.

@@ -1,5 +1,6 @@
 import {Args, Command, Flags} from '@oclif/core'
 import {formatGenerationSummary, MetadataGenerator} from '@src/ai/metadata-generator'
+import {SKIPPABLE_FILENAMES} from '@src/constants'
 import {withNoSleep} from '@src/no-sleep'
 import {isEivuYmlFile} from '@src/utils'
 import * as fs from 'node:fs'
@@ -53,11 +54,7 @@ export default class GenerateMetadataAi extends Command {
     const pathsToSkip = new Set<string>([
       '.bzr',
       '.DS_Store',
-      '.env',
-      '.env.development.local',
-      '.env.local',
-      '.env.production.local',
-      '.env.test.local',
+      ...SKIPPABLE_FILENAMES,
       '.git',
       '.hg',
       '.idea',

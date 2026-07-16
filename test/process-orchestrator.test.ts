@@ -173,12 +173,22 @@ describe('process-orchestrator', () => {
       const keep = touch('Keep.cbz')
       touch('Keep.cbz.eivu.yml') // sibling metadata — skipped
       touch('notes.nfo') // junk extension — skipped
+      touch('.env') // dotenv secret — skipped
+      touch('.env.local') // dotenv secret — skipped
       await fsp.mkdir(path.join(tmpDir, 'eivu_originals'))
       writeFileSync(path.join(tmpDir, 'eivu_originals', 'Old.cbz'), 'x') // archived original — skipped
 
       const result = await makeOrchestrator().run(tmpDir)
       expect(result.discovered).toBe(1)
       expect(result.targets).toEqual([compressedOutputPath(keep)])
+    })
+
+    it('skips a single dotenv file passed directly (no target, no metadata/upload)', async () => {
+      const env = touch('.env')
+
+      const result = await makeOrchestrator().run(env)
+      expect(result.discovered).toBe(0)
+      expect(result.targets).toEqual([])
     })
 
     it('runs metadata + upload on exactly the curated targets', async () => {
