@@ -54,12 +54,12 @@ export default class GenerateMetadataAi extends Command {
     const pathsToSkip = new Set<string>([
       '.bzr',
       '.DS_Store',
-      ...SKIPPABLE_FILENAMES,
       '.git',
       '.hg',
       '.idea',
       '.svn',
       '.vscode',
+      ...SKIPPABLE_FILENAMES,
     ])
 
     if (!pathToItem) {
