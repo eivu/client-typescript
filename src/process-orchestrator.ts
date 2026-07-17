@@ -409,8 +409,8 @@ export class ProcessOrchestrator {
   private async resolveTarget(
     file: string,
   ): Promise<{compressed?: boolean; reused?: boolean; target: string | undefined}> {
-    // Not a compressible comic → the original is the target.
-    if (!this.opts.compress || !isComicArchivePath(file) || isAlreadyCompressed(file)) {
+    // Not a comic (or already a compressed artifact) → the original is the target.
+    if (!isComicArchivePath(file) || isAlreadyCompressed(file)) {
       return {target: file}
     }
 
@@ -418,8 +418,11 @@ export class ProcessOrchestrator {
 
     // The compressed sibling already exists (e.g. the folder holds both Foo.cbr and
     // Foo.eivu_compressed.cbr, or this is a re-run) → reuse it instead of recompressing. This avoids
-    // clobbering an existing compressed file and wasting CPU, and keeps re-runs idempotent. The
-    // redundant original is still archived (unless --keep-originals).
+    // clobbering an existing compressed file and wasting CPU, and keeps re-runs idempotent. It runs
+    // even under --no-compress: without it, discovery would surface both the original and its
+    // compressed twin as separate targets and the pipeline would upload the same work twice (the two
+    // are not byte-identical, so md5 dedup can't collapse them). The redundant original is still
+    // archived (unless --keep-originals).
     if (existsSync(outputPath)) {
       logger.info({file, outputPath}, 'process: compressed output already exists, reusing it (skipping compression)')
       if (!this.opts.keepOriginals) {
@@ -427,6 +430,11 @@ export class ProcessOrchestrator {
       }
 
       return {reused: true, target: outputPath}
+    }
+
+    // Compression disabled and no existing compressed sibling → upload the original as-is.
+    if (!this.opts.compress) {
+      return {target: file}
     }
 
     let threw = false

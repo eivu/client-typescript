@@ -281,6 +281,23 @@ describe('process-orchestrator', () => {
       await expect(fsp.access(path.join(tmpDir, 'Foo.cbr'))).rejects.toThrow()
     })
 
+    it('--no-compress still reuses the compressed sibling instead of uploading both', async () => {
+      touch('Foo.cbr')
+      writeFileSync(path.join(tmpDir, `Foo${COMPRESSED_INFIX}.cbr`), 'ALREADY-COMPRESSED')
+
+      const orch = makeOrchestrator({compress: false})
+      const spy = jest.spyOn(orch as unknown as {runCompressor: () => Promise<void>}, 'runCompressor')
+      const result = await orch.run(tmpDir)
+
+      // never compressed, and the original does not slip through as a second target
+      expect(spy).not.toHaveBeenCalled()
+      expect(result.targets).toEqual([path.join(tmpDir, `Foo${COMPRESSED_INFIX}.cbr`)])
+      expect(result.reused).toEqual([path.join(tmpDir, 'Foo.cbr')])
+      expect(result.compressed).toEqual([])
+      // redundant original archived so a later run won't re-ingest it
+      await expect(fsp.access(path.join(tmpDir, 'eivu_originals', 'Foo.cbr'))).resolves.toBeUndefined()
+    })
+
     it('--keep-originals reuses but leaves the original in place', async () => {
       touch('Foo.cbr')
       writeFileSync(path.join(tmpDir, `Foo${COMPRESSED_INFIX}.cbr`), 'ALREADY-COMPRESSED')
