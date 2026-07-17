@@ -5,7 +5,7 @@ import {Client} from '@src/client'
 import {isComicArchivePath} from '@src/comic-archive-path'
 import {COMPRESSED_INFIX, SKIPPABLE_EXTENSIONS, SKIPPABLE_FILENAMES, SKIPPABLE_FOLDERS} from '@src/constants'
 import logger from '@src/logger'
-import {generateMd5, isEivuYmlFile} from '@src/utils'
+import {generateMd5, isEivuYmlFile, validateFilePath} from '@src/utils'
 import fsExtra from 'fs-extra'
 import {existsSync, readdirSync, statSync} from 'node:fs'
 import path from 'node:path'
@@ -137,10 +137,11 @@ export class ProcessOrchestrator {
    * @returns A {@link ProcessResult} summary.
    */
   async run(inputPath: string): Promise<ProcessResult> {
-    const resolved = path.resolve(inputPath)
-    if (!existsSync(resolved)) {
-      throw new Error(`Input path does not exist: ${inputPath}`)
-    }
+    // Enforce the same path-safety perimeter as `eivu upload`: reject `..` traversal and paths that
+    // escape the working directory before anything is discovered/compressed/archived/uploaded.
+    // `allowDirectories` because the input may be a single file or a folder; existence is checked here too.
+    const validated = validateFilePath(inputPath, {allowDirectories: true})
+    const resolved = path.resolve(validated)
 
     const files = this.discover(resolved)
     logger.info(

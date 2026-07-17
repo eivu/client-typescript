@@ -255,7 +255,17 @@ describe('process-orchestrator', () => {
     })
 
     it('throws on a non-existent input path', async () => {
-      await expect(makeOrchestrator().run(path.join(tmpDir, 'nope'))).rejects.toThrow('does not exist')
+      await expect(makeOrchestrator().run(path.join(tmpDir, 'nope'))).rejects.toThrow('File not found')
+    })
+
+    it('rejects a relative input path containing .. (path traversal)', async () => {
+      await expect(makeOrchestrator().run('../../../etc/passwd')).rejects.toThrow('path traversal detected')
+    })
+
+    it('rejects a relative input path that escapes the working directory', async () => {
+      // A relative path that resolves outside cwd without a literal ".." segment.
+      const escaping = path.relative(process.cwd(), path.join(tmpDir, 'file'))
+      await expect(makeOrchestrator().run(escaping)).rejects.toThrow(/path traversal|escapes working directory/)
     })
   })
 
