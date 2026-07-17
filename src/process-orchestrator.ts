@@ -384,6 +384,16 @@ export class ProcessOrchestrator {
       return [resolved]
     }
 
+    // A directly-supplied folder gets the same skip as a nested one: if its own basename is a
+    // junk/skip folder (e.g. `eivu process ./podcasts` or `./eivu_originals`), don't walk into it.
+    // The recursion below only checks *child* directory names, so without this a skippable folder
+    // named as the root would run the full pipeline on files `Client.uploadFolder` would ignore.
+    const rootName = path.basename(resolved)
+    if (JUNK_DIR_NAMES.has(rootName) || SKIPPABLE_FOLDERS.includes(rootName)) {
+      logger.warn({folder: resolved}, 'process: input folder is a skippable folder; nothing to do')
+      return []
+    }
+
     const out: string[] = []
     const walk = (dir: string): void => {
       for (const entry of readdirSync(dir, {withFileTypes: true})) {

@@ -183,6 +183,23 @@ describe('process-orchestrator', () => {
       expect(result.targets).toEqual([compressedOutputPath(keep)])
     })
 
+    it('skips a skippable folder passed directly as input (e.g. ./podcasts)', async () => {
+      touchAt('podcasts/Ep1.mp3', 'x') // would be processed if the root skip is missing
+      touchAt('podcasts/Ep2.mp3', 'y')
+
+      const result = await makeOrchestrator().run(path.join(tmpDir, 'podcasts'))
+      expect(result.discovered).toBe(0)
+      expect(result.targets).toEqual([])
+    })
+
+    it('skips an eivu_originals folder passed directly as input', async () => {
+      touchAt('eivu_originals/Old.cbz', 'x')
+
+      const result = await makeOrchestrator().run(path.join(tmpDir, 'eivu_originals'))
+      expect(result.discovered).toBe(0)
+      expect(result.targets).toEqual([])
+    })
+
     it('skips a single dotenv file passed directly (no target, no metadata/upload)', async () => {
       const env = touch('.env')
 
