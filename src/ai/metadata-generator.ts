@@ -190,13 +190,29 @@ export class MetadataGenerator {
 
     const {requests, skippedResults} = this.buildRequests(filePaths)
 
+    const runId = randomUUID()
+    const startedAt = Date.now()
+
     if (requests.length === 0) {
       logger.info('All files already have .eivu.yml metadata, nothing to process')
+      // Populate runSummary so the `gm:ai` command always prints an end-of-run
+      // summary — even when every file was skipped. No API calls ran, so token /
+      // web-search / cost totals are all zero.
+      this.runSummary = {
+        elapsedMs: Date.now() - startedAt,
+        errored: 0,
+        runId,
+        skipped: skippedResults.length,
+        succeeded: 0,
+        tokensIn: 0,
+        tokensOut: 0,
+        total: skippedResults.length,
+        totalCostUsd: 0,
+        webSearches: 0,
+      }
       return skippedResults
     }
 
-    const runId = randomUUID()
-    const startedAt = Date.now()
     logger.info(
       {
         mode: this.sync ? 'sync' : 'batch',

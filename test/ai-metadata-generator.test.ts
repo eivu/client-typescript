@@ -236,6 +236,20 @@ describe('AI metadata', () => {
         expect(results[0].outputPath).toBe(yml1)
         expect(results[1].status).toBe('skipped')
         expect(results[1].filePath).toBe(file2)
+
+        // runSummary is populated even when every file is skipped, so `gm:ai`
+        // still prints an end-of-run summary + gm:report hint.
+        expect(generator.runSummary).toMatchObject({
+          errored: 0,
+          skipped: 2,
+          succeeded: 0,
+          tokensIn: 0,
+          tokensOut: 0,
+          total: 2,
+          totalCostUsd: 0,
+          webSearches: 0,
+        })
+        expect(typeof generator.runSummary?.runId).toBe('string')
       } finally {
         await fsp.rm(tmpDir, {force: true, recursive: true})
       }
