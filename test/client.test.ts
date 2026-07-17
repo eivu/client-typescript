@@ -4,7 +4,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import tmp from 'tmp'
 
-import {Client} from '../src/client'
+import {Client, isSkippableUploadPath} from '../src/client'
 import {CloudFile} from '../src/cloud-file'
 import {
   AI_OVERLORDS_COMPLETE,
@@ -94,6 +94,38 @@ jest.mock('@aws-sdk/lib-storage', () => ({
 }))
 
 describe('Client', () => {
+  describe('isSkippableUploadPath', () => {
+    it('skips paths under eivu_originals with POSIX separators', () => {
+      expect(isSkippableUploadPath('/comics/eivu_originals/batman.cbz')).toBe(true)
+    })
+
+    it('skips paths under eivu_originals with Windows separators', () => {
+      // Regression: on Windows the glob emits backslashes, so a substring match on `/eivu_originals/`
+      // failed and archived originals were re-uploaded by a later `eivu upload <folder>`.
+      expect(isSkippableUploadPath(String.raw`C:\comics\eivu_originals\batman.cbz`)).toBe(true)
+    })
+
+    it('skips paths under other skippable folders regardless of separator', () => {
+      expect(isSkippableUploadPath('/media/podcasts/ep1.mp3')).toBe(true)
+      expect(isSkippableUploadPath(String.raw`media\.git\config`)).toBe(true)
+    })
+
+    it('does not skip a normal file path', () => {
+      expect(isSkippableUploadPath('/comics/batman.cbz')).toBe(false)
+      expect(isSkippableUploadPath(String.raw`C:\comics\batman.cbz`)).toBe(false)
+    })
+
+    it('does not false-match a folder whose name merely contains a skippable name', () => {
+      // `eivu_originals_backup` is a different directory and must still upload.
+      expect(isSkippableUploadPath('/comics/eivu_originals_backup/batman.cbz')).toBe(false)
+    })
+
+    it('skips files with a skippable extension', () => {
+      expect(isSkippableUploadPath('/comics/batman.eivu.yml')).toBe(true)
+      expect(isSkippableUploadPath('/comics/.DS_Store')).toBe(true)
+    })
+  })
+
   describe('updateCloudFile', () => {
     beforeEach(() => {
       nock.cleanAll()

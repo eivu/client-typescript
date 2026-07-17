@@ -28,6 +28,20 @@ import path from 'node:path'
 import pLimit from 'p-limit'
 
 /**
+ * Whether a globbed file path should be skipped during folder discovery because it lives under a
+ * skippable directory (e.g. the `eivu_originals/` archive `process` writes) or has a skippable
+ * extension. Matches on path *segments* — splitting on both `/` and `\` — so archived originals are
+ * excluded regardless of whether the glob emitted POSIX or Windows separators.
+ * @param pathToFile - The globbed path to test.
+ * @returns `true` if the path should be excluded from the upload list.
+ */
+export function isSkippableUploadPath(pathToFile: string): boolean {
+  if (SKIPPABLE_EXTENSIONS.some((ext) => pathToFile.toLowerCase().endsWith(`.${ext}`))) return true
+  const segments = pathToFile.split(/[/\\]+/)
+  return segments.some((segment) => SKIPPABLE_FOLDERS.includes(segment))
+}
+
+/**
  * Base parameters shared by upload operations (metadata, NSFW, secured flags).
  */
 type BaseParams = {
@@ -372,8 +386,7 @@ export class Client {
     const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
     const filePaths: string[] = []
     for await (const pathToFile of directoryGlob) {
-      if (SKIPPABLE_EXTENSIONS.some((ext) => pathToFile.toLowerCase().endsWith(`.${ext}`))) continue
-      if (SKIPPABLE_FOLDERS.some((folder) => pathToFile.includes(`/${folder}/`))) continue
+      if (isSkippableUploadPath(pathToFile)) continue
       filePaths.push(pathToFile)
     }
 
