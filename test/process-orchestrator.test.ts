@@ -387,6 +387,20 @@ describe('process-orchestrator', () => {
       ).resolves.toBeUndefined()
     })
 
+    it('--keep-originals dedups but leaves the duplicate copy on disk', async () => {
+      touchAt(`a/Foo${COMPRESSED_INFIX}.cbr`, 'SAME-COMPRESSED')
+      touchAt(`c/Foo${COMPRESSED_INFIX}.cbr`, 'SAME-COMPRESSED')
+
+      const result = await makeOrchestrator({keepOriginals: true}).run(tmpDir)
+
+      // still de-duplicated down to one target...
+      expect(result.targets).toEqual([path.join(tmpDir, 'a', `Foo${COMPRESSED_INFIX}.cbr`)])
+      // ...but nothing archived, and the duplicate stays where it was
+      expect(result.duplicatesArchived).toEqual([])
+      await expect(fsp.access(path.join(tmpDir, 'c', `Foo${COMPRESSED_INFIX}.cbr`))).resolves.toBeUndefined()
+      await expect(fsp.access(path.join(tmpDir, 'c', 'eivu_originals'))).rejects.toThrow()
+    })
+
     it('--no-dedup keeps cross-dir duplicates as separate targets', async () => {
       touchAt('a/Foo.cbr', 'SAME-BYTES')
       touchAt('c/Foo.cbr', 'SAME-BYTES')

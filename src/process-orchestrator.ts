@@ -62,7 +62,10 @@ export type ProcessResult = {
   discovered: number
   /** Files dropped because they failed to compress and `onCompressError` is 'skip'. */
   droppedOnError: string[]
-  /** Byte-identical duplicate copies archived (to their dir's `eivu_originals/`) by the md5 dedup. */
+  /**
+   * Byte-identical duplicate copies archived (to their dir's `eivu_originals/`) by the md5 dedup.
+   * Empty under `--keep-originals`: duplicates are still dropped from the target list but left on disk.
+   */
   duplicatesArchived: string[]
   /** Per-file metadata results (only when the metadata stage ran). */
   metadataResults?: GenerationResult[]
@@ -154,12 +157,12 @@ export class ProcessOrchestrator {
     // that were already hashed in Level A are not re-hashed.
     const md5ByPath = new Map<string, string>()
 
-    // Level A — dedup byte-identical source files before compression (archive the redundant copies).
+    // Level A — dedup byte-identical source files before compression (archive the redundant copies,
+    // unless --keep-originals, in which case the duplicate is dropped from the workset but left on disk).
     let workset = files
     if (this.opts.dedup && files.length > 1) {
       const {duplicates, unique} = await this.dedupByMd5(files, md5ByPath)
-      await Promise.all(duplicates.map((dup) => this.archiveOriginal(dup)))
-      duplicatesArchived.push(...duplicates)
+      duplicatesArchived.push(...(await this.archiveDuplicates(duplicates)))
       workset = unique
     }
 
@@ -170,8 +173,7 @@ export class ProcessOrchestrator {
     let uniqueTargets = targets
     if (this.opts.dedup && targets.length > 1) {
       const {duplicates, unique} = await this.dedupByMd5(targets, md5ByPath)
-      await Promise.all(duplicates.map((dup) => this.archiveOriginal(dup)))
-      duplicatesArchived.push(...duplicates)
+      duplicatesArchived.push(...(await this.archiveDuplicates(duplicates)))
       uniqueTargets = unique
     }
 
@@ -253,6 +255,19 @@ export class ProcessOrchestrator {
       targetHeight: this.opts.targetHeight,
     })
     await processor.processFile(file)
+  }
+
+  /**
+   * Archives byte-identical duplicate copies surfaced by md5 dedup, honoring `--keep-originals`.
+   * With the flag set, the duplicates are already excluded from the working set/targets, so we
+   * simply leave them on disk and archive nothing (matching the compress/reuse paths, which also
+   * skip the move under `--keep-originals`).
+   * @returns the paths actually moved into `eivu_originals/` (empty when `--keep-originals`).
+   */
+  private async archiveDuplicates(duplicates: string[]): Promise<string[]> {
+    if (this.opts.keepOriginals) return []
+    await Promise.all(duplicates.map((dup) => this.archiveOriginal(dup)))
+    return duplicates
   }
 
   /** Moves a successfully-compressed original into a sibling `eivu_originals/` folder. */
