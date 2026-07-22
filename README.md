@@ -17,6 +17,7 @@ A TypeScript CLI for uploading media files to an [Eivu](https://github.com/eivu)
   - [`eivu compress`](#eivu-compress-path)
   - [`eivu generate-metadata:ai`](#eivu-generate-metadataai-path)
   - [`eivu generate-metadata:post-process`](#eivu-generate-metadatapost-process-file)
+  - [`eivu process`](#eivu-process-path)
 - [`.eivu.yml` Metadata Files](#eivuyml-metadata-files)
 - [Architecture](#architecture)
 - [Development](#development)
@@ -24,11 +25,12 @@ A TypeScript CLI for uploading media files to an [Eivu](https://github.com/eivu)
 
 ## Overview
 
-`eivu-upload-client` is the TypeScript client for the Eivu media library. It does three things:
+`eivu-upload-client` is the TypeScript client for the Eivu media library. It does three things — and a fourth, `eivu process`, that chains them together:
 
 1. **Upload** local files, folders, or remote URLs into Eivu — files land in S3-compatible storage (Wasabi by default) while the Eivu backend tracks state and metadata.
 2. **Compress** comic book archives (`.cbz`, `.cbr`) into smaller `.cbz` archives whose pages are WebP, via [`@eivu/ts-comic-compress`](https://www.npmjs.com/package/@eivu/ts-comic-compress).
 3. **Generate metadata** as `.eivu.yml` files using Claude AI — with web search for verification, schema validation, and a post-processing pipeline that normalises engine versions, franchise hierarchies, award tags, and other mechanical rules.
+4. **Process** a file or folder through all three stages in order — compress eligible comics, generate metadata for the resulting file, then upload it. See [`eivu process`](#eivu-process-path).
 
 The tool is intended for users curating their own Eivu library: the upload pipeline reserves a slot in the Eivu backend, transfers the file to S3, and updates the backend with merged metadata from `.eivu.yml` files, embedded tags (ID3, EXIF), and filename patterns.
 
@@ -52,6 +54,11 @@ flowchart LR
     AIGen --> YAML[(.eivu.yml files)]
 
     PP --> YAML
+
+    CLI -->|process| Orchestrator[ProcessOrchestrator]
+    Orchestrator --> Compress
+    Orchestrator --> AIGen
+    Orchestrator --> Upload
 ```
 
 ## Quickstart
@@ -72,7 +79,7 @@ EIVU_REGION=us-east-1
 EIVU_ENDPOINT=https://s3.wasabisys.com
 EIVU_ACCESS_KEY_ID=...
 EIVU_SECRET_ACCESS_KEY=...
-ANTHROPIC_API_KEY=sk-ant-...   # only required for `gm:ai`
+ANTHROPIC_API_KEY=sk-ant-...   # only required for `gm:ai` (and the metadata stage of `process`)
 ```
 
 Then:
@@ -98,7 +105,7 @@ All configuration is via environment variables. Missing required variables cause
 | `EIVU_ENDPOINT` | yes | S3 endpoint URL (e.g. `https://s3.wasabisys.com`). |
 | `EIVU_ACCESS_KEY_ID` | yes | S3 access key. |
 | `EIVU_SECRET_ACCESS_KEY` | yes | S3 secret key. |
-| `ANTHROPIC_API_KEY` | only for `gm:ai` | Anthropic API key used by `generate-metadata:ai`. |
+| `ANTHROPIC_API_KEY` | only for `gm:ai` / `process` | Anthropic API key used by `generate-metadata:ai` and the metadata stage of `process`. |
 
 Validation logic lives in [src/env.ts](src/env.ts).
 
@@ -184,7 +191,7 @@ Aliases: `gm:ai`
 Generate `.eivu.yml` metadata files for one file or a folder of media using Claude. Requires `ANTHROPIC_API_KEY`.
 
 ```
-eivu gm:ai <path> [-f] [-r] [-n <name>]
+eivu gm:ai <path> [-f] [-r] [-n <name>] [--no-sync]
 ```
 
 | Flag | Description |
@@ -192,11 +199,12 @@ eivu gm:ai <path> [-f] [-r] [-n <name>]
 | `-f, --force` | Overwrite existing `.eivu.yml` files. By default, files that already have a sibling `.eivu.yml` are skipped. |
 | `-r, --recursive` | When `<path>` is a folder, include files in all subdirectories. |
 | `-n, --name <value>` | Base name for the output `.eivu.yml` file. Single-file mode only — ignored if multiple files are processed. |
+| `--[no-]sync` | Query Claude synchronously (default). Sync returns in seconds; `--no-sync` uses the ~50% cheaper but delayed Batches API. |
 
 Behavior:
 
 - Recursively collects files in `<path>`, skipping `.git`, `.idea`, `.vscode`, `.env*`, `.DS_Store`, etc.
-- Submits prompts in batches via the [Anthropic Messages Batches API](https://docs.claude.com/en/api/messages-batches), with the web search tool enabled so Claude can verify titles, authors, characters, and franchises against the open web.
+- By default (`--sync`), sends one blocking, streamed request per file via the Messages API so a run finishes in seconds. With `--no-sync`, submits prompts in bulk via the [Anthropic Messages Batches API](https://docs.claude.com/en/api/messages-batches) — cheaper (batch discount) but queued and delayed. Either way the web search tool is enabled so Claude can verify titles, authors, characters, and franchises against the open web.
 - Validates each generated YAML against the schema and **retries up to 3 times** when validation fails. Files that still fail after retries are appended to `logs/failure.csv`.
 - Successful results are written next to the original file as `<filename>.eivu.yml`, and run through a post-processing rule pipeline (engine fix, parent-franchise injection, award-tag normalisation, mechanical rules).
 
@@ -232,6 +240,61 @@ eivu gm:pp <file> [-m <model>]
 | `-m, --model <value>` | Override the `ai:engine` value. Defaults to whatever is already in the YAML, or `unknown`. |
 
 The pipeline applies (in order): `ai:engine` correction, parent-franchise hierarchy injection, award-tag normalisation, and six mechanical rules (numeric unquoting, genre casing, redundant tag removal, etc.).
+
+### `eivu process <path>`
+
+Run a file or folder through the **full pipeline** in one command: compress → generate metadata → upload. This is the one-shot equivalent of running `eivu compress`, `eivu gm:ai`, and `eivu upload` in sequence, but smarter about which file each later stage acts on.
+
+```
+eivu process <path> [-r] [-q <0-100>] [-t <px>] [-n] [-s] [-f]
+                    [--no-compress] [--no-metadata] [--no-upload] [--no-sync]
+                    [--keep-originals] [--on-compress-error <policy>]
+                    [--no-keep-awake] [--concurrency <n>] [--no-raise-exception]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--[no-]compress` | `true` | Compress eligible `.cbr`/`.cbz` files. |
+| `--[no-]metadata` | `true` | Generate a sibling `.eivu.yml` for each upload target (needs `ANTHROPIC_API_KEY`). |
+| `--[no-]sync` | `true` | Query Claude synchronously for metadata (faster). `--no-sync` uses the ~50% cheaper but delayed Batches API. |
+| `--[no-]upload` | `true` | Upload the resulting files. |
+| `-r, --[no-]recursive` | `true` | Recurse into subfolders when `<path>` is a folder. |
+| `-q, --quality <0-100>` | `75` | WebP quality for compression. |
+| `-t, --target-height <px>` | unset | Resize images to this height during compression (preserves aspect ratio). |
+| `--keep-originals` | `false` | Leave originals in place instead of moving them to `eivu_originals/`. |
+| `--on-compress-error <policy>` | `upload-original` | What to do when a comic fails to compress: `upload-original` or `skip`. |
+| `-f, --overwrite` | `false` | Regenerate `.eivu.yml` even if one already exists. |
+| `-n, --nsfw` | `false` | Mark uploaded files NSFW. |
+| `-s, --secured` | `false` | Mark uploaded files secured (implies `--nsfw`). |
+| `--concurrency <n>` | `3` | Max concurrent uploads. |
+| `--[no-]keep-awake` | `true` | Prevent the machine from sleeping during the run (`caffeinate` on macOS). |
+| `--[no-]raise-exception` | `true` | Treat a skipped oversized image as a compression failure. |
+
+Behavior:
+
+- **One upload target per file.** For each discovered file the orchestrator picks a single target: the compressed output when a `.cbr`/`.cbz` compresses successfully, otherwise the original. Already-`*.eivu_compressed.*` files and non-comics pass straight through. An original that was compressed is **never** uploaded — no double-upload.
+- **Sibling metadata.** Metadata is generated for the chosen target, so the `.eivu.yml` always lands next to the file that gets uploaded; the uploader then reads that sibling automatically.
+- **Originals are archived.** After a successful compress, the original is moved into a sibling `eivu_originals/` folder (skipped by future runs) unless `--keep-originals` is set.
+- **Idempotent re-runs.** If a `*.eivu_compressed` sibling already exists it is reused instead of recompressing; existing `.eivu.yml` files are skipped unless `--overwrite`; the uploader dedupes by MD5.
+- **Compress failures** follow `--on-compress-error`: `upload-original` (default) uploads the uncompressed file, `skip` drops it from the run.
+
+```mermaid
+flowchart TD
+    A[Discover files] --> B{Comic & not already compressed<br/>& --compress?}
+    B -->|no| T[Target = original]
+    B -->|yes| C{Compressed sibling exists?}
+    C -->|yes| R[Reuse it · archive original]
+    C -->|no| D[Compress]
+    D -->|success| E[Target = compressed · archive original]
+    D -->|failure| F{--on-compress-error}
+    F -->|upload-original| T
+    F -->|skip| X([drop])
+    T --> M
+    R --> M
+    E --> M
+    M[Generate sibling .eivu.yml<br/>per target] --> U[Client.uploadFiles]
+    U --> Z([done])
+```
 
 ## `.eivu.yml` Metadata Files
 
@@ -346,7 +409,8 @@ For the complete specification used when generating `.eivu.yml` files programmat
 At a glance:
 
 - **Commands** — [src/commands/](src/commands/) — one oclif `Command` per file; auto-discovered from `dist/commands/` after build.
-- **Client** — [src/client.ts](src/client.ts) — orchestrates uploads (`uploadFile`, `uploadFolder`, `uploadRemoteFile`, `bulkUpdateCloudFiles`).
+- **Client** — [src/client.ts](src/client.ts) — orchestrates uploads (`uploadFile`, `uploadFiles`, `uploadFolder`, `uploadRemoteFile`, `bulkUpdateCloudFiles`).
+- **Process orchestrator** — [src/process-orchestrator.ts](src/process-orchestrator.ts) — drives the `eivu process` pipeline (compress → metadata → upload), resolving one upload target per file; [src/no-sleep.ts](src/no-sleep.ts) keeps the machine awake during long runs.
 - **CloudFile** — [src/cloud-file.ts](src/cloud-file.ts) — entity wrapping the upload state machine (`reserved` → `transferred` → `completed`).
 - **S3 uploader** — [src/s3-uploader.ts](src/s3-uploader.ts) — multipart upload via `@aws-sdk/lib-storage`.
 - **Metadata extraction** — [src/metadata-extraction.ts](src/metadata-extraction.ts) — multi-source merge (YAML, ID3, EXIF, filename patterns).

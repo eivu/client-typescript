@@ -1,11 +1,12 @@
-import type {AgentRequest, AgentResult} from '@src/ai/types'
+import type {AgentRequest, AgentResult, GenerationSummary} from '@src/ai/types'
 
 import {describe, expect, it} from '@jest/globals'
 import {buildUserMessage, extractYamlFromResponse} from '@src/ai/base-agent'
 import {ClaudeAgent} from '@src/ai/claude-agent'
 import {GeminiAgent} from '@src/ai/gemini-agent'
-import {MetadataGenerator} from '@src/ai/metadata-generator'
+import {formatGenerationSummary, MetadataGenerator} from '@src/ai/metadata-generator'
 import {OpenAIAgent} from '@src/ai/openai-agent'
+import {zeroUsage} from '@src/ai/types'
 import {METADATA_YML_SUFFIX} from '@src/constants'
 import {promises as fsp} from 'node:fs'
 import os from 'node:os'
@@ -235,6 +236,20 @@ describe('AI metadata', () => {
         expect(results[0].outputPath).toBe(yml1)
         expect(results[1].status).toBe('skipped')
         expect(results[1].filePath).toBe(file2)
+
+        // runSummary is populated even when every file is skipped, so `gm:ai`
+        // still prints an end-of-run summary + gm:report hint.
+        expect(generator.runSummary).toMatchObject({
+          errored: 0,
+          skipped: 2,
+          succeeded: 0,
+          tokensIn: 0,
+          tokensOut: 0,
+          total: 2,
+          totalCostUsd: 0,
+          webSearches: 0,
+        })
+        expect(typeof generator.runSummary?.runId).toBe('string')
       } finally {
         await fsp.rm(tmpDir, {force: true, recursive: true})
       }
@@ -353,6 +368,82 @@ describe('AI metadata', () => {
       } finally {
         await cleanup()
       }
+    })
+
+    it('accumulates usage totals across retry attempts in runSummary', async () => {
+      const {cleanup, tmpDir} = await setupTmpEnv()
+      try {
+        const file = path.join(tmpDir, 'always-fails.cbr')
+        await fsp.writeFile(file, '')
+
+        const generator = new MetadataGenerator({
+          apiKey: 'test-key',
+          overwrite: true,
+          skillContent: MINIMAL_SKILL_CONTENT,
+          sync: true,
+        })
+
+        // Each attempt reports usage; totals must sum across ALL 3 attempts.
+        const failWithUsage: ScriptStep = (requests) =>
+          requests.map((r) => ({
+            customId: r.customId,
+            error: 'bad yaml',
+            model: 'claude-opus-4-6',
+            pipeline: 'comics',
+            status: 'validation_error' as const,
+            usage: {...zeroUsage(1000), inputTokens: 1000, outputTokens: 200, webSearchRequests: 2},
+          }))
+        installScriptedAgent(generator, [failWithUsage, failWithUsage, failWithUsage])
+
+        await generator.generate([file])
+
+        expect(generator.runSummary).toMatchObject({
+          errored: 1,
+          skipped: 0,
+          succeeded: 0,
+          tokensIn: 3000, // 1000 × 3 attempts
+          tokensOut: 600, // 200 × 3 attempts
+          total: 1,
+          webSearches: 6, // 2 × 3 attempts
+        })
+        expect(generator.runSummary?.totalCostUsd).toBeGreaterThan(0)
+        expect(typeof generator.runSummary?.runId).toBe('string')
+      } finally {
+        await cleanup()
+      }
+    })
+  })
+
+  describe('formatGenerationSummary', () => {
+    const base: GenerationSummary = {
+      elapsedMs: 134_000,
+      errored: 2,
+      runId: '9f3c2a1b-4d5e-6789-abcd-ef0123456789',
+      skipped: 0,
+      succeeded: 18,
+      tokensIn: 198_000,
+      tokensOut: 16_000,
+      total: 20,
+      totalCostUsd: 0.384,
+      webSearches: 47,
+    }
+
+    it('renders counts, usage totals, and the gm:report hint', () => {
+      const s = formatGenerationSummary(base)
+      expect(s).toContain('Generated metadata for 18/20 file(s): 18 succeeded, 2 failed, 0 skipped')
+      expect(s).toContain('214k tokens · 47 web searches · $0.38 · 2m14s')
+      expect(s).toContain(`eivu gm:report ${base.runId}`)
+    })
+
+    it('formats sub-minute runs in seconds and small token counts without a k suffix', () => {
+      const s = formatGenerationSummary({...base, elapsedMs: 8200, tokensIn: 300, tokensOut: 120})
+      expect(s).toContain('8.2s')
+      expect(s).toContain('420 tokens')
+    })
+
+    it('handles a clean run with no failures or skips', () => {
+      const s = formatGenerationSummary({...base, errored: 0, skipped: 0, succeeded: 20})
+      expect(s).toContain('20/20 file(s): 20 succeeded, 0 failed, 0 skipped')
     })
   })
 

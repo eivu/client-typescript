@@ -1,5 +1,6 @@
 import {Args, Command, Flags} from '@oclif/core'
 import {Client} from '@src/client'
+import {withNoSleep} from '@src/no-sleep'
 import {isOnline, IsOnlineResult} from '@src/utils'
 import * as fs from 'node:fs'
 
@@ -11,6 +12,11 @@ export default class Upload extends Command {
   static override examples = ['<%= config.bin %> <%= command.id %>']
   static override flags = {
     filename: Flags.string({char: 'f', description: 'filename to use when uploading remote files'}),
+    'keep-awake': Flags.boolean({
+      allowNo: true,
+      default: true,
+      description: 'prevent the system from sleeping during the upload',
+    }),
     nsfw: Flags.boolean({char: 'n', description: 'whether to mark the uploaded file as NSFW'}),
     secured: Flags.boolean({char: 's', description: 'whether to secure the uploaded file'}),
   }
@@ -33,37 +39,39 @@ export default class Upload extends Command {
       secured: securedValue,
     }
 
-    if (fs.existsSync(path)) {
-      const stats = fs.statSync(path)
-      if (stats.isFile()) {
-        await Client.uploadFile({
-          pathToFile: path,
-          ...defaultArguments,
-        })
-      } else if (stats.isDirectory()) {
-        await Client.uploadFolder({
-          pathToFolder: path,
-          ...defaultArguments,
-        })
-      }
-    } else {
-      let onlineCheck: IsOnlineResult
-      try {
-        onlineCheck = await isOnline(path)
-      } catch {
-        onlineCheck = {isOnline: false, remoteFilesize: null}
-      }
-
-      if (onlineCheck.isOnline) {
-        await Client.uploadRemoteFile({
-          assetFilename: filenameValue,
-          downloadUrl: path,
-          ...defaultArguments,
-        })
+    await withNoSleep(flags['keep-awake'], 'eivu upload', async () => {
+      if (fs.existsSync(path)) {
+        const stats = fs.statSync(path)
+        if (stats.isFile()) {
+          await Client.uploadFile({
+            pathToFile: path,
+            ...defaultArguments,
+          })
+        } else if (stats.isDirectory()) {
+          await Client.uploadFolder({
+            pathToFolder: path,
+            ...defaultArguments,
+          })
+        }
       } else {
-        this.log(`A valid resource could not be found: ${path}`)
+        let onlineCheck: IsOnlineResult
+        try {
+          onlineCheck = await isOnline(path)
+        } catch {
+          onlineCheck = {isOnline: false, remoteFilesize: null}
+        }
+
+        if (onlineCheck.isOnline) {
+          await Client.uploadRemoteFile({
+            assetFilename: filenameValue,
+            downloadUrl: path,
+            ...defaultArguments,
+          })
+        } else {
+          this.log(`A valid resource could not be found: ${path}`)
+        }
       }
-    }
+    })
 
     // this.log('Upload command executed successfully.')
   }

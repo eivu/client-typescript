@@ -1,5 +1,5 @@
 import {CloudFile} from '@src/cloud-file'
-import {METADATA_YML_SUFFIX} from '@src/constants'
+import {METADATA_YML_SUFFIX, SKIPPABLE_EXTENSIONS, SKIPPABLE_FOLDERS} from '@src/constants'
 import {getEnv} from '@src/env'
 import logger, {type Logger} from '@src/logger'
 import {
@@ -26,6 +26,20 @@ import {Glob} from 'glob'
 import * as fsPromise from 'node:fs/promises'
 import path from 'node:path'
 import pLimit from 'p-limit'
+
+/**
+ * Whether a globbed file path should be skipped during folder discovery because it lives under a
+ * skippable directory (e.g. the `eivu_originals/` archive `process` writes) or has a skippable
+ * extension. Matches on path *segments* — splitting on both `/` and `\` — so archived originals are
+ * excluded regardless of whether the glob emitted POSIX or Windows separators.
+ * @param pathToFile - The globbed path to test.
+ * @returns `true` if the path should be excluded from the upload list.
+ */
+export function isSkippableUploadPath(pathToFile: string): boolean {
+  if (SKIPPABLE_EXTENSIONS.some((ext) => pathToFile.toLowerCase().endsWith(`.${ext}`))) return true
+  const segments = pathToFile.split(/[/\\]+/)
+  return segments.some((segment) => SKIPPABLE_FOLDERS.includes(segment))
+}
 
 /**
  * Base parameters shared by upload operations (metadata, NSFW, secured flags).
@@ -60,6 +74,14 @@ type UploadFolderParams = BaseParams & {
 }
 
 /**
+ * Parameters for uploading an explicit, curated list of local files.
+ */
+type UploadFilesParams = BaseParams & {
+  concurrency?: number
+  filePaths: string[]
+}
+
+/**
  * Parameters for uploading a file from a remote URL (download then upload).
  */
 type UploadRemoteFileParams = BaseParams & {
@@ -78,26 +100,9 @@ type UploadRemoteFileParams = BaseParams & {
  */
 export class Client {
   /** File extensions that are skipped during folder uploads (e.g. .cue, .eivu.yml, .log). */
-  static SKIPPABLE_EXTENSIONS: string[] = [
-    'ds_store',
-    'gitignore',
-    'gitkeep',
-    'cue',
-    METADATA_YML_SUFFIX.slice(1), // 'eivu.yml' NOT '.eivu.yml'
-    'm4p',
-    'log',
-    'md5',
-    'sfv',
-    'info',
-    'nfo',
-    'm3u',
-    'm3u8',
-    'com',
-    'db.lo',
-    'db.lo.1',
-  ]
+  static SKIPPABLE_EXTENSIONS: string[] = SKIPPABLE_EXTENSIONS
   /** Folder names that are skipped during recursive folder uploads. */
-  static SKIPPABLE_FOLDERS: string[] = ['.git', 'podcasts']
+  static SKIPPABLE_FOLDERS: string[] = SKIPPABLE_FOLDERS
   /** Logger instance for upload/update operations. */
   logger: Logger
 
@@ -137,6 +142,29 @@ export class Client {
   }: UploadFileParams): Promise<CloudFile> {
     const client = new Client()
     return client.uploadFile({metadataList, nsfw, pathToFile, secured})
+  }
+
+  /**
+   * Static helper to upload an explicit list of local files without instantiating a client.
+   * Unlike `uploadFolder`, the caller supplies the exact paths to upload (no globbing), so callers
+   * that have already curated a target list (e.g. `eivu process`) avoid double-uploading.
+   * @param params - Upload parameters
+   * @param params.concurrency - Optional number of concurrent uploads (default: 3)
+   * @param params.filePaths - Explicit list of local file paths to upload
+   * @param params.metadataList - Optional array of metadata key-value pairs to attach to files
+   * @param params.nsfw - Optional NSFW flag (default: false)
+   * @param params.secured - Optional secured flag (default: false)
+   * @returns Promise resolving to an array of status messages for each upload attempt
+   */
+  static async uploadFiles({
+    concurrency = 3,
+    filePaths,
+    metadataList = [],
+    nsfw = false,
+    secured = false,
+  }: UploadFilesParams): Promise<string[]> {
+    const client = new Client()
+    return client.uploadFiles({concurrency, filePaths, metadataList, nsfw, secured})
   }
 
   /**
@@ -300,6 +328,38 @@ export class Client {
   }
 
   /**
+   * Uploads an explicit, curated list of local files to cloud storage with bounded concurrency.
+   * Each path is uploaded via the same rate-limited path as `uploadFolder` (verify + success/failure
+   * CSV logging). Callers that have already resolved which files to upload (e.g. `eivu process`,
+   * which picks the compressed file OR the original per item) use this to avoid globbing and the
+   * resulting risk of uploading both an original and its processed copy.
+   * @param params - Upload parameters
+   * @param params.concurrency - Optional number of concurrent uploads (default: 3)
+   * @param params.filePaths - Explicit list of local file paths to upload
+   * @param params.metadataList - Optional array of metadata key-value pairs to attach to files
+   * @param params.nsfw - Optional NSFW flag (default: false)
+   * @param params.secured - Optional secured flag (default: false)
+   * @returns Promise resolving to an array of status messages for each upload attempt
+   */
+  async uploadFiles({
+    concurrency = 3,
+    filePaths,
+    metadataList = [],
+    nsfw = false,
+    secured = false,
+  }: UploadFilesParams): Promise<string[]> {
+    const limit = pLimit(concurrency)
+    await fsPromise.mkdir('logs', {recursive: true}) // ensure logs directory exists
+
+    const uploadPromises = filePaths.map((pathToFile) => {
+      this.logger.info(`queueing: ${pathToFile}`)
+      return limit(() => this.processRateLimitedUpload({metadataList, nsfw, pathToFile, secured}))
+    })
+
+    return Promise.all(uploadPromises)
+  }
+
+  /**
    * Uploads all files in a folder to cloud storage
    * Recursively processes files in the folder with configurable concurrency
    * Skips files with skippable extensions and files in skippable folders
@@ -321,21 +381,16 @@ export class Client {
     // Validate directory path for existence and security, and get trimmed path
     pathToFolder = validateDirectoryPath(pathToFolder)
 
+    // uploadFolder's job is discovery: glob the folder and apply the skip rules to find every
+    // uploadable file, then hand the explicit list to uploadFiles, which owns the actual upload loop.
     const directoryGlob = new Glob(`${pathToFolder}/**/*`, {nodir: true})
-    const limit = pLimit(concurrency)
-    const uploadPromises: Promise<string>[] = []
-    await fsPromise.mkdir('logs', {recursive: true}) // ensure logs directory exists
-
+    const filePaths: string[] = []
     for await (const pathToFile of directoryGlob) {
-      if (Client.SKIPPABLE_EXTENSIONS.some((ext) => pathToFile.toLowerCase().endsWith(`.${ext}`))) continue
-      if (Client.SKIPPABLE_FOLDERS.some((folder) => pathToFile.includes(`/${folder}/`))) continue
-
-      this.logger.info(`queueing: ${pathToFile}`)
-      const uploadPromise = limit(() => this.processRateLimitedUpload({metadataList, nsfw, pathToFile, secured}))
-      uploadPromises.push(uploadPromise)
+      if (isSkippableUploadPath(pathToFile)) continue
+      filePaths.push(pathToFile)
     }
 
-    return Promise.all(uploadPromises)
+    return this.uploadFiles({concurrency, filePaths, metadataList, nsfw, secured})
   }
 
   /**

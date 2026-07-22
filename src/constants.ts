@@ -164,6 +164,58 @@ export const COVERART_COMIC_PREFIX = `${COVERART_PREFIX}-forComic`
 export const METADATA_YML_SUFFIX = '.eivu.yml'
 
 /**
+ * Infix inserted before the extension by `@eivu/ts-comic-compress` when it
+ * produces a compressed archive (e.g. `Foo.cbz` → `Foo.eivu_compressed.cbz`).
+ * Single in-repo source of truth: used to detect already-compressed files and
+ * to compute a compressed output path without re-deriving the lib's naming.
+ */
+export const COMPRESSED_INFIX = '.eivu_compressed'
+
+/**
+ * File extensions skipped during folder uploads / processing (e.g. .cue, .eivu.yml, .log).
+ * Compared case-insensitively against the end of `.${ext}`.
+ */
+export const SKIPPABLE_EXTENSIONS: string[] = [
+  'ds_store',
+  'gitignore',
+  'gitkeep',
+  'cue',
+  METADATA_YML_SUFFIX.slice(1), // 'eivu.yml' NOT '.eivu.yml'
+  'm4p',
+  'log',
+  'md5',
+  'sfv',
+  'info',
+  'nfo',
+  'm3u',
+  'm3u8',
+  'com',
+  'db.lo',
+  'db.lo.1',
+]
+
+/**
+ * Exact file basenames skipped during folder uploads / processing — dotenv files and
+ * editor/VCS dotfiles that carry no media but could otherwise be treated as upload targets.
+ * Compared case-insensitively against the whole basename (not by extension). Keep in sync
+ * with the skip set in `gm:ai` ([src/commands/generate-metadata/ai.ts]).
+ */
+export const SKIPPABLE_FILENAMES: string[] = [
+  '.env',
+  '.env.development.local',
+  '.env.local',
+  '.env.production.local',
+  '.env.test.local',
+]
+
+/**
+ * Folder names skipped during recursive folder uploads / processing.
+ * `eivu_originals` holds pre-compression originals archived by `eivu process`,
+ * so a later plain `eivu upload <folder>` ignores them.
+ */
+export const SKIPPABLE_FOLDERS: string[] = ['.git', 'podcasts', 'eivu_originals']
+
+/**
  * Root directory for temporary files, normalized for cross-platform compatibility
  * Uses the OS-specific temp directory (e.g., /tmp on Linux, /var/folders on macOS, %TEMP% on Windows)
  * Resolves symlinks to ensure compatibility with temp file paths returned by the tmp library

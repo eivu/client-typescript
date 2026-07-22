@@ -58,6 +58,7 @@ const results = await generator.generate([
 |--------|------|---------|-------------|
 | `agent` | `'claude' \| 'gemini' \| 'openai'` | `'claude'` | Which AI provider to use. |
 | `overwrite` | `boolean` | `false` | If `false`, files that already have a `.eivu.yml` are skipped. |
+| `sync` | `boolean` | `false`¹ | For Claude, use blocking, streamed per-file Messages API calls instead of the async Batches API. Faster wall-clock; bills at full rate (no 50% batch discount). |
 | `apiKey` | `string` | — | API key for the chosen provider (e.g. Anthropic, OpenAI, Google). |
 | `model` | `string` | provider-specific | Model name (e.g. `claude-sonnet-4-20250514` for Claude). |
 | `maxTokens` | `number` | provider-specific | Max tokens per response. |
@@ -67,6 +68,8 @@ const results = await generator.generate([
 | `pollIntervalMs` | `number` | — | Polling interval for batch completion (Claude). |
 
 For Claude, if you don’t pass `skillContent`, the generator loads the skill from `skillPath` (defaults to a path under `src/ai/prompts/claude/`).
+
+¹ `sync` defaults to `false` at this layer (preserving the batch path for direct/library callers), but the `eivu process` and `eivu gm:ai` CLI commands default their `--sync` flag to `true`, so command-line runs are synchronous unless you pass `--no-sync`.
 
 ## Output
 

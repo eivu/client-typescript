@@ -57,6 +57,26 @@ export type GenerationResult = {
   yaml?: string
 }
 
+/**
+ * Aggregate outcome of one `MetadataGenerator.generate()` run. Counts come from
+ * the per-file `GenerationResult` statuses; token/web-search/cost totals are
+ * summed over every API call across ALL retry attempts (so cost reflects
+ * retries, not just the final successful attempt). Surfaced to the CLI via
+ * `formatGenerationSummary` and logged in full at end of run.
+ */
+export type GenerationSummary = {
+  elapsedMs: number
+  errored: number
+  runId: string
+  skipped: number
+  succeeded: number
+  tokensIn: number
+  tokensOut: number
+  total: number
+  totalCostUsd: number
+  webSearches: number
+}
+
 /** Progress payload for batch processing (counts and batch id). */
 export type BatchProgress = {
   canceledRequests: number
@@ -89,6 +109,14 @@ export type AgentOptions = {
   pollIntervalMs?: number
   skillContent?: string
   skillPath?: string
+  /**
+   * When true, ClaudeAgent uses blocking, streamed per-file Messages API calls
+   * instead of the async Batches API. Faster wall-clock (seconds vs. a queued
+   * batch), but bills at full rate — no 50% batch discount. Defaults to false
+   * (batch) inside ClaudeAgent so direct/library callers and the spike keep their
+   * current behavior; the `process` and `gm:ai` commands default their flag to true.
+   */
+  sync?: boolean
   /**
    * Sampling temperature (Anthropic default if omitted). Used by the spike's multi-sample
    * variant to draw varied scores from the same prompt; production code leaves this unset.
